@@ -42,6 +42,7 @@ var FrontFilter = (() => {
     hideLeftSidebarResources: false,
     // Keep the legacy storage key for the right sidebar toggle and older exports.
     hideRelatedPosts: false,
+    showBlockSubredditButton: false,
     limitInfiniteScroll: false,
     scrollLimit: 25,
     scrollMode: "fixed",
@@ -186,6 +187,25 @@ var FrontFilter = (() => {
       deduped.set(`${normalized.name}:${normalized.mode}`, normalized);
     }
     return Array.from(deduped.values());
+  }
+
+  // One-click blocks use ALL mode, the only mode that hides a subreddit's
+  // posts from feeds. An existing HOME entry for the same name is kept.
+  function addBlockedSubreddit(entries, name) {
+    const normalized = normalizeBlockedSubreddits(entries);
+    const subreddit = normalizeSubredditName(name);
+    if (!subreddit || subreddit.includes("*")
+      || normalized.some((entry) => entry.name === subreddit && entry.mode === "all")) {
+      return { entries: normalized, added: false };
+    }
+    return { entries: [...normalized, { name: subreddit, mode: "all" }], added: true };
+  }
+
+  function removeBlockedSubreddit(entries, name, mode = "all") {
+    const subreddit = normalizeSubredditName(name);
+    return normalizeBlockedSubreddits(entries).filter((entry) =>
+      entry.name !== subreddit || entry.mode !== mode
+    );
   }
 
   function normalizeAllowedSubreddits(entries = []) {
@@ -495,6 +515,8 @@ var FrontFilter = (() => {
     isSubredditAllowed,
     normalizeAllowedSubreddits,
     normalizeBlockedSubreddits,
+    addBlockedSubreddit,
+    removeBlockedSubreddit,
     normalizeSubredditName,
     normalizeTitleKeywords,
     normalizeBlockedFlairs,

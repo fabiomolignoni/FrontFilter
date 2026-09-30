@@ -7,7 +7,8 @@ elements, filters posts, and replaces endless scrolling with a finite feed.
 ## Features
 
 - Block Home, Popular, Explore, News, or every subreddit front page.
-- Block exact or wildcard subreddit names. `HOME` rules cover front and sort
+- Block exact or wildcard subreddit names, optionally with a one-click Block
+  button on feed posts. `HOME` rules cover front and sort
   pages; `ALL` rules also cover posts and other pages in that subreddit.
 - Allow exact subreddit exceptions to override subreddit rules.
 - Filter posts and comments by keyword or phrase, and posts by flair.

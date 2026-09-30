@@ -36,6 +36,11 @@ const feedLimiter = FrontFilter.createFeedLimiter({
     || isFlairBlocked(flair),
 });
 
+const quickBlock = FrontFilter.createQuickBlock({
+  getSettings: () => config,
+  isAllowed: (name) => filterIndex.allowedSubreddits.has(name),
+});
+
 const HIDDEN_STYLE_ID = "frontfilter-hidden-style";
 const HIDDEN_ELEMENT_TYPES = Object.freeze({
   post: Object.freeze({
@@ -658,6 +663,7 @@ function needsDynamicContentProcessing() {
     || filterIndex.blockedFrontSubreddits.length > 0
     || config.hideComments
     || config.disableAutoplay
+    || config.showBlockSubredditButton
     || hasShadowSocialSignals()
     || MAIN_PAGE_SETTING_KEYS.some((setting) => config[setting]);
 }
@@ -809,6 +815,8 @@ function processFilteredContent({ outsideComments = true } = {}) {
   } else if (commentFilteringActive) {
     clearBlockedElements("comment");
   }
+
+  if (outsideComments) quickBlock.update();
 
   if (config.hideComments || commentActionsHidden) {
     syncShadowCommentActions();

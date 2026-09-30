@@ -233,6 +233,7 @@ test("rejects malformed stored values instead of throwing or enabling flags", ()
       hideLeftSidebarCommunities: false,
       hideLeftSidebarResources: false,
       hideRelatedPosts: false,
+      showBlockSubredditButton: false,
       limitInfiniteScroll: false,
       scrollLimit: 25,
       scrollMode: "fixed",
@@ -324,6 +325,7 @@ test("settings store preserves changes received during its initial load", async 
       hideLeftSidebarCommunities: false,
       hideLeftSidebarResources: false,
       hideRelatedPosts: false,
+      showBlockSubredditButton: false,
       limitInfiniteScroll: false,
       scrollLimit: 25,
       scrollMode: "fixed",
@@ -462,6 +464,25 @@ test("validates and coerces blocked flairs", () => {
   assert.deepEqual(plain(FrontFilter.getInvalidSettingKeys({ blockedFlairs: "Meme" })), ["blockedFlairs"]);
   const settings = FrontFilter.coerceSettings({ blockedFlairs: [" Meme ", "meme", 7] });
   assert.deepEqual(plain(settings.blockedFlairs), ["Meme"]);
+});
+
+test("one-click blocks add an ALL rule and undo removes only that rule", () => {
+  const home = [{ name: "news", mode: "home" }];
+  const blocked = FrontFilter.addBlockedSubreddit(home, "r/News");
+  assert.equal(blocked.added, true);
+  assert.deepEqual(plain(blocked.entries), [
+    { name: "news", mode: "home" },
+    { name: "news", mode: "all" },
+  ]);
+  const again = FrontFilter.addBlockedSubreddit(blocked.entries, "news");
+  assert.equal(again.added, false);
+  assert.equal(again.entries.length, 2);
+  assert.equal(FrontFilter.addBlockedSubreddit([], "*news*").added, false);
+  assert.equal(FrontFilter.addBlockedSubreddit([], "").added, false);
+  assert.deepEqual(
+    plain(FrontFilter.removeBlockedSubreddit(blocked.entries, "NEWS")),
+    [{ name: "news", mode: "home" }],
+  );
 });
 
 test("accepts only HTTP(S) Reddit URLs", () => {

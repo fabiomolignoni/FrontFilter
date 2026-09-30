@@ -36,7 +36,8 @@ temporarily.
 
 ### 1. Settings and filter rules
 
-FrontFilter stores the choices you make in its settings interface, including:
+FrontFilter stores the choices you make in its settings interface, or with the
+optional Block button it can add to Reddit posts, including:
 
 - blocked subreddit names, wildcard rules, block modes, and allowed-subreddit
   exceptions;
@@ -147,6 +148,8 @@ disclosed user-facing functionality. In particular, it is used to:
 - allow user-selected exceptions;
 - hide posts from selected communities or containing selected terms;
 - hide or modify selected Reddit interface and media elements;
+- when enabled, add a Block button to feed posts that adds the post's
+  subreddit to the user's block rules;
 - enforce a finite feed window and request the next finite group when chosen;
 - display and restore blocked destinations; and
 - save, import, export, and apply the user's preferences.

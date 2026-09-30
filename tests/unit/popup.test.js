@@ -165,6 +165,7 @@ async function loadPopup({
     "hide-left-sidebar-communities",
     "hide-left-sidebar-resources",
     "hide-right-sidebar",
+    "show-block-subreddit-button",
     ...["comments", "navbar", "left-sidebar", "social"].flatMap((group) => [
       `${group}-toggle`, `${group}-options`, `${group}-summary`,
     ]),
@@ -894,6 +895,7 @@ test("maps every checkbox to the matching storage setting", async () => {
     "hide-left-sidebar-communities": "hideLeftSidebarCommunities",
     "hide-left-sidebar-resources": "hideLeftSidebarResources",
     "hide-right-sidebar": "hideRelatedPosts",
+    "show-block-subreddit-button": "showBlockSubredditButton",
     "limit-infinite-scroll": "limitInfiniteScroll",
   };
   const storedSettings = Object.fromEntries(
