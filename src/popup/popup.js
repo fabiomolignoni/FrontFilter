@@ -120,6 +120,48 @@ document.addEventListener("DOMContentLoaded", () => {
     "hideLeftSidebarCommunities",
     "hideLeftSidebarResources",
   ];
+  const settingGroups = [
+    {
+      id: "comments",
+      parentKey: "hideComments",
+      childKeys: ["hideCommentReplies"],
+      describe: () => "Replies hidden",
+    },
+    {
+      id: "navbar",
+      parentKey: "hideNavbar",
+      childKeys: navbarSectionKeys,
+      describe: (count, total) => `${count} of ${total} sections hidden`,
+    },
+    {
+      id: "left-sidebar",
+      parentKey: "hideLeftSidebar",
+      childKeys: leftSidebarSectionKeys,
+      describe: (count, total) => `${count} of ${total} sections hidden`,
+    },
+  ].map((group) => ({
+    ...group,
+    toggle: document.getElementById(`${group.id}-toggle`),
+    options: document.getElementById(`${group.id}-options`),
+    summary: document.getElementById(`${group.id}-summary`),
+  }));
+
+  // Sub-options start collapsed; the summary keeps hidden choices visible.
+  for (const { toggle, options } of settingGroups) {
+    toggle.addEventListener("click", () => {
+      const expanded = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", String(expanded));
+      options.hidden = !expanded;
+    });
+  }
+
+  function updateGroupSummaries() {
+    for (const { parentKey, childKeys, describe, summary } of settingGroups) {
+      const count = childKeys.filter((key) => checkboxes[key].checked).length;
+      summary.hidden = checkboxes[parentKey].checked || count === 0;
+      summary.textContent = summary.hidden ? "" : describe(count, childKeys.length);
+    }
+  }
 
   function setControlsDisabled(disabled) {
     controlsDisabled = disabled;
@@ -159,6 +201,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateCommentControls();
     updateNavbarControls();
     updateLeftSidebarControls();
+    updateGroupSummaries();
   }
 
   function updateScrollControls() {
@@ -713,6 +756,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updateCommentControls();
       updateNavbarControls();
       updateLeftSidebarControls();
+      updateGroupSummaries();
       scheduleAutoSave(changedKeys, true);
     });
   });

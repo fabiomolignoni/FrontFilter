@@ -130,12 +130,32 @@ body.standalone { width: auto; max-width: 100vw; }
 
 /* Toggle switches */
 .check-grid { display: grid; grid-template-columns: 1fr; gap: 2px; }
-.dependent-settings {
-  display: grid; position: relative;
+.setting-group { display: grid; }
+/* Clicking the parent row expands its sub-options; only the switch toggles it. */
+.checkbox-label.group-header { padding: 0 var(--sp-2) 0 0; cursor: default; }
+.group-toggle {
+  display: flex; align-items: center; gap: var(--sp-2);
+  flex: 1; align-self: stretch; min-width: 0; padding: var(--sp-2);
+  border: 0; border-radius: var(--radius-sm); background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
 }
-.dependent-settings::before {
+.group-header .group-toggle > span { order: 0; flex: 1; }
+/* Line up plain rows with group titles: chevron width plus its gap. */
+.check-grid:has(.setting-group) > .checkbox-label {
+  padding-left: calc(var(--sp-2) + 14px + var(--sp-2));
+}
+.group-toggle svg {
+  width: 14px; height: 14px; flex-shrink: 0; fill: none;
+  stroke: var(--text-secondary); stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+  transition: transform 0.15s;
+}
+.group-toggle:hover svg { stroke: var(--text-primary); }
+.group-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+.sub-options { display: grid; position: relative; }
+.sub-options::before {
   content: ""; position: absolute;
-  left: 13px; top: 30px; bottom: 18px; width: 3px;
+  left: 13px; top: -4px; bottom: 18px; width: 3px;
   border-radius: 3px; background: var(--text-muted); opacity: 0.7;
 }
 .checkbox-label.sub-option {
