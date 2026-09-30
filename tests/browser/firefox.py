@@ -762,6 +762,40 @@ chrome.storage.local.set({
             assert js("return loadCalls") == 3
             assert js("return !document.querySelector('.frontfilter-feed-next')")
             print("PASS bounded loading when all posts are filtered", flush=True)
+
+            # Suggested posts go from the Home feed whatever the page language;
+            # an empty recommendation source means a joined community.
+            configure(limitInfiniteScroll=False, blockedSubreddits=[], hideSuggestedPosts=True)
+            js("history.pushState({}, '', '/'); window.scrollTo(0,0)")
+            js("resetFeed([post('joined'), post('suggested','safe',{recommended:'user_to_post'}), post('unranked','safe',{recommended:''})])")
+            expect(["joined", "unranked"])
+            wait.until(lambda _: js("return adVisibility().feed") == {
+                "t3_joined": [True, True], "t3_suggested": [False, False], "t3_unranked": [True, True],
+            })
+            js("history.pushState({}, '', '/r/popular/')")
+            js("resetFeed([post('joined'), post('suggested','safe',{recommended:'popular'})])")
+            expect(["joined", "suggested"])
+            print("PASS suggested posts hidden only in the Home feed", flush=True)
+
+            # Native infinite scroll would otherwise fetch hidden pages forever.
+            pause_controls = "document.querySelector('.frontfilter-feed-paused')"
+            js("history.pushState({}, '', '/'); window.scrollTo(0,0)")
+            js("resetFeed([post('j1')], Array.from({length:8},(_,i)=>({rows:[post('s'+i,'safe',{recommended:'geo_popular'})],next:String(i+2),delay:150})), true); enableNativeLoading()")
+            wait.until(lambda _: js(f"return !!{pause_controls}"))
+            paused_calls = js("return loadCalls")
+            assert 3 <= paused_calls <= 4, paused_calls
+            driver.execute_async_script("setTimeout(arguments[0], 800)")
+            assert js("return loadCalls") == paused_calls
+            assert js("return shown()") == ["t3_j1"]
+            js(f"{pause_controls}.querySelector('button').click()")
+            wait.until(lambda _: js("return loadCalls") > paused_calls)
+            wait.until(lambda _: js(f"return !!{pause_controls}"))
+            # Revealing hidden posts resumes loading on its own.
+            configure(hideSuggestedPosts=False)
+            wait.until(lambda _: js(f"return !{pause_controls}"))
+            js("disableNativeLoading(); history.pushState({}, '', '/r/test/')")
+            configure(limitInfiniteScroll=True, blockedSubreddits=[{"name": "blocked", "mode": "all"}])
+            print("PASS native infinite scroll pauses after fully filtered pages", flush=True)
             configure(scrollLimit=3, scrollMode="button")
 
             # Verify the actual settings UI as well as the unit-test mock.

@@ -248,6 +248,14 @@ article { padding: 10px; }
       card.setAttribute("permalink", `/r/${row.subreddit}/comments/${row.id}/title`);
       card.setAttribute("post-title", row.title || `Post ${row.id}`);
       if (row.ad) card.setAttribute("is-promoted", "");
+      // Reddit localizes the label, never the attribute.
+      if (row.recommended !== undefined) {
+        card.setAttribute("recommendation-source", row.recommended);
+        const label = document.createElement("span");
+        label.slot = "credit-bar";
+        label.textContent = "Perché hai mostrato interesse per un post simile";
+        card.append(label);
+      }
       const title = document.createElement("a");
       title.href = card.getAttribute("permalink");
       title.slot = "title";
@@ -295,6 +303,32 @@ article { padding: 10px; }
       return this.inflight;
     }
   });
+  // Emulates shreddit-feed's load-after controller, which loads its loader
+  // whenever an IntersectionObserver finds it within two screens of view.
+  let stopNativeLoading = null;
+  window.enableNativeLoading = () => {
+    const observer = new IntersectionObserver((entries) => {
+      for (const { isIntersecting, target } of entries) {
+        if (isIntersecting && !target.inflight) target.loadContent();
+      }
+    }, { rootMargin: `${2 * innerHeight}px` });
+    const observeLoaders = () => {
+      observer.disconnect();
+      document.querySelectorAll('main shreddit-feed > faceplate-partial[slot="load-after"]')
+        .forEach((loader) => observer.observe(loader));
+    };
+    const mutations = new MutationObserver(observeLoaders);
+    mutations.observe(document.querySelector("main"), { childList: true, subtree: true });
+    observeLoaders();
+    stopNativeLoading = () => {
+      observer.disconnect();
+      mutations.disconnect();
+    };
+  };
+  window.disableNativeLoading = () => {
+    stopNativeLoading?.();
+    stopNativeLoading = null;
+  };
   window.resetFeed = (rows, nextPlans = [], more = false) => {
     plans = nextPlans;
     loadCalls = 0;

@@ -210,6 +210,7 @@ test("rejects malformed stored values instead of throwing or enabling flags", ()
       hideCommentReplies: false,
       disableAutoplay: false,
       hideSuggestedCommunities: false,
+      hideSuggestedPosts: false,
       hideAds: false,
       hideSocialSignals: false,
       hideVotes: false,
@@ -299,6 +300,7 @@ test("settings store preserves changes received during its initial load", async 
       hideCommentReplies: false,
       disableAutoplay: false,
       hideSuggestedCommunities: false,
+      hideSuggestedPosts: false,
       hideAds: false,
       hideSocialSignals: false,
       hideVotes: false,
@@ -620,5 +622,17 @@ test("limits listing routes without treating comments, wiki or settings as feeds
     "/message/inbox", "/r/firefox/top/extra",
   ]) {
     assert.equal(FrontFilter.isFeedPath(path), false, path);
+  }
+});
+
+test("recognizes only the Home feed and its sort views as the Home feed", () => {
+  for (const path of ["/", "/best", "/hot/", "/NEW", "/top", "/rising"]) {
+    assert.equal(FrontFilter.isHomeFeedPath(path), true, path);
+  }
+  for (const path of [
+    "/r/popular/", "/r/all/", "/r/firefox/", "/explore/", "/news/",
+    "/r/firefox/comments/abc/post", "/user/alice/", "/best/extra",
+  ]) {
+    assert.equal(FrontFilter.isHomeFeedPath(path), false, path);
   }
 });

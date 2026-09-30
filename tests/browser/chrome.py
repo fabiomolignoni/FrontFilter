@@ -195,6 +195,19 @@ def main():
                 wait.until(lambda _: driver.execute_script("return socialVisibility()") == signals_shown)
                 print("PASS Chrome votes, karma, awards, avatars and usernames visibility", flush=True)
 
+                configure({"hideSuggestedPosts": True})
+                driver.execute_script("history.pushState({}, '', '/'); resetFeed([post('joined'), post('suggested','safe',{recommended:'user_to_post'}), post('unranked','safe',{recommended:''})])")
+                wait.until(lambda _: driver.execute_script("return adVisibility().feed") == {
+                    "t3_joined": [True, True], "t3_suggested": [False, False], "t3_unranked": [True, True],
+                })
+                driver.execute_script("history.pushState({}, '', '/r/popular/'); resetFeed([post('suggested','safe',{recommended:'popular'})])")
+                wait.until(lambda _: driver.execute_script("return adVisibility().feed") == {
+                    "t3_suggested": [True, True],
+                })
+                driver.execute_script("history.pushState({}, '', '/r/test/')")
+                configure({"hideSuggestedPosts": False})
+                print("PASS Chrome suggested posts hidden only in the Home feed", flush=True)
+
                 all_navbar_sections = {
                     "hideNavbarMenu": True,
                     "hideNavbarSearch": True,
