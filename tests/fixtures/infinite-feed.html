@@ -248,6 +248,12 @@ article { padding: 10px; }
       card.setAttribute("permalink", `/r/${row.subreddit}/comments/${row.id}/title`);
       card.setAttribute("post-title", row.title || `Post ${row.id}`);
       if (row.ad) card.setAttribute("is-promoted", "");
+      if (row.flair) {
+        const flair = document.createElement("shreddit-post-flair");
+        flair.slot = "post-flair";
+        flair.textContent = row.flair;
+        card.append(flair);
+      }
       // Reddit localizes the label, never the attribute.
       if (row.recommended !== undefined) {
         card.setAttribute("recommendation-source", row.recommended);
@@ -358,6 +364,33 @@ article { padding: 10px; }
     first.append(children);
     const second = createComment("comment-top-b", 0, "Second top-level comment");
     document.querySelector("#comments").replaceChildren(first, second);
+  };
+  // Comments as Reddit renders them: body in the "comment" slot, replies nested.
+  window.resetFilterComments = () => {
+    const createComment = (id, author, text, replies = []) => {
+      const comment = document.createElement("shreddit-comment");
+      comment.id = id;
+      comment.setAttribute("author", author);
+      const body = document.createElement("div");
+      body.slot = "comment";
+      body.textContent = text;
+      const children = document.createElement("div");
+      children.slot = "children";
+      children.append(...replies);
+      comment.append(body, children);
+      return comment;
+    };
+    document.querySelector("#comments").replaceChildren(
+      createComment("comment-photo", "alice", "Nice photo", [
+        createComment("comment-thanks", "bob", "Thanks!"),
+      ]),
+      createComment("comment-spam", "Spammer", "Buy now", [
+        createComment("comment-spam-reply", "alice", "No thanks"),
+      ]),
+      createComment("comment-politics", "carol", "Did you see the TRUMP rally?", [
+        createComment("comment-politics-reply", "dave", "Yes"),
+      ]),
+    );
   };
   window.configure = (settings) => window.dispatchEvent(new CustomEvent("frontfilter-test-settings", {
     detail: JSON.stringify(settings),

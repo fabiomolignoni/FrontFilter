@@ -90,14 +90,8 @@ class FakeElement {
     };
     visit(this);
 
-    if (selector === ".blocked-item") {
-      return descendants.filter((element) => element.className === "blocked-item");
-    }
-    if (selector === ".allowed-item") {
-      return descendants.filter((element) => element.className === "allowed-item");
-    }
-    if (selector === ".keyword-item") {
-      return descendants.filter((element) => element.className === "keyword-item");
+    if (/^\.[\w-]+$/.test(selector)) {
+      return descendants.filter((element) => element.className === selector.slice(1));
     }
     if (selector === "input") {
       return descendants.filter((element) => element.tagName === "INPUT");
@@ -132,6 +126,9 @@ async function loadPopup({
     "title-keyword-count",
     "title-keyword-list",
     "add-title-keyword",
+    "blocked-flair-count",
+    "blocked-flair-list",
+    "add-blocked-flair",
     "save-indicator",
     "toast",
     "export-config",
@@ -485,6 +482,38 @@ test("renders, edits and removes exact subreddit exceptions", async () => {
     JSON.parse(JSON.stringify(writes.at(-1).settings.allowedSubreddits)),
     ["italypersonalfinance", "zeta"],
   );
+});
+
+test("edits blocked flairs with normalization and a live count", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedFlairs: ["Meme", "meme"] },
+  });
+  const items = () => elements["blocked-flair-list"].querySelectorAll(".flair-item");
+  assert.equal(items().length, 1);
+  assert.equal(elements["blocked-flair-count"].textContent, "1 flair");
+
+  elements["add-blocked-flair"].click();
+  const input = items()[0].querySelector("input");
+  assert.equal(input.focused, true);
+  input.value = "  *Politic*  ";
+  input.dispatch("input");
+  input.dispatch("blur");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(input.value, "*Politic*");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(writes.at(-1).settings.blockedFlairs)),
+    ["*Politic*", "Meme"],
+  );
+  assert.equal(elements["blocked-flair-count"].textContent, "2 flairs");
+
+  items().find((item) => item.querySelector("input").value === "Meme").children[1].click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(writes.at(-1).settings.blockedFlairs)),
+    ["*Politic*"],
+  );
+  assert.equal(elements["blocked-flair-count"].textContent, "1 flair");
 });
 
 test("renders, edits and removes case-insensitive post keywords", async () => {

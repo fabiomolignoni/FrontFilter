@@ -280,18 +280,37 @@
 
           <div class="card keyword-list">
             <div class="card-header">
-              <h2 class="card-title">Post keywords</h2>
+              <h2 class="card-title">Keywords</h2>
               <span id="title-keyword-count" class="count"></span>
             </div>
             <div class="card-body">
-              <p class="filter-help">Hide posts when their title or text
-                preview contains one of these keywords. Matching is
-                case-insensitive.</p>
+              <p class="filter-help">Hide posts and comments when their title,
+                text preview or comment text contains one of these keywords.
+                Matching is case-insensitive. Replies to a hidden comment are
+                hidden too.</p>
               <div class="add-row">
                 <button id="add-title-keyword" class="btn btn-primary">+ Add
                   keyword</button>
               </div>
               <div id="title-keyword-list"></div>
+            </div>
+          </div>
+
+          <div class="card flair-list">
+            <div class="card-header">
+              <h2 class="card-title">Post flairs</h2>
+              <span id="blocked-flair-count" class="count"></span>
+            </div>
+            <div class="card-body">
+              <p class="filter-help">Hide posts with these flairs, such as
+                <strong>Meme</strong>. Matching ignores case; use
+                <strong>*</strong> as a wildcard, as in
+                <strong>*politic*</strong>.</p>
+              <div class="add-row">
+                <button id="add-blocked-flair" class="btn btn-primary">+ Add
+                  flair</button>
+              </div>
+              <div id="blocked-flair-list"></div>
             </div>
           </div>
 

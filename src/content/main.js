@@ -15,6 +15,11 @@ let lastCheckedUrl = "";
 let observer = null;
 let processingScheduled = false;
 let postFilteringActive = false;
+let commentFilteringActive = false;
+// Comment text is read and matched once per comment and settings version;
+// the map records the version each comment was last marked for.
+const commentFilterResults = new WeakMap();
+let commentFilterVersion = 0;
 let communityFilteringActive = false;
 let commentActionsHidden = false;
 let videoAutoplayDisabled = false;
@@ -23,10 +28,11 @@ let shadowSocialSignalsHidden = false;
 let observerOptionsSignature = "";
 const feedLimiter = FrontFilter.createFeedLimiter({
   getSettings: () => config,
-  isBlocked: ({ subreddit, title, bodyTexts, recommended }) =>
+  isBlocked: ({ subreddit, title, bodyTexts, recommended, flair }) =>
     isSubredditNameBlocked(subreddit)
     || containsBlockedPostText(title, bodyTexts)
-    || (recommended && areSuggestedPostsHidden()),
+    || (recommended && areSuggestedPostsHidden())
+    || isFlairBlocked(flair),
 });
 
 const HIDDEN_STYLE_ID = "frontfilter-hidden-style";
@@ -39,10 +45,21 @@ const HIDDEN_ELEMENT_TYPES = Object.freeze({
     datasetKey: "frontfilterCommunityHidden",
     selector: '[data-frontfilter-community-hidden="true"]',
   }),
+  comment: Object.freeze({
+    datasetKey: "frontfilterCommentHidden",
+    selector: '[data-frontfilter-comment-hidden="true"]',
+  }),
 });
-const HIDDEN_STYLE_TEXT = Object.values(HIDDEN_ELEMENT_TYPES)
-  .map(({ selector }) => selector)
-  .join(", ") + " { display: none !important; }";
+// Posts hidden by page filters also take their article wrapper and trailing
+// feed divider. Those selectors get rules of their own, so :has() support
+// cannot affect the base rule.
+const HIDDEN_POST_SELECTOR = HIDDEN_ELEMENT_TYPES.post.selector;
+const HIDDEN_POST_ARTICLE_SELECTOR = `article:has(> shreddit-post${HIDDEN_POST_SELECTOR})`;
+const HIDDEN_STYLE_TEXT = [
+  Object.values(HIDDEN_ELEMENT_TYPES).map(({ selector }) => selector).join(", "),
+  HIDDEN_POST_ARTICLE_SELECTOR,
+  `shreddit-feed :is(${HIDDEN_POST_SELECTOR}, ${HIDDEN_POST_ARTICLE_SELECTOR}) + hr`,
+].map((selector) => `${selector} { display: none !important; }`).join(" ");
 
 const POST_ROOT_SELECTORS = [
   '[data-testid="post-container"]',
@@ -70,6 +87,10 @@ const COMMENT_LAYOUT_SELECTOR = [
   ".Comment",
   ".comment",
 ].join(", ");
+// Comment permalinks also contain /comments/ and comment pages hold one per
+// comment: exclude them in the selector engine instead of parsing each URL.
+const POST_LINK_OUTSIDE_COMMENTS_SELECTOR =
+  `${POST_PERMALINK_SELECTOR}:not(:is(${COMMENT_LAYOUT_SELECTOR}) *)`;
 const COMMENT_ACTION_SELECTOR = [
   '[data-action-bar-action="comments"]',
   '[data-post-click-location="comments-button"]',
@@ -97,6 +118,9 @@ const COMMENT_REPLY_SELECTOR = [
   ".comment .comment",
   ".comment > .child",
 ].join(", ");
+// Modern comments keep their text in the "comment" slot; Old Reddit comments
+// in their own entry, not in their replies.
+const COMMENT_FILTER_SELECTOR = "shreddit-comment, .thing.comment";
 const COMMENT_ACTION_STYLE_ID = "frontfilter-comment-actions-style";
 const COMMENT_ACTION_STYLE_TEXT = `${COMMENT_ACTION_SELECTOR} { display: none !important; }`;
 const SUGGESTED_COMMUNITIES_SELECTOR = "in-feed-community-recommendations";
@@ -352,6 +376,7 @@ const POPULAR_COMMUNITIES_SELECTOR = [
 
 function createFilterIndex(settings) {
   return {
+    blockedFlairs: settings.blockedFlairs,
     allowedSubreddits: new Set(settings.allowedSubreddits),
     blockedAllSubreddits: settings.blockedSubreddits.filter(
       (entry) => entry.mode === "all",
@@ -381,6 +406,7 @@ function syncHomeFeedMarker() {
 function setConfig(settings) {
   config = settings;
   filterIndex = createFilterIndex(settings);
+  commentFilterVersion += 1;
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -522,6 +548,22 @@ function containsBlockedPostText(title, bodyTexts = []) {
   });
 }
 
+function isFlairBlocked(flair) {
+  return Boolean(flair) && filterIndex.blockedFlairs.some((pattern) =>
+    FrontFilter.matchesFlairPattern(pattern, flair)
+  );
+}
+
+function getPostFlair(postElement) {
+  for (const flairElement of postElement.querySelectorAll("shreddit-post-flair, .linkflairlabel")) {
+    const nestedPost = flairElement.closest?.(POST_ROOT_SELECTOR);
+    if (nestedPost && nestedPost !== postElement) continue;
+    const flair = FrontFilter.normalizeFlairText(flairElement.textContent);
+    if (flair) return flair;
+  }
+  return "";
+}
+
 function isPostTextBlocked(postElement) {
   return containsBlockedPostText(getPostTitle(postElement), getPostBodyTexts(postElement));
 }
@@ -568,7 +610,7 @@ function collectPostCandidates() {
     candidates.set(post, getPostSubredditNames(post));
   });
 
-  document.querySelectorAll(POST_PERMALINK_SELECTOR).forEach((link) => {
+  document.querySelectorAll(POST_LINK_OUTSIDE_COMMENTS_SELECTOR).forEach((link) => {
     const permalink = getPostPermalink(link);
     if (!permalink) return;
 
@@ -604,6 +646,7 @@ async function filterPosts() {
 function needsDynamicContentProcessing() {
   return filterIndex.blockedAllSubreddits.length > 0
     || filterIndex.blockedKeywords.length > 0
+    || filterIndex.blockedFlairs.length > 0
     || config.blockSubHome
     || filterIndex.blockedFrontSubreddits.length > 0
     || config.hideComments
@@ -725,7 +768,11 @@ function scheduleContentProcessing() {
 
 function processFilteredContent() {
   const shouldFilterPosts = config.blockedTitleKeywords.length > 0
+    || config.blockedFlairs.length > 0
     || config.blockedSubreddits.some((entry) => entry.mode === "all");
+  // Comments already hidden by the comments switch need no text matching.
+  const shouldFilterComments = config.blockedTitleKeywords.length > 0
+    && !config.hideComments;
   const shouldFilterCommunities = config.blockSubHome
     || config.blockedSubreddits.length > 0;
 
@@ -739,6 +786,12 @@ function processFilteredContent() {
     processPopularCommunities();
   } else if (communityFilteringActive) {
     clearBlockedElements("community");
+  }
+
+  if (shouldFilterComments) {
+    processComments();
+  } else if (commentFilteringActive) {
+    clearBlockedElements("comment");
   }
 
   if (config.hideComments || commentActionsHidden) {
@@ -758,6 +811,7 @@ function processFilteredContent() {
 
   postFilteringActive = shouldFilterPosts;
   communityFilteringActive = shouldFilterCommunities;
+  commentFilteringActive = shouldFilterComments;
   commentActionsHidden = config.hideComments;
   videoAutoplayDisabled = config.disableAutoplay;
   mainPageLinksHidden = shouldHideMainPageLinks;
@@ -922,14 +976,38 @@ function processPostElements() {
     "post",
     collectPostCandidates(),
     (subredditNames, element) =>
-      containsBlockedSubreddit(subredditNames) || isPostTextBlocked(element),
+      containsBlockedSubreddit(subredditNames)
+      || isPostTextBlocked(element)
+      || (filterIndex.blockedFlairs.length > 0 && isFlairBlocked(getPostFlair(element))),
   );
+}
+
+function getCommentText(comment) {
+  const body = comment.localName === "shreddit-comment"
+    ? comment.querySelector(':scope > [slot="comment"]')
+    : comment.querySelector(":scope > .entry .usertext-body");
+  return body?.textContent || "";
+}
+
+// Runs on every processed mutation, so each comment's text is read and
+// matched once per settings version; later passes are a WeakMap lookup.
+function processComments() {
+  for (const comment of document.querySelectorAll(COMMENT_FILTER_SELECTOR)) {
+    // Already matched and marked for the current settings.
+    if (commentFilterResults.get(comment) === commentFilterVersion) continue;
+    const text = getCommentText(comment);
+    // A comment inserted before its body is checked again on a later pass.
+    if (!text) continue;
+    setElementBlocked(comment, containsBlockedPostText(text), "comment");
+    commentFilterResults.set(comment, commentFilterVersion);
+  }
 }
 
 function setElementBlocked(element, blocked, type) {
   const { datasetKey } = HIDDEN_ELEMENT_TYPES[type];
+  // Rewriting an unchanged attribute would still invalidate styles.
   if (blocked) {
-    element.dataset[datasetKey] = "true";
+    if (element.dataset[datasetKey] !== "true") element.dataset[datasetKey] = "true";
   } else if (element.dataset[datasetKey] === "true") {
     delete element.dataset[datasetKey];
   }

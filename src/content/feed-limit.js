@@ -104,7 +104,12 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     }
     // An empty value means Reddit did not recommend the post.
     const recommended = Boolean(post.getAttribute("recommendation-source"));
-    return { id, subreddit, title, bodyTexts: Array.from(bodyTexts), ad, recommended };
+    const flair = FrontFilter.normalizeFlairText(
+      post.querySelector("shreddit-post-flair")?.textContent,
+    );
+    return {
+      id, subreddit, title, bodyTexts: Array.from(bodyTexts), ad, recommended, flair,
+    };
   }
 
   function collect(feed) {
@@ -472,13 +477,17 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     const current = session;
     const rows = collect(feed);
     const records = new Map();
-    for (const { id, subreddit, title, bodyTexts, ad, recommended } of rows) {
+    for (const {
+      id, subreddit, title, bodyTexts, ad, recommended, flair,
+    } of rows) {
       // A partially hydrated card may precede complete cards. Wait for its
       // identity before admitting later results, preserving feed order.
       if (!ad && (!id || !subreddit)) break;
       // A promoted copy must not override the organic card with the same ID.
       if (id && (!records.has(id) || !ad)) {
-        records.set(id, { id, subreddit, title, bodyTexts, ad, recommended });
+        records.set(id, {
+          id, subreddit, title, bodyTexts, ad, recommended, flair,
+        });
       }
     }
     const visibleBefore = current.window.snapshot().allowed.size;

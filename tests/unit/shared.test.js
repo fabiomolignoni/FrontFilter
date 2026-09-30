@@ -201,6 +201,7 @@ test("rejects malformed stored values instead of throwing or enabling flags", ()
       blockedSubreddits: [],
       allowedSubreddits: [],
       blockedTitleKeywords: [],
+      blockedFlairs: [],
       blockHomepage: false,
       blockPopular: false,
       blockExplore: false,
@@ -291,6 +292,7 @@ test("settings store preserves changes received during its initial load", async 
       blockedSubreddits: [],
       allowedSubreddits: [],
       blockedTitleKeywords: [],
+      blockedFlairs: [],
       blockHomepage: false,
       blockPopular: true,
       blockExplore: false,
@@ -437,6 +439,29 @@ test("hiding votes and user info implies every signal, but signals remain indepe
   for (const key of signalKeys.filter((key) => key !== "hideKarma")) {
     assert.equal(karmaOnly[key], false);
   }
+});
+
+// Values created in the VM context have their own Array prototype.
+const plain = (value) => JSON.parse(JSON.stringify(value));
+
+test("normalizes blocked flairs and matches them case-insensitively with wildcards", () => {
+  assert.deepEqual(
+    plain(FrontFilter.normalizeBlockedFlairs([" Meme ", "meme", "*Politic*", "", "x".repeat(101)])),
+    ["Meme", "*Politic*"],
+  );
+  assert.equal(FrontFilter.matchesFlairPattern("meme", "  MEME "), true);
+  assert.equal(FrontFilter.matchesFlairPattern("meme", "Memes"), false);
+  assert.equal(FrontFilter.matchesFlairPattern("*politic*", "US Politics"), true);
+  assert.equal(FrontFilter.matchesFlairPattern("Question (Serious)", "question  (serious)"), true);
+  assert.equal(FrontFilter.matchesFlairPattern("*", ""), false);
+});
+
+test("validates and coerces blocked flairs", () => {
+  assert.deepEqual(plain(FrontFilter.getInvalidSettingKeys({ blockedFlairs: ["Meme"] })), []);
+  assert.deepEqual(plain(FrontFilter.getInvalidSettingKeys({ blockedFlairs: [3] })), ["blockedFlairs"]);
+  assert.deepEqual(plain(FrontFilter.getInvalidSettingKeys({ blockedFlairs: "Meme" })), ["blockedFlairs"]);
+  const settings = FrontFilter.coerceSettings({ blockedFlairs: [" Meme ", "meme", 7] });
+  assert.deepEqual(plain(settings.blockedFlairs), ["Meme"]);
 });
 
 test("accepts only HTTP(S) Reddit URLs", () => {
