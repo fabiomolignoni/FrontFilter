@@ -12,9 +12,10 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
   const HEADER_BUTTONS = "shreddit-subreddit-header-buttons[name]";
   const TOAST_CLASS = "frontfilter-block-toast";
   const TOAST_DURATION = 6000;
-  // Blocking the subreddit on screen sends the page to the block page, which
-  // offers the undo instead of the toast.
-  const UNDO_WINDOW = 15000;
+  // Blocking the subreddit on screen sends the page straight to the block
+  // page, which offers the undo instead of the toast. A one-time token,
+  // stored with the rule, limits that offer to this redirect.
+  const UNDO_WINDOW = 10000;
   let buttonsShown = false;
   let pendingUndo = null;
   let toast = null;
@@ -87,11 +88,20 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
     }
   }
 
-  // Lets the redirect to the block page offer an undo for a block made here.
+  // Returns the undo token for the redirect a block made on this very page
+  // causes, and nothing for any later redirect or navigation.
   function takeUndo(name) {
     const pending = pendingUndo;
     pendingUndo = null;
-    return Boolean(pending && pending.name === name && Date.now() < pending.expires);
+    return pending && pending.name === name && pending.url === window.location.href
+      ? pending.token
+      : "";
+  }
+
+  function createToken() {
+    return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+      byte.toString(16).padStart(2, "0")
+    ).join("");
   }
 
   async function readBlockedSubreddits() {
@@ -103,11 +113,20 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
     try {
       const { entries, added } = FrontFilter.addBlockedSubreddit(await readBlockedSubreddits(), name);
       const pageSubreddit = FrontFilter.getSubredditPath(window.location.pathname)?.name;
+      const redirects = added && pageSubreddit === name;
+      const token = redirects ? createToken() : "";
       // Set before writing: the storage listener redirects right away.
-      pendingUndo = added && pageSubreddit === name
-        ? { name, expires: Date.now() + UNDO_WINDOW }
-        : null;
-      if (added) await chrome.storage.local.set({ blockedSubreddits: entries });
+      pendingUndo = redirects ? { name, token, url: window.location.href } : null;
+      if (added) {
+        await chrome.storage.local.set({
+          blockedSubreddits: entries,
+          ...(redirects && {
+            [FrontFilter.QUICK_BLOCK_UNDO_KEY]: {
+              subreddit: name, token, expires: Date.now() + UNDO_WINDOW,
+            },
+          }),
+        });
+      }
       showToast(added ? `r/${name} blocked` : `r/${name} is already blocked`, added ? name : "");
     } catch (error) {
       pendingUndo = null;

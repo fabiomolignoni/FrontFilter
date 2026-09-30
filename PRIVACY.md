@@ -54,7 +54,9 @@ should be treated as private even though FrontFilter never sends them to the
 developer.
 
 These settings are used only to apply the controls you selected. They are kept
-in the browser's local extension storage. The theme is also cached in local
+in the browser's local extension storage. A one-click block made on a
+subreddit's own page also stores a short-lived marker there, removed as soon
+as the block page opens, so that page can offer to undo that block. The theme is also cached in local
 storage belonging to the Extension so that its pages can use the chosen color
 mode before they render. FrontFilter compiles relevant page and subreddit
 blocking preferences into dynamic browser rules stored and enforced by the
