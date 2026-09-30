@@ -365,19 +365,36 @@ article { padding: 10px; }
     const second = createComment("comment-top-b", 0, "Second top-level comment");
     document.querySelector("#comments").replaceChildren(first, second);
   };
-  // Comments as Reddit renders them: body in the "comment" slot, replies nested.
+  // Current Reddit nests each comment in <details>: meta in the summary, then
+  // the body and the replies. Older markup made them direct slot children.
   window.resetFilterComments = () => {
-    const createComment = (id, author, text, replies = []) => {
+    const createComment = (id, author, text, replies = [], { legacy = false } = {}) => {
       const comment = document.createElement("shreddit-comment");
       comment.id = id;
       comment.setAttribute("author", author);
+      const meta = document.createElement("div");
+      meta.slot = "commentMeta";
+      meta.textContent = author;
       const body = document.createElement("div");
       body.slot = "comment";
-      body.textContent = text;
+      body.innerHTML = "<p></p>";
+      body.firstChild.textContent = text;
       const children = document.createElement("div");
       children.slot = "children";
       children.append(...replies);
-      comment.append(body, children);
+      if (legacy) {
+        comment.append(meta, body, children);
+        return comment;
+      }
+      const details = document.createElement("details");
+      details.open = true;
+      const summary = document.createElement("summary");
+      summary.append(meta);
+      const content = document.createElement("div");
+      if (text !== null) content.append(body);
+      content.append(children);
+      details.append(summary, content);
+      comment.append(details);
       return comment;
     };
     document.querySelector("#comments").replaceChildren(
@@ -385,10 +402,14 @@ article { padding: 10px; }
         createComment("comment-thanks", "bob", "Thanks!"),
       ]),
       createComment("comment-spam", "Spammer", "Buy now", [
-        createComment("comment-spam-reply", "alice", "No thanks"),
-      ]),
+        createComment("comment-spam-reply", "alice", "No thanks", [], { legacy: true }),
+      ], { legacy: true }),
       createComment("comment-politics", "carol", "Did you see the TRUMP rally?", [
         createComment("comment-politics-reply", "dave", "Yes"),
+      ]),
+      // A deleted comment has no body; its reply's text is not its own.
+      createComment("comment-deleted", "[deleted]", null, [
+        createComment("comment-deleted-reply", "erin", "trump again"),
       ]),
     );
   };

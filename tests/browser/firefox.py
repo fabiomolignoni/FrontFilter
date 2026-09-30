@@ -818,11 +818,13 @@ chrome.storage.local.set({
             js("resetFilterComments()")
             wait.until(lambda _: js("return visibleComments()") == [
                 "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
+                "comment-deleted",
             ])
             configure(blockedTitleKeywords=[])
             wait.until(lambda _: js("return visibleComments()") == [
                 "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
-                "comment-politics", "comment-politics-reply",
+                "comment-politics", "comment-politics-reply", "comment-deleted",
+                "comment-deleted-reply",
             ])
             configure(limitInfiniteScroll=True, blockedFlairs=[],
                       blockedSubreddits=[{"name": "blocked", "mode": "all"}])

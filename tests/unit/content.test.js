@@ -41,7 +41,15 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl }) 
       queriedSelectors.push(selector);
       return querySelectorAll(selector);
     },
+    // Live collections re-read the fake DOM on every iteration.
+    getElementsByTagName: (name) => liveCollection(name),
+    getElementsByClassName: (names) => liveCollection(`.${names.split(" ").join(".")}`),
   };
+  const liveCollections = [];
+  function liveCollection(selector) {
+    liveCollections.push(selector);
+    return { [Symbol.iterator]: () => querySelectorAll(selector)[Symbol.iterator]() };
+  }
   const queriedSelectors = [];
   const observerOptions = [];
   const storageListeners = [];
@@ -54,9 +62,11 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl }) 
       getURL: (path) => `moz-extension://frontfilter/${path}`,
     },
   };
+  const observers = [];
   class MutationObserver {
     constructor(callback) {
       this.callback = callback;
+      observers.push(this);
     }
     observe(_target, options) { observerOptions.push({ ...options }); }
   }
@@ -108,6 +118,8 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl }) 
     observerOptions,
     injectedStyles,
     rootAttributes,
+    observers,
+    liveCollections,
   };
 }
 
@@ -1018,16 +1030,19 @@ function createFlairPost(flair) {
   return post;
 }
 
-function createComment(text) {
+// Current Reddit nests the body inside <details>, so it is found as the
+// first [slot="comment"] descendant, which belongs to a reply when the
+// comment has no body of its own.
+function createComment(text, { bodyOwner } = {}) {
   const comment = { dataset: {}, localName: "shreddit-comment", textReads: 0 };
-  const body = {
+  const body = text === null ? null : {
+    closest: (selector) => selector === "shreddit-comment" ? bodyOwner || comment : null,
     get textContent() {
       comment.textReads += 1;
       return text;
     },
   };
-  comment.querySelector = (selector) =>
-    selector === ':scope > [slot="comment"]' ? body : null;
+  comment.querySelector = (selector) => selector === '[slot="comment"]' ? body : null;
   return comment;
 }
 
@@ -1052,11 +1067,13 @@ test("hides posts whose flair matches a blocked flair or wildcard", async () => 
 test("filters comments by keyword, reading each comment's text only once", async () => {
   const blocked = createComment("I think TRUMP will win");
   const allowed = createComment("Nice photo");
-  const pending = createComment("");
-  const comments = [blocked, allowed, pending];
+  const pending = createComment(null);
+  // A deleted comment whose first body match is a matching reply's.
+  const deleted = createComment("Trump reply", { bodyOwner: {} });
+  const comments = [blocked, allowed, pending, deleted];
   const content = await loadContent({
     querySelectorAll: (selector) => ({
-      "shreddit-comment, .thing.comment": comments,
+      "shreddit-comment": comments,
       '[data-frontfilter-comment-hidden="true"]': comments.filter(
         (comment) => comment.dataset.frontfilterCommentHidden === "true",
       ),
@@ -1067,13 +1084,21 @@ test("filters comments by keyword, reading each comment's text only once", async
 
   assert.equal(blocked.dataset.frontfilterCommentHidden, "true");
   assert.equal("frontfilterCommentHidden" in allowed.dataset, false);
-  assert.deepEqual([blocked.textReads, allowed.textReads], [1, 1]);
+  assert.equal("frontfilterCommentHidden" in deleted.dataset, false);
+  assert.deepEqual([blocked.textReads, allowed.textReads, deleted.textReads], [1, 1, 0]);
 
-  // Later mutations reuse the cached result; empty bodies are retried.
+  // Later mutations reuse the cached result, including for comments without
+  // a body of their own; comments whose body has not rendered are retried.
+  let pendingLookups = 0;
+  const lookUpBody = pending.querySelector;
+  pending.querySelector = (selector) => {
+    pendingLookups += 1;
+    return lookUpBody(selector);
+  };
   content.processFilteredContent();
   content.processFilteredContent();
-  assert.deepEqual([blocked.textReads, allowed.textReads], [1, 1]);
-  assert.ok(pending.textReads > 1);
+  assert.deepEqual([blocked.textReads, allowed.textReads, deleted.textReads], [1, 1, 0]);
+  assert.equal(pendingLookups, 2);
 
   // New keywords re-check every comment once.
   content.storageListeners[0]({ blockedTitleKeywords: { newValue: ["photo"] } }, "local");
@@ -1096,6 +1121,30 @@ test("filters comments by keyword, reading each comment's text only once", async
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual([blocked.textReads, allowed.textReads], [2, 2]);
   assert.equal("frontfilterCommentHidden" in allowed.dataset, false);
+});
+
+test("skips page-wide post scans when only comments change", async () => {
+  const comment = createComment("Nice photo");
+  const content = await loadContent({
+    querySelectorAll: (selector) => selector === "shreddit-comment" ? [comment] : [],
+    settings: { blockedTitleKeywords: ["trump"] },
+    startUrl: "https://www.reddit.com/r/test/comments/abc/post/",
+  });
+  const postScans = () => content.queriedSelectors.filter(isPostCollectionSelector).length;
+  const insideComments = { closest: (selector) => selector.includes("shreddit-comment") ? {} : null };
+  const outsideComments = { closest: () => null };
+  const textInComments = { parentElement: insideComments };
+
+  const initialScans = postScans();
+  assert.ok(initialScans > 0);
+  // Comment collections are looked up once and stay live.
+  assert.deepEqual(content.liveCollections, ["shreddit-comment", ".thing.comment"]);
+
+  content.observers[0].callback([{ target: insideComments }, { target: textInComments }]);
+  assert.equal(postScans(), initialScans);
+  content.observers[0].callback([{ target: insideComments }, { target: outsideComments }]);
+  assert.equal(postScans(), initialScans + 1);
+  assert.equal(content.liveCollections.length, 2);
 });
 
 test("hides post titles containing configured keywords case-insensitively", async () => {

@@ -14,6 +14,7 @@ let configLoaded = false;
 let lastCheckedUrl = "";
 let observer = null;
 let processingScheduled = false;
+let pageChangedOutsideComments = false;
 let postFilteringActive = false;
 let commentFilteringActive = false;
 // Comment text is read and matched once per comment and settings version;
@@ -118,9 +119,11 @@ const COMMENT_REPLY_SELECTOR = [
   ".comment .comment",
   ".comment > .child",
 ].join(", ");
-// Modern comments keep their text in the "comment" slot; Old Reddit comments
-// in their own entry, not in their replies.
-const COMMENT_FILTER_SELECTOR = "shreddit-comment, .thing.comment";
+// Changes inside these regions cannot add or alter posts, so they skip the
+// full-page post scan (comment pages mostly change inside comments).
+const COMMENT_REGION_SELECTOR = "shreddit-comment-tree, shreddit-comment, .commentarea";
+// Live collections of modern and Old Reddit comments, created on first use.
+let commentCollections = null;
 const COMMENT_ACTION_STYLE_ID = "frontfilter-comment-actions-style";
 const COMMENT_ACTION_STYLE_TEXT = `${COMMENT_ACTION_SELECTOR} { display: none !important; }`;
 const SUGGESTED_COMMUNITIES_SELECTOR = "in-feed-community-recommendations";
@@ -633,9 +636,13 @@ async function filterPosts() {
   ensureHiddenStyle();
 
   if (!observer) {
-    observer = new MutationObserver(() => {
+    observer = new MutationObserver((mutations) => {
       void checkCurrentPage();
-      if (needsDynamicContentProcessing()) scheduleContentProcessing();
+      if (!needsDynamicContentProcessing()) return;
+      if (!pageChangedOutsideComments) {
+        pageChangedOutsideComments = mutations.some(isOutsideComments);
+      }
+      scheduleContentProcessing();
     });
   }
   configureContentObserver();
@@ -756,17 +763,26 @@ function createMainPageLinkRule(scope = "") {
   return `\n${listItems}, ${links.join(", ")} { display: none !important; }`;
 }
 
+function isOutsideComments({ target }) {
+  const element = target.closest ? target : target.parentElement;
+  return !element?.closest(COMMENT_REGION_SELECTOR);
+}
+
 function scheduleContentProcessing() {
   if (processingScheduled) return;
   processingScheduled = true;
 
   requestAnimationFrame(() => {
     processingScheduled = false;
-    processFilteredContent();
+    const outsideComments = pageChangedOutsideComments;
+    pageChangedOutsideComments = false;
+    processFilteredContent({ outsideComments });
   });
 }
 
-function processFilteredContent() {
+// Settings changes and first runs process everything; mutation-driven runs
+// skip page-wide post and community scans when only comments changed.
+function processFilteredContent({ outsideComments = true } = {}) {
   const shouldFilterPosts = config.blockedTitleKeywords.length > 0
     || config.blockedFlairs.length > 0
     || config.blockedSubreddits.some((entry) => entry.mode === "all");
@@ -777,13 +793,13 @@ function processFilteredContent() {
     || config.blockedSubreddits.length > 0;
 
   if (shouldFilterPosts) {
-    processPostElements();
+    if (outsideComments) processPostElements();
   } else if (postFilteringActive) {
     clearBlockedElements("post");
   }
 
   if (shouldFilterCommunities) {
-    processPopularCommunities();
+    if (outsideComments) processPopularCommunities();
   } else if (communityFilteringActive) {
     clearBlockedElements("community");
   }
@@ -982,24 +998,38 @@ function processPostElements() {
   );
 }
 
+// Returns null while the comment body has not rendered yet.
 function getCommentText(comment) {
-  const body = comment.localName === "shreddit-comment"
-    ? comment.querySelector(':scope > [slot="comment"]')
-    : comment.querySelector(":scope > .entry .usertext-body");
-  return body?.textContent || "";
+  if (comment.localName !== "shreddit-comment") {
+    const body = comment.querySelector(":scope > .entry .usertext-body");
+    return body ? body.textContent : null;
+  }
+  // Current markup nests the body inside <details>; older markup made it a
+  // direct child. In both, a comment's own body precedes its replies, so the
+  // first match is its own unless it has none (e.g. deleted comments).
+  const body = comment.querySelector('[slot="comment"]');
+  if (!body) return null;
+  return body.closest("shreddit-comment") === comment ? body.textContent : "";
 }
 
 // Runs on every processed mutation, so each comment's text is read and
 // matched once per settings version; later passes are a WeakMap lookup.
 function processComments() {
-  for (const comment of document.querySelectorAll(COMMENT_FILTER_SELECTOR)) {
-    // Already matched and marked for the current settings.
-    if (commentFilterResults.get(comment) === commentFilterVersion) continue;
-    const text = getCommentText(comment);
-    // A comment inserted before its body is checked again on a later pass.
-    if (!text) continue;
-    setElementBlocked(comment, containsBlockedPostText(text), "comment");
-    commentFilterResults.set(comment, commentFilterVersion);
+  // Live collections avoid walking the whole page, unlike querySelectorAll.
+  commentCollections ??= [
+    document.getElementsByTagName("shreddit-comment"),
+    document.getElementsByClassName("thing comment"),
+  ];
+  for (const collection of commentCollections) {
+    for (const comment of collection) {
+      // Already matched and marked for the current settings.
+      if (commentFilterResults.get(comment) === commentFilterVersion) continue;
+      const text = getCommentText(comment);
+      // A comment inserted before its body is checked again on a later pass.
+      if (text === null) continue;
+      setElementBlocked(comment, containsBlockedPostText(text), "comment");
+      commentFilterResults.set(comment, commentFilterVersion);
+    }
   }
 }
 
