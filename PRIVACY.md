@@ -1,11 +1,11 @@
 # FrontFilter Privacy Policy
 
-**Last updated: September 21, 2026**
+**Last updated: September 30, 2026**
 
 This Privacy Policy explains how the official FrontFilter browser extension
 ("FrontFilter" or the "Extension") handles information. It applies to the
 versions distributed by the FrontFilter project and to builds made directly
-from its [public source code](https://github.com/SilentFoxDev/FrontFilter).
+from its [public source code](https://github.com/fabiomolignoni/FrontFilter).
 Modified or third-party builds may behave differently.
 
 FrontFilter's single purpose is to give users local controls for making Reddit
@@ -172,14 +172,14 @@ The following network activity can still occur outside that statement:
   statistics independently of FrontFilter. Those practices are controlled by
   the relevant browser or store provider, not by the Extension.
 - **Links opened by the user:** FrontFilter includes links to its GitHub
-  repository, public issue tracker, and Ko-fi donation page. No Extension data
+  repository and public issue tracker. No Extension data
   is sent to those services automatically. If you choose a link, the service
   you visit receives the information ordinarily associated with a web visit
   and applies its own privacy policy. Information posted in the GitHub issue
   tracker is generally public.
 
 FrontFilter is an independent project and is not affiliated with, endorsed by,
-or operated by Reddit, Google, Mozilla, GitHub, or Ko-fi.
+or operated by Reddit, Google, Mozilla, or GitHub.
 
 ## Storage, retention, and security
 
@@ -244,7 +244,7 @@ for lending purposes.
 
 This policy may be revised if FrontFilter's functionality, permissions, or data
 practices change. The current version will be published in the
-[source repository](https://github.com/SilentFoxDev/FrontFilter/blob/main/PRIVACY.md)
+[source repository](https://github.com/fabiomolignoni/FrontFilter/blob/main/PRIVACY.md)
 with a revised **Last updated** date, and earlier versions remain available in
 the repository history. Material changes will also be reflected in the
 Extension's store disclosures and presented elsewhere when required by
@@ -254,8 +254,8 @@ applicable policy or law.
 
 For questions or concerns about this policy or FrontFilter's data practices,
 open an issue in the
-[FrontFilter issue tracker](https://github.com/SilentFoxDev/FrontFilter/issues).
+[FrontFilter issue tracker](https://github.com/fabiomolignoni/FrontFilter/issues).
 The issue tracker is public, so do not include passwords, authentication data,
 private messages, exported configurations, or other sensitive information.
 
-Source code: <https://github.com/SilentFoxDev/FrontFilter>
+Source code: <https://github.com/fabiomolignoni/FrontFilter>

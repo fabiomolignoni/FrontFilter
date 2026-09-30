@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "FrontFilter - Reddit Feed & Distraction Blocker",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Control your Reddit experience by blocking specific subreddits and main pages",
-  "homepage_url": "https://github.com/SilentFoxDev/FrontFilter",
+  "homepage_url": "https://github.com/fabiomolignoni/FrontFilter",
   "permissions": [
     "storage",
     "declarativeNetRequest"

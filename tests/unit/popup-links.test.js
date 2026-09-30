@@ -12,9 +12,8 @@ const pages = ["popup", "blocked"].map((directory) => ({
 }));
 
 const links = [
-  ["GitHub", "https://github.com/SilentFoxDev/FrontFilter"],
-  ["Report a bug", "https://github.com/SilentFoxDev/FrontFilter/issues"],
-  ["Donate ☕", "https://ko-fi.com/silentfoxdev/donate"],
+  ["GitHub", "https://github.com/fabiomolignoni/FrontFilter"],
+  ["Report a bug", "https://github.com/fabiomolignoni/FrontFilter/issues"],
 ];
 
 test("renders the project links safely in the popup and blocked page", () => {
