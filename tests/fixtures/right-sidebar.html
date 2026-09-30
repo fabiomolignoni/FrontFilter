@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="it">
+<body>
+  <main>
+    <article id="main-post"><h1>Post correlati: una discussione</h1></article>
+    <shreddit-comment id="comment">Related Posts</shreddit-comment>
+    <faceplate-loader id="comments-loader" src="/svc/shreddit/comments/abc"></faceplate-loader>
+    <faceplate-loader id="inline-related-posts" src="/svc/shreddit/comments/abc/listing-below?locale=it">
+      <h2>Post correlati</h2>
+      <article>Un altro post</article>
+    </faceplate-loader>
+  </main>
+  <div id="right-sidebar-container" data-right-sidebar>
+    <aside aria-label="Post correlati">
+      <h2>Post correlati</h2>
+      <pdp-right-rail><article>Un post suggerito</article></pdp-right-rail>
+    </aside>
+    <aside id="community-info"><h2>Informazioni sulla community</h2></aside>
+    <aside id="popular-communities"><a href="/r/firefox">Firefox</a></aside>
+    <aside id="recent"><recent-posts><article>Post recente</article></recent-posts></aside>
+  </div>
+  <div class="right-sidebar" data-right-sidebar>
+    <pdp-right-rail><h2>Ähnliche Beiträge</h2></pdp-right-rail>
+  </div>
+  <aside id="right-sidebar" data-right-sidebar><h2>Informazioni</h2></aside>
+  <aside data-testid="right-sidebar" data-right-sidebar><h2>Community</h2></aside>
+  <aside data-testid="right-sidebar-container" data-right-sidebar><h2>Community</h2></aside>
+  <div class="side" data-right-sidebar><h2>Old Reddit sidebar</h2></div>
+  <nav id="left-sidebar-container"><a href="/">Home</a></nav>
+  <shreddit-related-posts><h2>Publications similaires</h2></shreddit-related-posts>
+  <section id="related-posts"><h2>関連する投稿</h2></section>
+  <section data-testid="related-posts"><h2>Publicaciones relacionadas</h2></section>
+</body>
+</html>

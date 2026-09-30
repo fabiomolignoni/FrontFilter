@@ -1,0 +1,30 @@
+/* Unclassified cards stay hidden, including between insertion and observation. */
+html[data-frontfilter-feed-gate] shreddit-feed shreddit-post:not(shreddit-post *):not([data-frontfilter-limit-visible]),
+html[data-frontfilter-feed-gate] shreddit-feed shreddit-ad-post:not([data-frontfilter-limit-visible]),
+html[data-frontfilter-feed-gate] shreddit-feed [data-testid="ad-container"]:not([data-frontfilter-limit-visible]),
+html[data-frontfilter-feed-gate] shreddit-feed article:has(shreddit-post, shreddit-ad-post, [data-testid="ad-container"]):not(shreddit-post *):not([data-frontfilter-limit-visible]),
+html[data-frontfilter-feed-gate] shreddit-feed > hr:not([data-frontfilter-limit-visible]),
+html[data-frontfilter-feed-gate] shreddit-feed faceplate-partial[slot="load-after"],
+[data-frontfilter-limit-hidden] {
+  display: none !important;
+}
+.frontfilter-feed-controls {
+  overflow-anchor: none;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  margin: 16px 0; padding: 16px; border-top: 1px solid var(--color-neutral-border-weak, #81838460);
+  color: var(--color-neutral-content-weak, inherit); background: transparent;
+  font: 13px/1.5 system-ui, sans-serif; text-align: center;
+}
+.frontfilter-feed-controls button {
+  appearance: none; box-sizing: border-box;
+  display: inline-flex !important; align-items: center; justify-content: center;
+  height: 40px; min-height: 40px; min-width: 148px; margin: 0; padding: 0 20px;
+  border: 1px solid transparent; border-radius: 999px;
+  background: #d93900; color: #fff; cursor: pointer;
+  font: 600 14px/1 system-ui, sans-serif; text-align: center; white-space: nowrap;
+  text-decoration: none; letter-spacing: normal; text-transform: none;
+}
+.frontfilter-feed-controls button[hidden] { display: none !important; }
+.frontfilter-feed-controls button:hover:not(:disabled) { background: #b83000; }
+.frontfilter-feed-controls button:disabled { opacity: .6; cursor: wait; }
+.frontfilter-feed-controls button:focus-visible { outline: 3px solid #ff8700; outline-offset: 3px; }

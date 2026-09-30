@@ -1,0 +1,89 @@
+:root {
+  color-scheme: dark;
+  --primary: #ff5700;
+  --primary-hover: #e74d00;
+  --bg-app: #111213;
+  --bg-surface: #1a1a1b;
+  --bg-card: #222324;
+  --bg-input: #1e1e1f;
+  --text-primary: #d7dadc;
+  --text-secondary: #a1a4a6;
+  --text-muted: #929597;
+  --border: #2d2e2f;
+  --border-focus: #ff5700;
+  --success-bg: #0e2318;
+  --success-text: #4caf72;
+  --error-bg: #2a0f11;
+  --error-text: #e06c75;
+  --interactive-bg: rgba(255, 255, 255, 0.06);
+  --interactive-hover: rgba(255, 255, 255, 0.04);
+  --interactive-hover-strong: rgba(255, 255, 255, 0.1);
+  --toggle-off: #4a4b4c;
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.6);
+  --header-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* Used only while an existing installation primes the synchronous theme cache. */
+:root[data-theme-pending] {
+  visibility: hidden;
+}
+
+:root[data-theme="system"] {
+  color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --primary: #d94b00;
+  --primary-hover: #bd4100;
+  --bg-app: #eceff1;
+  --bg-surface: #ffffff;
+  --bg-card: #f7f8fa;
+  --bg-input: #ffffff;
+  --text-primary: #1f2328;
+  --text-secondary: #4b535b;
+  --text-muted: #6e7781;
+  --border: #d0d7de;
+  --border-focus: #d94b00;
+  --success-bg: #dafbe1;
+  --success-text: #137333;
+  --error-bg: #ffebe9;
+  --error-text: #b3261e;
+  --interactive-bg: rgba(31, 35, 40, 0.05);
+  --interactive-hover: rgba(31, 35, 40, 0.05);
+  --interactive-hover-strong: rgba(31, 35, 40, 0.1);
+  --toggle-off: #afb6bd;
+  --shadow-md: 0 4px 16px rgba(31, 35, 40, 0.16);
+  --shadow-lg: 0 4px 24px rgba(31, 35, 40, 0.2);
+  --header-shadow: 0 2px 12px rgba(31, 35, 40, 0.24);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]),
+  :root[data-theme="system"] {
+    color-scheme: light;
+    --primary: #d94b00;
+    --primary-hover: #bd4100;
+    --bg-app: #eceff1;
+    --bg-surface: #ffffff;
+    --bg-card: #f7f8fa;
+    --bg-input: #ffffff;
+    --text-primary: #1f2328;
+    --text-secondary: #4b535b;
+    --text-muted: #6e7781;
+    --border: #d0d7de;
+    --border-focus: #d94b00;
+    --success-bg: #dafbe1;
+    --success-text: #137333;
+    --error-bg: #ffebe9;
+    --error-text: #b3261e;
+    --interactive-bg: rgba(31, 35, 40, 0.05);
+    --interactive-hover: rgba(31, 35, 40, 0.05);
+    --interactive-hover-strong: rgba(31, 35, 40, 0.1);
+    --toggle-off: #afb6bd;
+    --shadow-md: 0 4px 16px rgba(31, 35, 40, 0.16);
+    --shadow-lg: 0 4px 24px rgba(31, 35, 40, 0.2);
+    --header-shadow: 0 2px 12px rgba(31, 35, 40, 0.24);
+  }
+}

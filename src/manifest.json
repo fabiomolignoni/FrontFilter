@@ -1,0 +1,74 @@
+{
+  "manifest_version": 3,
+  "name": "FrontFilter - Reddit Feed & Distraction Blocker",
+  "version": "2.1.1",
+  "description": "Control your Reddit experience by blocking specific subreddits and main pages",
+  "homepage_url": "https://github.com/SilentFoxDev/FrontFilter",
+  "permissions": [
+    "storage",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "*://*.reddit.com/*",
+    "*://reddit.com/*"
+  ],
+  "action": {
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png",
+      "256": "icons/icon-256.png",
+      "512": "icons/icon-512.png"
+    },
+    "default_title": "FrontFilter",
+    "default_popup": "popup/index.html"
+  },
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.reddit.com/*",
+        "*://reddit.com/*"
+      ],
+      "js": ["content/feed-bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "*://*.reddit.com/*",
+        "*://reddit.com/*"
+      ],
+      "js": [
+        "shared/core.js",
+        "content/post-elements.js",
+        "content/feed-window.js",
+        "content/feed-limit.js",
+        "content/main.js"
+      ],
+      "css": ["content/feed-limit.css"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["blocked/index.html"],
+      "matches": [
+        "*://*.reddit.com/*",
+        "*://reddit.com/*"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png",
+    "256": "icons/icon-256.png",
+    "512": "icons/icon-512.png"
+  },
+  "minimum_chrome_version": "121"
+}

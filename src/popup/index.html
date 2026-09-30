@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>FrontFilter Settings</title>
+    <script src="../shared/theme-bootstrap.js"></script>
+    <link rel="stylesheet" href="../shared/theme.css" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="container">
+
+      <header class="header">
+        <img src="../icons/icon-48.png" alt="FrontFilter" />
+        <div class="header-text">
+          <h1>FrontFilter</h1>
+          <p>Settings</p>
+        </div>
+        <span id="save-indicator" role="status">Saved</span>
+      </header>
+
+      <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+      <div class="tabs" role="tablist" aria-label="Settings sections">
+        <button type="button" class="tab" id="tab-controls" role="tab"
+          aria-selected="true" aria-controls="panel-controls"
+          tabindex="0">Controls</button>
+        <button type="button" class="tab" id="tab-filters" role="tab"
+          aria-selected="false" aria-controls="panel-filters"
+          tabindex="-1">Filters</button>
+        <button type="button" class="tab" id="tab-settings" role="tab"
+          aria-selected="false" aria-controls="panel-settings"
+          tabindex="-1">Settings</button>
+      </div>
+
+      <main class="content">
+        <section class="tab-panel" id="panel-controls" role="tabpanel"
+          aria-labelledby="tab-controls" tabindex="0">
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Block pages</h2>
+            </div>
+            <div class="card-body">
+              <div class="check-grid">
+                <label class="checkbox-label"><input type="checkbox"
+                    role="switch"
+                    id="block-homepage" /><span>Homepage</span></label>
+                <label class="checkbox-label"><input type="checkbox"
+                    role="switch"
+                    id="block-popular" /><span>Popular</span></label>
+                <label class="checkbox-label"><input type="checkbox"
+                    role="switch"
+                    id="block-explore" /><span>Explore</span></label>
+                <label class="checkbox-label"><input type="checkbox"
+                    role="switch"
+                    id="block-news" /><span>News</span></label>
+                <label class="checkbox-label"><input type="checkbox"
+                    role="switch" id="block-sub-home" /><span>All subreddit
+                    front pages<small>Includes hot, new, top and rising
+                      views.</small></span></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Content</h2></div>
+            <div class="card-body check-grid">
+              <div class="dependent-settings" role="group"
+                aria-label="Comment visibility">
+                <label class="checkbox-label"><input type="checkbox"
+                    role="switch" id="hide-comments" /><span>Hide
+                    comments</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-comment-replies" /><span>Hide comment
+                    replies</span></label>
+              </div>
+              <label class="checkbox-label"><input type="checkbox" role="switch"
+                  id="disable-autoplay" /><span>Disable video autoplay</span></label>
+              <label class="checkbox-label"><input type="checkbox" role="switch"
+                  id="hide-suggested-communities" /><span>Hide suggested
+                  communities</span></label>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Interface</h2></div>
+            <div class="card-body check-grid">
+              <div class="dependent-settings" role="group"
+                aria-label="Navbar visibility">
+                <label class="checkbox-label"><input type="checkbox"
+                    role="switch" id="hide-navbar" /><span>Hide
+                    navbar</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-navbar-menu" /><span>Hide menu button</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-navbar-search" /><span>Hide Search</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-navbar-chat" /><span>Hide Chat</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-navbar-notifications" /><span>Hide
+                    Notifications</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-navbar-profile" /><span>Hide Profile menu</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-navbar-others" /><span>Hide Others</span></label>
+              </div>
+              <div class="dependent-settings" role="group"
+                aria-label="Left sidebar visibility">
+                <label class="checkbox-label"><input type="checkbox"
+                    role="switch" id="hide-left-sidebar" /><span>Hide left
+                    sidebar</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-left-sidebar-games" /><span>Hide Games</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-left-sidebar-custom-feeds" /><span>Hide Custom
+                    feeds</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-left-sidebar-recent" /><span>Hide Recent</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-left-sidebar-communities" /><span>Hide
+                    Communities</span></label>
+                <label class="checkbox-label sub-option"><input
+                    type="checkbox" role="switch"
+                    id="hide-left-sidebar-resources" /><span>Hide
+                    Resources</span></label>
+              </div>
+              <label class="checkbox-label"><input type="checkbox" role="switch"
+                  id="hide-right-sidebar" /><span>Hide right
+                  sidebar</span></label>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header scroll-header">
+              <h2 class="card-title">Scroll limit</h2>
+              <label class="checkbox-label"><input type="checkbox" role="switch"
+                  id="limit-infinite-scroll"
+                  aria-label="Limit infinite scroll" /></label>
+            </div>
+            <div class="card-body">
+              <div class="scroll-options">
+                <label for="scroll-mode">Mode<select id="scroll-mode">
+                    <option value="fixed">Stop at the limit</option>
+                    <option value="button">Show next</option>
+                  </select></label>
+                <label for="scroll-limit">Posts per batch<input type="number"
+                    id="scroll-limit" min="1" step="1" value="25" /></label>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <section class="tab-panel" id="panel-filters" role="tabpanel"
+          aria-labelledby="tab-filters" tabindex="0" hidden>
+          <div class="card community-list">
+            <div class="card-header">
+              <h2 class="card-title">Blocked subreddits</h2>
+              <span id="blocked-count" class="count"></span>
+            </div>
+            <div class="card-body">
+              <details class="mode-help">
+                <summary>Block modes</summary>
+                <p><strong>HOME</strong> blocks only the subreddit front page
+                  and sort views, such as hot, top, new, and rising.</p>
+                <p><strong>ALL</strong> blocks every page under that subreddit
+                  and hides its posts from Home and Popular.</p>
+                <p>You can use <strong>*</strong> as a wildcard to filter
+                  multiple subreddits, for example
+                  <strong>*news*</strong> (filters subreddits containing
+                  "news"), <strong>news*</strong> (filters subreddits starting
+                  with "news"), or
+                  <strong>*news</strong> (filters subreddits ending with
+                  "news").</p>
+              </details>
+              <div class="add-row">
+                <button id="add-subreddit" class="btn btn-primary">+
+                  Add</button>
+                <button id="add-current-subreddit" class="btn btn-ghost">+ Add
+                  Current</button>
+              </div>
+              <div id="blocked-list"></div>
+            </div>
+          </div>
+
+          <div class="card allowed-list">
+            <div class="card-header">
+              <h2 class="card-title">Allowed subreddits</h2>
+              <span id="allowed-count" class="count"></span>
+            </div>
+            <div class="card-body">
+              <p class="filter-help">These exact subreddits override “All
+                subreddit front pages” and blocked subreddit rules. Wildcards
+                are not supported.</p>
+              <div class="add-row">
+                <button id="add-allowed-subreddit" class="btn btn-primary">+
+                  Add</button>
+                <button id="add-current-allowed-subreddit"
+                  class="btn btn-ghost">+ Add Current</button>
+              </div>
+              <div id="allowed-list"></div>
+            </div>
+          </div>
+
+          <div class="card keyword-list">
+            <div class="card-header">
+              <h2 class="card-title">Post keywords</h2>
+              <span id="title-keyword-count" class="count"></span>
+            </div>
+            <div class="card-body">
+              <p class="filter-help">Hide posts when their title or text
+                preview contains one of these keywords. Matching is
+                case-insensitive.</p>
+              <div class="add-row">
+                <button id="add-title-keyword" class="btn btn-primary">+ Add
+                  keyword</button>
+              </div>
+              <div id="title-keyword-list"></div>
+            </div>
+          </div>
+
+        </section>
+
+        <section class="tab-panel" id="panel-settings" role="tabpanel"
+          aria-labelledby="tab-settings" tabindex="0" hidden>
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Appearance</h2></div>
+            <div class="card-body preference-row">
+              <div class="preference-copy">
+                <label for="color-theme">Color mode</label>
+                <p id="color-theme-help">System follows your browser or device
+                  appearance.</p>
+              </div>
+              <select id="color-theme" class="settings-select"
+                aria-describedby="color-theme-help">
+                <option value="system">System</option>
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+              </select>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Configuration
+                backup</h2></div>
+            <div class="card-body backup-actions">
+              <div>
+                <button id="export-config" class="btn btn-primary">Export
+                  configuration</button>
+                <p>Download your controls and filter rules as a JSON
+                  file.</p>
+              </div>
+              <div>
+                <button id="import-config" class="btn btn-ghost"
+                  aria-describedby="import-help">Import configuration</button>
+                <p id="import-help">Settings included in the file replace their
+                  current values.</p>
+              </div>
+              <input type="file" id="import-file"
+                accept=".json,application/json" hidden />
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <footer>
+        <span>FrontFilter v2.1.1</span>
+        <span aria-hidden="true">&middot;</span>
+        <nav class="footer-links" aria-label="Project links">
+          <a href="https://github.com/SilentFoxDev/FrontFilter" target="_blank"
+            rel="noopener noreferrer">GitHub</a>
+          <span aria-hidden="true">&middot;</span>
+          <a href="https://github.com/SilentFoxDev/FrontFilter/issues" target="_blank"
+            rel="noopener noreferrer">Report a bug</a>
+          <span aria-hidden="true">&middot;</span>
+          <a href="https://ko-fi.com/silentfoxdev/donate" target="_blank"
+            rel="noopener noreferrer">Donate ☕</a>
+        </nav>
+      </footer>
+    </div>
+    <script src="../shared/core.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

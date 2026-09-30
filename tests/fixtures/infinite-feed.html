@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>FrontFilter feed fixture</title>
+<style>
+body { font: 16px sans-serif; }
+shreddit-feed, shreddit-post, shreddit-comment, reddit-sidebar-nav,
+left-nav-top-section, faceplate-loader, faceplate-tracker,
+faceplate-expandable-section-helper { display: block; }
+search-dynamic-id-cache-controller, reddit-search-large, reddit-chat-header-button,
+rpl-dropdown { display: inline-block; }
+article { padding: 10px; }
+</style>
+</head>
+<body>
+<header id="shreddit-header" role="banner">
+  <nav class="h-header-large">
+    <div>
+      <button id="navbar-menu-button">Menu</button>
+      <a id="reddit-logo" href="/">Reddit</a>
+    </div>
+    <div>
+      <search-dynamic-id-cache-controller>
+        <reddit-search-large id="navbar-search">Search</reddit-search-large>
+      </search-dynamic-id-cache-controller>
+    </div>
+    <div>
+      <span data-part="campaign">Campaign</span>
+      <span data-part="translate">Translate</span>
+      <span data-part="advertise">Advertise</span>
+      <span data-part="chat"><reddit-chat-header-button>
+        <button id="header-action-item-chat-button">Chat</button>
+      </reddit-chat-header-button></span>
+      <span data-part="create"><a id="create-post" href="/submit">Create</a></span>
+      <span data-part="inbox"><a id="notifications-inbox-button"
+        href="/notifications">Notifications</a></span>
+      <span data-part="secondary"><a id="signup-button"
+        href="/register">Sign up</a></span>
+      <span data-part="primary"><a id="login-button" href="/login">Log in</a></span>
+      <div id="navbar-profile-wrapper"><rpl-dropdown>
+        <button id="expand-user-drawer-button" class="min-w-[40px]"
+          aria-label="Open settings">Settings</button>
+      </rpl-dropdown></div>
+    </div>
+  </nav>
+</header>
+<reddit-sidebar-nav id="left-sidebar">
+  <nav>
+    <left-nav-top-section id="sidebar-top"></left-nav-top-section>
+    <faceplate-loader name="LeftNavGamesSection_test"></faceplate-loader>
+    <faceplate-tracker id="sidebar-games" noun="games_drawer">Games</faceplate-tracker>
+    <faceplate-loader name="LeftNavMultiredditsSection_test"></faceplate-loader>
+    <faceplate-expandable-section-helper id="sidebar-custom-feeds">
+      <details open><summary aria-controls="multireddits_section">Custom feeds</summary>
+        <div id="multireddits_section">Custom feed links</div>
+      </details>
+    </faceplate-expandable-section-helper>
+    <faceplate-loader name="LeftNavRecentSection_test"></faceplate-loader>
+    <div id="recent-communities-section">Recent</div>
+    <faceplate-loader name="LeftNavCommunitiesSection_test"></faceplate-loader>
+    <faceplate-expandable-section-helper id="sidebar-communities">
+      <details open><summary aria-controls="communities_section">Communities</summary>
+        <div id="communities_section">Community links</div>
+      </details>
+    </faceplate-expandable-section-helper>
+    <faceplate-loader name="LeftNavResourcesSection_test"></faceplate-loader>
+    <faceplate-expandable-section-helper id="sidebar-resources">
+      <details open><summary><faceplate-tracker noun="resources_menu">Resources</faceplate-tracker></summary>
+        <div>Resource links</div>
+      </details>
+    </faceplate-expandable-section-helper>
+  </nav>
+</reddit-sidebar-nav>
+<main>
+  <shreddit-feed></shreddit-feed>
+  <in-feed-community-recommendations id="suggested-communities">
+    Suggested communities
+  </in-feed-community-recommendations>
+</main>
+<section id="comments"></section>
+<aside><article><shreddit-post id="t3_sidebar" subreddit-name="safe">Sidebar post</shreddit-post></article></aside>
+<script>
+  window.loadCalls = 0;
+  window.loadLog = [];
+  window.plans = [];
+  customElements.define("left-nav-top-section", class extends HTMLElement {
+    constructor() {
+      super();
+      const shadow = this.attachShadow({ mode: "open" });
+      const list = document.createElement("ul");
+      for (const [id, label, href] of [
+        ["homepage", "Home", "/"],
+        ["popular", "Popular", "/r/popular/"],
+        ["explore", "Explore", "/explore/"],
+        ["news", "News", "/news/"],
+      ]) {
+        const item = document.createElement("li");
+        item.id = `sidebar-${id}-link`;
+        const link = document.createElement("a");
+        link.href = href;
+        link.textContent = label;
+        item.append(link);
+        list.append(item);
+      }
+      shadow.append(list);
+    }
+  });
+  customElements.define("shreddit-post", class extends HTMLElement {
+    constructor() {
+      super();
+      const shadow = this.attachShadow({ mode: "open" });
+      shadow.append(document.createElement("slot"));
+      const comments = document.createElement("a");
+      comments.href = "#comments";
+      comments.textContent = "Comments";
+      comments.setAttribute("data-action-bar-action", "comments");
+      comments.setAttribute("data-post-click-location", "comments-button");
+      comments.setAttribute("name", "comments-action-button");
+      shadow.append(comments);
+    }
+  });
+  customElements.define("shreddit-player", class extends HTMLElement {
+    constructor() {
+      super();
+      const shadow = this.attachShadow({ mode: "open" });
+      shadow.append(document.createElement("video"));
+    }
+  });
+  window.addAutoplayPlayer = () => {
+    const player = document.createElement("shreddit-player");
+    player.id = "autoplay-player";
+    for (const attribute of ["autoplay", "autoplay-pref", "muted-autoplay-fallback"]) {
+      player.setAttribute(attribute, "");
+    }
+    player.shadowRoot.querySelector("video").setAttribute("autoplay", "");
+    document.querySelector("main").prepend(player);
+    return player;
+  };
+  window.autoplayState = () => {
+    const player = document.querySelector("#autoplay-player");
+    const video = player?.shadowRoot.querySelector("video");
+    return player && video ? {
+      player: ["autoplay", "autoplay-pref", "muted-autoplay-fallback"]
+        .map((attribute) => player.hasAttribute(attribute)),
+      playerManaged: player.hasAttribute("data-frontfilter-autoplay-state"),
+      videoAutoplay: video.autoplay,
+      videoManaged: video.hasAttribute("data-frontfilter-autoplay-state"),
+    } : null;
+  };
+  window.post = (id, subreddit = "safe", extra = {}) => ({ id, subreddit, ...extra });
+  window.appendRows = (feed, rows) => {
+    for (const row of rows) {
+      const article = document.createElement("article");
+      const card = document.createElement("shreddit-post");
+      card.id = `t3_${row.id}`;
+      card.setAttribute("subreddit-name", row.subreddit);
+      card.setAttribute("permalink", `/r/${row.subreddit}/comments/${row.id}/title`);
+      card.setAttribute("post-title", row.title || `Post ${row.id}`);
+      if (row.ad) card.setAttribute("is-promoted", "");
+      const title = document.createElement("a");
+      title.href = card.getAttribute("permalink");
+      title.slot = "title";
+      title.textContent = card.getAttribute("post-title");
+      card.append(title);
+      if (row.body) {
+        const body = document.createElement("div");
+        body.slot = "text-body";
+        body.textContent = row.body;
+        card.append(body);
+      }
+      article.append(card);
+      feed.append(article, document.createElement("hr"));
+    }
+  };
+  window.addLoader = (feed, cursor = "1") => {
+    const loader = document.createElement("faceplate-partial");
+    loader.setAttribute("slot", "load-after");
+    loader.setAttribute("src", `/svc/shreddit/feeds/test?cursor=${cursor}`);
+    loader.setAttribute("loading", "programmatic");
+    feed.append(loader);
+    return loader;
+  };
+  customElements.define("faceplate-partial", class extends HTMLElement {
+    loadContent() {
+      if (this.inflight) return this.inflight;
+      loadCalls++;
+      const plan = plans.shift();
+      loadLog.push({ src: this.getAttribute("src"), plan, stack: new Error().stack });
+      if (!plan) return Promise.reject(new Error("No planned response"));
+      const feed = this.closest("shreddit-feed");
+      this.inflight = new Promise((resolve, reject) => setTimeout(() => {
+        if (plan.error) { this.inflight = null; reject(new Error("Network error")); return; }
+        appendRows(feed, plan.rows || []);
+        if (!plan.keepLoader) {
+          this.remove();
+          if (plan.next) addLoader(feed, plan.next);
+        }
+        resolve();
+      }, plan.delay || 30));
+      return this.inflight;
+    }
+  });
+  window.resetFeed = (rows, nextPlans = [], more = false) => {
+    plans = nextPlans;
+    loadCalls = 0;
+    const feed = document.createElement("shreddit-feed");
+    appendRows(feed, rows);
+    if (more) addLoader(feed);
+    document.querySelector("shreddit-feed").replaceWith(feed);
+  };
+  window.resetComments = () => {
+    const createComment = (id, depth, text) => {
+      const comment = document.createElement("shreddit-comment");
+      comment.id = id;
+      comment.setAttribute("depth", String(depth));
+      comment.setAttribute("parent-id", depth === 0 ? "t3_fixture" : "t1_parent");
+      comment.append(document.createTextNode(text));
+      return comment;
+    };
+    const first = createComment("comment-top-a", 0, "First top-level comment");
+    const children = document.createElement("div");
+    children.setAttribute("slot", "children");
+    const reply = createComment("comment-reply", 1, "Reply to first comment");
+    const nestedChildren = document.createElement("div");
+    nestedChildren.setAttribute("slot", "children");
+    nestedChildren.append(createComment("comment-deep-reply", 2, "Nested reply"));
+    reply.append(nestedChildren);
+    children.append(reply);
+    first.append(children);
+    const second = createComment("comment-top-b", 0, "Second top-level comment");
+    document.querySelector("#comments").replaceChildren(first, second);
+  };
+  window.configure = (settings) => window.dispatchEvent(new CustomEvent("frontfilter-test-settings", {
+    detail: JSON.stringify(settings),
+  }));
+  window.shown = () => Array.from(document.querySelectorAll("main shreddit-post"))
+    .filter((el) => !el.parentElement.closest("shreddit-post")
+      && !el.hasAttribute("is-promoted") && el.getClientRects().length
+      && getComputedStyle(el).display !== "none")
+    .map((el) => el.id);
+  window.visibleComments = () => Array.from(document.querySelectorAll("#comments shreddit-comment"))
+    .filter((el) => el.getClientRects().length && getComputedStyle(el).display !== "none")
+    .map((el) => el.id);
+  window.suggestedCommunitiesVisible = () => {
+    const element = document.querySelector("#suggested-communities");
+    return Boolean(element?.getClientRects().length)
+      && getComputedStyle(element).display !== "none";
+  };
+  window.navbarVisibility = () => {
+    const visible = (element) => Boolean(element?.getClientRects().length)
+      && getComputedStyle(element).display !== "none";
+    return Object.fromEntries([
+      ["navbar", document.querySelector("#shreddit-header")],
+      ["menu", document.querySelector("#navbar-menu-button")],
+      ["logo", document.querySelector("#reddit-logo")],
+      ["search", document.querySelector("#navbar-search")],
+      ["chat", document.querySelector('[data-part="chat"]')],
+      ["notifications", document.querySelector('[data-part="inbox"]')],
+      ["profile", document.querySelector("#expand-user-drawer-button")],
+      ["campaign", document.querySelector('[data-part="campaign"]')],
+      ["translate", document.querySelector('[data-part="translate"]')],
+      ["advertise", document.querySelector('[data-part="advertise"]')],
+      ["create", document.querySelector('[data-part="create"]')],
+      ["signup", document.querySelector('[data-part="secondary"]')],
+      ["login", document.querySelector('[data-part="primary"]')],
+    ].map(([name, element]) => [name, visible(element)]));
+  };
+  window.sidebarVisibility = () => Object.fromEntries([
+    ["sidebar", document.querySelector("#left-sidebar")],
+    ["top", document.querySelector("#sidebar-top")],
+    ["games", document.querySelector("#sidebar-games")],
+    ["customFeeds", document.querySelector("#sidebar-custom-feeds")],
+    ["recent", document.querySelector("#recent-communities-section")],
+    ["communities", document.querySelector("#sidebar-communities")],
+    ["resources", document.querySelector("#sidebar-resources")],
+  ].map(([name, element]) => [
+    name,
+    Boolean(element?.getClientRects().length)
+      && getComputedStyle(element).display !== "none",
+  ]));
+  window.mainPageLinkVisibility = () => {
+    const root = document.querySelector("#sidebar-top").shadowRoot;
+    return Object.fromEntries(["homepage", "popular", "explore", "news"]
+      .map((page) => {
+        const item = root.querySelector(`#sidebar-${page}-link`);
+        return [page, Boolean(item?.getClientRects().length)
+          && getComputedStyle(item).display !== "none"];
+      }));
+  };
+</script>
+</body>
+</html>
