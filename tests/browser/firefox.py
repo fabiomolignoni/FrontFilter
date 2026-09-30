@@ -346,6 +346,30 @@ window.addEventListener("frontfilter-test-sync-rules", async () => {
             wait.until(lambda _: js("return suggestedCommunitiesVisible()"))
             print("PASS suggested communities visibility", flush=True)
 
+            js("resetFeed([post('a'), post('b', 'safe', {ad: true}), post('c', 'safe', {adPost: true}), post('d', 'safe', {adPost: true, unwrapped: true}), post('e')])")
+            ad_placements = ["comments-page-ad", "comment-tree-ad", "sidebar-ad", "tracked-promoted",
+                             "tracked-organic", "legacy-ad", "old-promoted", "old-placeholder"]
+            ads_shown = {
+                "feed": {f"t3_{post_id}": [True, True] for post_id in "abcde"},
+                "placements": {placement: True for placement in ad_placements},
+            }
+            # Organic posts, their dividers, non-promoted trackers and Old Reddit's
+            # 1px placeholders stay visible.
+            ads_hidden = {
+                "feed": {f"t3_{post_id}": [post_id in "ae"] * 2 for post_id in "abcde"},
+                "placements": {
+                    placement: placement in ("tracked-organic", "old-placeholder")
+                    for placement in ad_placements
+                },
+            }
+            configure(hideAds=False)
+            wait.until(lambda _: js("return adVisibility()") == ads_shown)
+            configure(hideAds=True)
+            wait.until(lambda _: js("return adVisibility()") == ads_hidden)
+            configure(hideAds=False)
+            wait.until(lambda _: js("return adVisibility()") == ads_shown)
+            print("PASS ads and promoted posts visibility", flush=True)
+
             all_navbar_sections = {
                 "hideNavbarMenu": True,
                 "hideNavbarSearch": True,

@@ -11,8 +11,8 @@ elements, filters posts, and replaces endless scrolling with a finite feed.
   pages; `ALL` rules also cover posts and other pages in that subreddit.
 - Allow exact subreddit exceptions to override subreddit rules.
 - Filter post titles and text previews by keyword or phrase.
-- Hide comments, suggested communities, navigation controls, sidebar sections,
-  and related posts, or disable video autoplay.
+- Hide comments, suggested communities, ads and promoted posts, navigation
+  controls, sidebar sections, and related posts, or disable video autoplay.
 - Show a fixed number of feed posts or reveal them in finite groups.
 - Import and export settings as JSON, with system, light, and dark themes.
 

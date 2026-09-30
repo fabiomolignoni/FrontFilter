@@ -643,6 +643,48 @@ test("toggles suggested communities with persistent CSS and no DOM scans", async
   assert.equal(content.injectedStyles.length, 1);
 });
 
+test("toggles ad and promoted post rules with persistent CSS and no DOM scans", async () => {
+  const content = await loadContent({ startUrl: "https://www.reddit.com/" });
+  const style = content.injectedStyles[0];
+  const baseRules = style.textContent;
+
+  content.storageListeners[0]({ hideAds: { oldValue: false, newValue: true } }, "local");
+  await new Promise((resolve) => setImmediate(resolve));
+  const adRules = style.textContent.slice(baseRules.length).split("\n").filter(Boolean);
+  assert.ok(style.textContent.startsWith(baseRules));
+  // One rule per selector group: a selector the browser rejects cannot
+  // invalidate the rest.
+  assert.equal(adRules.length, 9);
+  for (const rule of adRules) {
+    assert.match(rule, /^[^{}]+ \{ display: none !important; \}$/);
+  }
+  for (const selector of [
+    "shreddit-ad-post",
+    'shreddit-post[is-promoted]:not([is-promoted="false" i]):not([is-promoted="0"])',
+    "article:has(> :is(shreddit-ad-post",
+    "shreddit-feed :is(shreddit-ad-post",
+    "shreddit-comments-page-ad",
+    "shreddit-comment-tree-ad",
+    'shreddit-async-loader[bundlename="sidebar_ad"]',
+    '.promotedlink:not([style^="height: 1px;"])',
+    `[data-faceplate-tracking-context*='"promoted":true']`,
+    'div[data-before-content="advertisement"]',
+  ]) {
+    assert.ok(style.textContent.includes(selector), selector);
+  }
+  assert.match(adRules[2], /\) \+ hr \{/);
+  assert.deepEqual(content.queriedSelectors, []);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(content.observerOptions.at(-1))),
+    { childList: true, subtree: true },
+  );
+
+  content.storageListeners[0]({ hideAds: { oldValue: true, newValue: false } }, "local");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(style.textContent, baseRules);
+  assert.equal(content.injectedStyles.length, 1);
+});
+
 test("hides modern feed comment actions inside shreddit-post shadow roots", async () => {
   const styles = [];
   const shadowRoot = {

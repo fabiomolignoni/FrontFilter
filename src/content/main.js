@@ -98,6 +98,41 @@ const COMMENT_REPLY_SELECTOR = [
 const COMMENT_ACTION_STYLE_ID = "frontfilter-comment-actions-style";
 const COMMENT_ACTION_STYLE_TEXT = `${COMMENT_ACTION_SELECTOR} { display: none !important; }`;
 const SUGGESTED_COMMUNITIES_SELECTOR = "in-feed-community-recommendations";
+// Promoted cards match the feed limiter's ad classification, so hidden ads
+// never count toward the scroll limit either way.
+const PROMOTED_FLAG_ATTRIBUTES = [
+  "is-promoted",
+  "promoted",
+  "data-promoted",
+  "data-shreddit-promoted",
+];
+const PROMOTED_POST_SELECTOR = [
+  "shreddit-ad-post",
+  '[data-testid="ad-container"]',
+  ...PROMOTED_FLAG_ATTRIBUTES.map((name) =>
+    `shreddit-post[${name}]:not([${name}="false" i]):not([${name}="0"])`
+  ),
+].join(", ");
+const PROMOTED_ARTICLE_SELECTOR = `article:has(> :is(${PROMOTED_POST_SELECTOR}))`;
+// Component names and tracking attributes follow EasyList and AdGuard's
+// Reddit rules. Each selector gets its own rule so one the browser rejects
+// cannot disable the others.
+const AD_SELECTORS = [
+  PROMOTED_POST_SELECTOR,
+  PROMOTED_ARTICLE_SELECTOR,
+  // Feed items are followed by a divider; drop it to avoid a double line.
+  `shreddit-feed :is(${PROMOTED_POST_SELECTOR}, ${PROMOTED_ARTICLE_SELECTOR}) + hr`,
+  "shreddit-comments-page-ad",
+  "shreddit-comment-tree-ad",
+  'shreddit-async-loader[bundlename="sidebar_ad"]',
+  // Old Reddit adds 1px promoted placeholders that must stay in place.
+  '.promotedlink:not([style^="height: 1px;"])',
+  `[data-faceplate-tracking-context*='"promoted":true']`,
+  'div[data-before-content="advertisement"]',
+];
+const AD_STYLE_TEXT = AD_SELECTORS
+  .map((selector) => `\n${selector} { display: none !important; }`)
+  .join("");
 const MAIN_PAGE_LINK_STYLE_ID = "frontfilter-main-page-links-style";
 const AUTOPLAY_ATTRIBUTE_NAMES = [
   "autoplay",
@@ -558,7 +593,7 @@ function ensureHiddenStyle() {
     ? `\n${commentSelector} { display: none !important; }`
     : "") + (config.hideSuggestedCommunities
     ? `\n${SUGGESTED_COMMUNITIES_SELECTOR} { display: none !important; }`
-    : "") + (config.hideNavbar
+    : "") + (config.hideAds ? AD_STYLE_TEXT : "") + (config.hideNavbar
     ? `\n${NAVBAR_SELECTOR} { display: none !important; }\n${NAVBAR_LAYOUT_STYLE}`
     : "") + navbarSectionRules + navbarLogoRule + (config.hideLeftSidebar
     ? `\n${LEFT_SIDEBAR_SELECTOR} { display: none !important; }`
