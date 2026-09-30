@@ -68,15 +68,24 @@
           <div class="card">
             <div class="card-header"><h2 class="card-title">Content</h2></div>
             <div class="card-body check-grid">
-              <div class="dependent-settings" role="group"
+              <div class="setting-group" role="group"
                 aria-label="Comment visibility">
-                <label class="checkbox-label"><input type="checkbox"
-                    role="switch" id="hide-comments" /><span>Hide
-                    comments</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-comment-replies" /><span>Hide comment
-                    replies</span></label>
+                <div class="checkbox-label group-header">
+                  <button type="button" class="group-toggle" id="comments-toggle"
+                    aria-expanded="false" aria-controls="comments-options"><svg
+                      viewBox="0 0 12 12" aria-hidden="true"><path
+                        d="M4.5 3 7.5 6 4.5 9" /></svg><span><span
+                        id="comments-title">Hide comments</span><small id="comments-summary"
+                        hidden></small></span></button>
+                  <input type="checkbox" role="switch" id="hide-comments"
+                    aria-labelledby="comments-title" />
+                </div>
+                <div class="sub-options" id="comments-options" hidden>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-comment-replies" /><span>Hide comment
+                      replies</span></label>
+                </div>
               </div>
               <label class="checkbox-label"><input type="checkbox" role="switch"
                   id="disable-autoplay" /><span>Disable video autoplay</span></label>
@@ -89,54 +98,72 @@
           <div class="card">
             <div class="card-header"><h2 class="card-title">Interface</h2></div>
             <div class="card-body check-grid">
-              <div class="dependent-settings" role="group"
+              <div class="setting-group" role="group"
                 aria-label="Navbar visibility">
-                <label class="checkbox-label"><input type="checkbox"
-                    role="switch" id="hide-navbar" /><span>Hide
-                    navbar</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-navbar-menu" /><span>Hide menu button</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-navbar-search" /><span>Hide Search</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-navbar-chat" /><span>Hide Chat</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-navbar-notifications" /><span>Hide
-                    Notifications</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-navbar-profile" /><span>Hide Profile menu</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-navbar-others" /><span>Hide Others</span></label>
+                <div class="checkbox-label group-header">
+                  <button type="button" class="group-toggle" id="navbar-toggle"
+                    aria-expanded="false" aria-controls="navbar-options"><svg
+                      viewBox="0 0 12 12" aria-hidden="true"><path
+                        d="M4.5 3 7.5 6 4.5 9" /></svg><span><span
+                        id="navbar-title">Hide navbar</span><small id="navbar-summary"
+                        hidden></small></span></button>
+                  <input type="checkbox" role="switch" id="hide-navbar"
+                    aria-labelledby="navbar-title" />
+                </div>
+                <div class="sub-options" id="navbar-options" hidden>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-navbar-menu" /><span>Hide menu button</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-navbar-search" /><span>Hide Search</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-navbar-chat" /><span>Hide Chat</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-navbar-notifications" /><span>Hide
+                      Notifications</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-navbar-profile" /><span>Hide Profile menu</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-navbar-others" /><span>Hide Others</span></label>
+                </div>
               </div>
-              <div class="dependent-settings" role="group"
+              <div class="setting-group" role="group"
                 aria-label="Left sidebar visibility">
-                <label class="checkbox-label"><input type="checkbox"
-                    role="switch" id="hide-left-sidebar" /><span>Hide left
-                    sidebar</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-left-sidebar-games" /><span>Hide Games</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-left-sidebar-custom-feeds" /><span>Hide Custom
-                    feeds</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-left-sidebar-recent" /><span>Hide Recent</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-left-sidebar-communities" /><span>Hide
-                    Communities</span></label>
-                <label class="checkbox-label sub-option"><input
-                    type="checkbox" role="switch"
-                    id="hide-left-sidebar-resources" /><span>Hide
-                    Resources</span></label>
+                <div class="checkbox-label group-header">
+                  <button type="button" class="group-toggle" id="left-sidebar-toggle"
+                    aria-expanded="false" aria-controls="left-sidebar-options"><svg
+                      viewBox="0 0 12 12" aria-hidden="true"><path
+                        d="M4.5 3 7.5 6 4.5 9" /></svg><span><span
+                        id="left-sidebar-title">Hide left sidebar</span><small id="left-sidebar-summary"
+                        hidden></small></span></button>
+                  <input type="checkbox" role="switch" id="hide-left-sidebar"
+                    aria-labelledby="left-sidebar-title" />
+                </div>
+                <div class="sub-options" id="left-sidebar-options" hidden>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-left-sidebar-games" /><span>Hide Games</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-left-sidebar-custom-feeds" /><span>Hide Custom
+                      feeds</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-left-sidebar-recent" /><span>Hide Recent</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-left-sidebar-communities" /><span>Hide
+                      Communities</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-left-sidebar-resources" /><span>Hide
+                      Resources</span></label>
+                </div>
               </div>
               <label class="checkbox-label"><input type="checkbox" role="switch"
                   id="hide-right-sidebar" /><span>Hide right

@@ -160,6 +160,9 @@ async function loadPopup({
     "hide-left-sidebar-communities",
     "hide-left-sidebar-resources",
     "hide-right-sidebar",
+    ...["comments", "navbar", "left-sidebar"].flatMap((group) => [
+      `${group}-toggle`, `${group}-options`, `${group}-summary`,
+    ]),
     "limit-infinite-scroll",
     "scroll-limit",
     "scroll-mode",
@@ -174,6 +177,11 @@ async function loadPopup({
     elements[`panel-${name}`].hidden = index !== 0;
     return tab;
   });
+  for (const group of ["comments", "navbar", "left-sidebar"]) {
+    elements[`${group}-toggle`].setAttribute("aria-expanded", "false");
+    elements[`${group}-options`].hidden = true;
+    elements[`${group}-summary`].hidden = true;
+  }
   let readyListener;
   const createdElements = [];
   const documentElement = new FakeElement("html");
@@ -687,6 +695,42 @@ test("makes hiding the navbar imply its indented section toggles", async () => {
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     hideNavbarSearch: true,
   });
+});
+
+test("collapses grouped sub-options and summarizes the hidden ones", async () => {
+  const { elements, writes } = await loadPopup({ autoResolveWrites: true,
+    storedSettings: { hideNavbarChat: true, hideNavbarProfile: true },
+  });
+  const toggle = elements["navbar-toggle"];
+  const options = elements["navbar-options"];
+  const summary = elements["navbar-summary"];
+
+  assert.equal(toggle.getAttribute("aria-expanded"), "false");
+  assert.equal(options.hidden, true);
+  assert.equal(summary.hidden, false);
+  assert.equal(summary.textContent, "2 of 6 sections hidden");
+  assert.equal(elements["left-sidebar-summary"].hidden, true);
+
+  toggle.click();
+  assert.equal(toggle.getAttribute("aria-expanded"), "true");
+  assert.equal(options.hidden, false);
+  toggle.click();
+  assert.equal(toggle.getAttribute("aria-expanded"), "false");
+  assert.equal(options.hidden, true);
+  assert.equal(writes.length, 0);
+
+  elements["hide-navbar-search"].checked = true;
+  elements["hide-navbar-search"].dispatch("change");
+  assert.equal(summary.textContent, "3 of 6 sections hidden");
+
+  elements["hide-navbar"].checked = true;
+  elements["hide-navbar"].dispatch("change");
+  assert.equal(summary.hidden, true);
+
+  elements["hide-comment-replies"].checked = true;
+  elements["hide-comment-replies"].dispatch("change");
+  assert.equal(elements["comments-summary"].hidden, false);
+  assert.equal(elements["comments-summary"].textContent, "Replies hidden");
 });
 
 test("makes hiding the left sidebar imply its indented section toggles", async () => {
