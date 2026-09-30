@@ -856,8 +856,32 @@ chrome.storage.local.set({
             wait.until(lambda _: js("return document.querySelector('.frontfilter-block-toast')?.textContent") == "r/alpha unblocked")
             configure(showBlockSubredditButton=False, allowedSubreddits=[])
             wait.until(lambda _: js(block_buttons) == [])
-            configure(limitInfiniteScroll=True, blockedSubreddits=[{"name": "blocked", "mode": "all"}])
             print("PASS one-click Block button, undo and visibility rules", flush=True)
+
+            # On a subreddit's own page the button sits beside Create Post; the
+            # block sends the page to the block page, which offers the undo.
+            header_button = "document.querySelector('.frontfilter-block-subreddit--header')"
+            js("setSubredditHeader('test')")
+            driver.execute_async_script("setTimeout(arguments[0], 300)")
+            assert js(f"return !{header_button}")
+            configure(showBlockSubredditButton=True)
+            wait.until(lambda _: js(f"return {header_button}?.dataset.subreddit") == "test")
+            assert js(f"return {header_button}.previousElementSibling.querySelector('[data-testid=create-post]') !== null")
+            assert js(f"return {header_button}.nextElementSibling.localName") == "shreddit-subreddit-header-buttons"
+            js(f"{header_button}.click()")
+            wait.until(lambda _: "blocked/index.html" in driver.current_url)
+            wait.until(lambda _: driver.find_element("id", "undo-block").is_displayed())
+            assert driver.find_element("id", "block-message").text == "r/test is blocked"
+            assert "undo" not in driver.current_url
+            driver.find_element("id", "undo-block").click()
+            wait.until(lambda _: driver.execute_async_script(
+                "chrome.storage.local.get('blockedSubreddits').then((r) => arguments[0](r.blockedSubreddits))"
+            ) == [])
+            driver.get(f"http://127.0.0.1:{server.server_port}/r/test/")
+            wait.until(lambda _: js("return document.documentElement.hasAttribute('data-test-extension-id')"))
+            configure(showBlockSubredditButton=False, limitInfiniteScroll=True,
+                      blockedSubreddits=[{"name": "blocked", "mode": "all"}])
+            print("PASS subreddit header Block button and block-page undo", flush=True)
             configure(scrollLimit=3, scrollMode="button")
 
             # Verify the actual settings UI as well as the unit-test mock.

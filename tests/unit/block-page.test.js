@@ -47,7 +47,10 @@ async function loadBlockPage({
     "block-reason": new FakeElement(),
     "go-back": new FakeElement(),
     "go-to-settings": new FakeElement(),
+    "undo-block": new FakeElement(),
   };
+  const writes = [];
+  const replacedUrls = [];
   let readyListener;
   const redirects = [];
   const location = {
@@ -75,7 +78,13 @@ async function loadBlockPage({
       sendMessage,
     },
     storage: {
-      local: { get: async () => storedSettings },
+      local: {
+        get: async () => storedSettings,
+        async set(values) {
+          writes.push(JSON.parse(JSON.stringify(values)));
+          Object.assign(storedSettings, values);
+        },
+      },
       onChanged: { addListener(listener) { storageListener = listener; } },
     },
   };
@@ -83,6 +92,7 @@ async function loadBlockPage({
     history: {
       back() { historyBackCount += 1; },
       length: historyLength,
+      replaceState: (_state, _title, url) => replacedUrls.push(url),
     },
     location,
   };
@@ -113,8 +123,10 @@ async function loadBlockPage({
     get historyBackCount() { return historyBackCount; },
     location,
     redirects,
+    replacedUrls,
     storageListener,
     themeCache,
+    writes,
   };
 }
 
@@ -259,4 +271,35 @@ test("does not restore a URL that remains blocked by route settings", async () =
   routeBlocked.storageListener({}, "local");
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(routeBlocked.redirects, []);
+});
+
+test("offers to undo a one-click block once and returns to the subreddit", async () => {
+  const returnUrl = "https://www.reddit.com/r/news/";
+  const page = await loadBlockPage({
+    search: `?subreddit=news&returnUrl=${encodeURIComponent(returnUrl)}&filter=news&undo=1`,
+    storedSettings: {
+      blockedSubreddits: [{ name: "news", mode: "all" }, { name: "pics", mode: "all" }],
+    },
+  });
+  const undo = page.elements["undo-block"];
+
+  assert.equal(undo.hidden, false);
+  // A reload must not offer the undo again.
+  assert.deepEqual(page.replacedUrls, [
+    `?subreddit=news&returnUrl=${encodeURIComponent(returnUrl)}&filter=news`,
+  ]);
+
+  await undo.click();
+  assert.deepEqual(page.writes, [{ blockedSubreddits: [{ name: "pics", mode: "all" }] }]);
+  page.storageListener({ blockedSubreddits: {} }, "local");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(page.redirects, [returnUrl]);
+});
+
+test("does not offer an undo for ordinary blocks", async () => {
+  const page = await loadBlockPage({
+    search: "?subreddit=news&returnUrl=https%3A%2F%2Fwww.reddit.com%2Fr%2Fnews%2F",
+  });
+  assert.equal(page.elements["undo-block"].hidden, true);
+  assert.deepEqual(page.replacedUrls, []);
 });

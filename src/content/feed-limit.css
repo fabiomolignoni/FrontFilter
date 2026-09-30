@@ -49,6 +49,11 @@ shreddit-feed[data-frontfilter-feed-paused] > faceplate-partial[slot="load-after
   color: var(--color-neutral-content-strong, inherit);
 }
 .frontfilter-block-subreddit:focus-visible { outline: 2px solid #ff8700; outline-offset: 2px; }
+/* In a subreddit header: sized like Create Post and Join, spaced like them. */
+.frontfilter-block-subreddit--header {
+  height: 40px; margin: 0; margin-inline-end: 8px; padding: 0 16px;
+  font-size: 14px; color: var(--color-neutral-content-strong, inherit);
+}
 .frontfilter-block-toast {
   position: fixed; left: 50%; bottom: 24px; z-index: 2147483647;
   transform: translateX(-50%);

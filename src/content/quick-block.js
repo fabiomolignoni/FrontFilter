@@ -1,13 +1,22 @@
 /**
- * Optional "Block" button next to the subreddit of each feed post. It adds
- * an ALL rule, which hides the subreddit's posts everywhere, and offers an
- * undo. Settings are written to storage; the usual listeners apply them.
+ * Optional "Block" buttons next to the subreddit of each feed post and in a
+ * subreddit's own header, beside Create Post. They add an ALL rule, which
+ * hides the subreddit's posts everywhere, and offer an undo. Settings are
+ * written to storage; the usual listeners apply them.
  */
 FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
   const BUTTON_CLASS = "frontfilter-block-subreddit";
+  const HEADER_BUTTON_CLASS = "frontfilter-block-subreddit--header";
+  // Join, notifications and the overflow menu; it names the subreddit and
+  // follows Create Post. The navbar's own Create button has no such sibling.
+  const HEADER_BUTTONS = "shreddit-subreddit-header-buttons[name]";
   const TOAST_CLASS = "frontfilter-block-toast";
   const TOAST_DURATION = 6000;
+  // Blocking the subreddit on screen sends the page to the block page, which
+  // offers the undo instead of the toast.
+  const UNDO_WINDOW = 15000;
   let buttonsShown = false;
+  let pendingUndo = null;
   let toast = null;
   let toastTimer = null;
 
@@ -23,10 +32,10 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
     return Boolean(name) && !name.startsWith("u_") && name !== pageSubreddit && !isAllowed(name);
   }
 
-  function createButton(name) {
+  function createButton(name, className = BUTTON_CLASS) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = BUTTON_CLASS;
+    button.className = className;
     button.dataset.subreddit = name;
     button.textContent = "Block";
     button.title = `Hide r/${name} everywhere with FrontFilter`;
@@ -59,7 +68,30 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
       const actions = creditBar.children.length > 1 ? creditBar.lastElementChild : creditBar;
       actions.prepend(createButton(name));
     }
+    updateHeaders(enabled);
     buttonsShown = enabled;
+  }
+
+  function updateHeaders(enabled) {
+    for (const headerButtons of document.querySelectorAll(HEADER_BUTTONS)) {
+      const name = FrontFilter.normalizeSubredditName(headerButtons.getAttribute("name"));
+      const previous = headerButtons.previousElementSibling;
+      const existing = previous?.classList.contains(BUTTON_CLASS) ? previous : null;
+      if (!enabled || !isBlockable(name, "")) {
+        existing?.remove();
+        continue;
+      }
+      if (existing?.dataset.subreddit === name) continue;
+      existing?.remove();
+      headerButtons.before(createButton(name, `${BUTTON_CLASS} ${HEADER_BUTTON_CLASS}`));
+    }
+  }
+
+  // Lets the redirect to the block page offer an undo for a block made here.
+  function takeUndo(name) {
+    const pending = pendingUndo;
+    pendingUndo = null;
+    return Boolean(pending && pending.name === name && Date.now() < pending.expires);
   }
 
   async function readBlockedSubreddits() {
@@ -70,9 +102,15 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
   async function block(name) {
     try {
       const { entries, added } = FrontFilter.addBlockedSubreddit(await readBlockedSubreddits(), name);
+      const pageSubreddit = FrontFilter.getSubredditPath(window.location.pathname)?.name;
+      // Set before writing: the storage listener redirects right away.
+      pendingUndo = added && pageSubreddit === name
+        ? { name, expires: Date.now() + UNDO_WINDOW }
+        : null;
       if (added) await chrome.storage.local.set({ blockedSubreddits: entries });
       showToast(added ? `r/${name} blocked` : `r/${name} is already blocked`, added ? name : "");
     } catch (error) {
+      pendingUndo = null;
       showToast(`Could not block r/${name}: ${error.message}`);
     }
   }
@@ -111,5 +149,5 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
     }, TOAST_DURATION);
   }
 
-  return { update };
+  return { update, takeUndo };
 };

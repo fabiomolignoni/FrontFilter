@@ -29,6 +29,14 @@ document.addEventListener("DOMContentLoaded", () => {
     ? `r/${sub} is blocked`
     : PAGE_MESSAGES[page] ?? "This content is blocked";
 
+  // Offered only right after a one-click block of this subreddit. A reload
+  // should not offer it again, so the flag leaves the address.
+  if (params.get("undo") === "1" && params.get("subreddit")) {
+    setUpUndo(params.get("subreddit"));
+    params.delete("undo");
+    window.history.replaceState(null, "", `?${params}${window.location.hash}`);
+  }
+
   const reason = document.getElementById("block-reason");
   if (filter) {
     reason.textContent = "";
@@ -83,6 +91,24 @@ document.addEventListener("DOMContentLoaded", () => {
     void restoreIfUnblocked(returnUrl);
   });
 });
+
+function setUpUndo(subreddit) {
+  const button = document.getElementById("undo-block");
+  button.hidden = false;
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      const { blockedSubreddits } = await chrome.storage.local.get("blockedSubreddits");
+      // The storage listener returns to the page once it is unblocked.
+      await chrome.storage.local.set({
+        blockedSubreddits: FrontFilter.removeBlockedSubreddit(blockedSubreddits, subreddit),
+      });
+    } catch (error) {
+      button.disabled = false;
+      console.error("Could not undo the block:", error);
+    }
+  });
+}
 
 function getStandaloneSettingsUrl(currentSubreddit = "") {
   const settingsUrl = new URL(chrome.runtime.getURL("popup/index.html"));
