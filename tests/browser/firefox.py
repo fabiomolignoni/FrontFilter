@@ -868,20 +868,48 @@ chrome.storage.local.set({
             wait.until(lambda _: js(f"return {header_button}?.dataset.subreddit") == "test")
             assert js(f"return {header_button}.previousElementSibling.querySelector('[data-testid=create-post]') !== null")
             assert js(f"return {header_button}.nextElementSibling.localName") == "shreddit-subreddit-header-buttons"
-            js(f"{header_button}.click()")
-            wait.until(lambda _: "blocked/index.html" in driver.current_url)
-            wait.until(lambda _: driver.find_element("id", "undo-block").is_displayed())
-            assert driver.find_element("id", "block-message").text == "r/test is blocked"
+            fixture_url = f"http://127.0.0.1:{server.server_port}/r/test/"
+            stored_rules = "chrome.storage.local.get('blockedSubreddits').then((r) => arguments[0](r.blockedSubreddits))"
+
+            def block_from_header():
+                wait.until(lambda _: js(f"return {header_button}?.dataset.subreddit") == "test")
+                js(f"{header_button}.click()")
+                wait.until(lambda _: "blocked/index.html" in driver.current_url)
+                wait.until(lambda _: driver.find_element("id", "block-message").text == "r/test is blocked")
+
+            def undo_offered():
+                # Let the one-time token check finish before reading the button.
+                driver.execute_async_script("setTimeout(arguments[0], 300)")
+                return driver.find_element("id", "undo-block").is_displayed()
+
+            block_from_header()
+            assert undo_offered()
             assert "undo" not in driver.current_url
+            # Not on a reload of the block page...
+            driver.refresh()
+            wait.until(lambda _: driver.find_element("id", "block-message").text == "r/test is blocked")
+            assert not undo_offered()
+            # ...nor when visiting the already blocked subreddit again.
+            driver.get(fixture_url)
+            wait.until(lambda _: "blocked/index.html" in driver.current_url)
+            wait.until(lambda _: driver.find_element("id", "block-message").text == "r/test is blocked")
+            assert not undo_offered()
+            assert driver.execute_async_script(stored_rules) == [{"name": "test", "mode": "all"}]
+
+            # A new one-click block offers it again, and undo removes the rule.
+            driver.execute_async_script("chrome.storage.local.set({blockedSubreddits: []}).then(arguments[0])")
+            driver.get(fixture_url)
+            wait.until(lambda _: js("return document.documentElement.hasAttribute('data-test-extension-id')"))
+            js("setSubredditHeader('test')")
+            block_from_header()
+            assert undo_offered()
             driver.find_element("id", "undo-block").click()
-            wait.until(lambda _: driver.execute_async_script(
-                "chrome.storage.local.get('blockedSubreddits').then((r) => arguments[0](r.blockedSubreddits))"
-            ) == [])
-            driver.get(f"http://127.0.0.1:{server.server_port}/r/test/")
+            wait.until(lambda _: driver.execute_async_script(stored_rules) == [])
+            driver.get(fixture_url)
             wait.until(lambda _: js("return document.documentElement.hasAttribute('data-test-extension-id')"))
             configure(showBlockSubredditButton=False, limitInfiniteScroll=True,
                       blockedSubreddits=[{"name": "blocked", "mode": "all"}])
-            print("PASS subreddit header Block button and block-page undo", flush=True)
+            print("PASS subreddit header Block button and one-time block-page undo", flush=True)
             configure(scrollLimit=3, scrollMode="button")
 
             # Verify the actual settings UI as well as the unit-test mock.

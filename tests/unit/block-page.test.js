@@ -50,6 +50,7 @@ async function loadBlockPage({
     "undo-block": new FakeElement(),
   };
   const writes = [];
+  const removals = [];
   const replacedUrls = [];
   let readyListener;
   const redirects = [];
@@ -83,6 +84,10 @@ async function loadBlockPage({
         async set(values) {
           writes.push(JSON.parse(JSON.stringify(values)));
           Object.assign(storedSettings, values);
+        },
+        async remove(key) {
+          removals.push(key);
+          delete storedSettings[key];
         },
       },
       onChanged: { addListener(listener) { storageListener = listener; } },
@@ -127,6 +132,8 @@ async function loadBlockPage({
     storageListener,
     themeCache,
     writes,
+    removals,
+    storedSettings,
   };
 }
 
@@ -273,18 +280,28 @@ test("does not restore a URL that remains blocked by route settings", async () =
   assert.deepEqual(routeBlocked.redirects, []);
 });
 
+const returnUrl = "https://www.reddit.com/r/news/";
+const undoSearch = (token) =>
+  `?subreddit=news&returnUrl=${encodeURIComponent(returnUrl)}&filter=news&undo=${token}`;
+const undoMarker = (overrides = {}) => ({
+  quickBlockUndo: { subreddit: "news", token: "abc123", expires: Date.now() + 10000, ...overrides },
+});
+
 test("offers to undo a one-click block once and returns to the subreddit", async () => {
-  const returnUrl = "https://www.reddit.com/r/news/";
   const page = await loadBlockPage({
-    search: `?subreddit=news&returnUrl=${encodeURIComponent(returnUrl)}&filter=news&undo=1`,
+    search: undoSearch("abc123"),
     storedSettings: {
       blockedSubreddits: [{ name: "news", mode: "all" }, { name: "pics", mode: "all" }],
+      ...undoMarker(),
     },
   });
   const undo = page.elements["undo-block"];
 
   assert.equal(undo.hidden, false);
-  // A reload must not offer the undo again.
+  // The marker is spent at once and the token leaves the address, so a
+  // reload or a later visit cannot offer the undo again.
+  assert.deepEqual(page.removals, ["quickBlockUndo"]);
+  assert.equal("quickBlockUndo" in page.storedSettings, false);
   assert.deepEqual(page.replacedUrls, [
     `?subreddit=news&returnUrl=${encodeURIComponent(returnUrl)}&filter=news`,
   ]);
@@ -296,10 +313,33 @@ test("offers to undo a one-click block once and returns to the subreddit", async
   assert.deepEqual(page.redirects, [returnUrl]);
 });
 
-test("does not offer an undo for ordinary blocks", async () => {
+test("does not offer an undo when the token is wrong, spent, expired or for another subreddit", async () => {
+  for (const [label, token, storedSettings] of [
+    ["wrong token", "forged", undoMarker()],
+    ["spent marker", "abc123", {}],
+    ["expired marker", "abc123", undoMarker({ expires: Date.now() - 1 })],
+    ["other subreddit", "abc123", undoMarker({ subreddit: "pics" })],
+  ]) {
+    const page = await loadBlockPage({ search: undoSearch(token), storedSettings });
+    assert.equal(page.elements["undo-block"].hidden, true, label);
+    assert.equal("quickBlockUndo" in page.storedSettings, false, label);
+  }
+});
+
+test("does not offer an undo when visiting an already blocked subreddit", async () => {
   const page = await loadBlockPage({
-    search: "?subreddit=news&returnUrl=https%3A%2F%2Fwww.reddit.com%2Fr%2Fnews%2F",
+    search: `?subreddit=news&returnUrl=${encodeURIComponent(returnUrl)}`,
+    storedSettings: undoMarker(),
   });
   assert.equal(page.elements["undo-block"].hidden, true);
   assert.deepEqual(page.replacedUrls, []);
+  assert.deepEqual(page.removals, []);
+});
+
+test("keeps hidden action buttons out of the layout", () => {
+  // .btn sets display, which would otherwise override the hidden attribute
+  // and show the undo button on every block page.
+  const html = readFileSync(join(__dirname, "..", "..", "src", "blocked", "index.html"), "utf8");
+  assert.match(html, /\.btn\[hidden\]\s*\{\s*display:\s*none;?\s*\}/);
+  assert.match(html, /<button id="undo-block"[^>]*\shidden>/);
 });

@@ -49,6 +49,9 @@ var FrontFilter = (() => {
     theme: "system",
   });
   const STORAGE_KEYS = Object.freeze(Object.keys(DEFAULT_SETTINGS));
+  // A one-time marker, not a setting: it lets the block page offer to undo
+  // a one-click block only on the redirect that block caused.
+  const QUICK_BLOCK_UNDO_KEY = "quickBlockUndo";
   const NAVIGATION_STORAGE_KEYS = Object.freeze([
     "blockedSubreddits",
     "allowedSubreddits",
@@ -502,6 +505,7 @@ var FrontFilter = (() => {
   return {
     STORAGE_KEYS,
     NAVIGATION_STORAGE_KEYS,
+    QUICK_BLOCK_UNDO_KEY,
     LISTING_SORTS,
     DEFAULT_SETTINGS,
     applyStorageChanges,

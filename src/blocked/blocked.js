@@ -29,10 +29,11 @@ document.addEventListener("DOMContentLoaded", () => {
     ? `r/${sub} is blocked`
     : PAGE_MESSAGES[page] ?? "This content is blocked";
 
-  // Offered only right after a one-click block of this subreddit. A reload
-  // should not offer it again, so the flag leaves the address.
-  if (params.get("undo") === "1" && params.get("subreddit")) {
-    setUpUndo(params.get("subreddit"));
+  // Offered only on the redirect caused by a one-click block, whose token
+  // must match the one-time marker stored with the rule.
+  const undoToken = params.get("undo");
+  if (undoToken) {
+    void offerUndo(params.get("subreddit"), undoToken);
     params.delete("undo");
     window.history.replaceState(null, "", `?${params}${window.location.hash}`);
   }
@@ -91,6 +92,22 @@ document.addEventListener("DOMContentLoaded", () => {
     void restoreIfUnblocked(returnUrl);
   });
 });
+
+async function offerUndo(subreddit, token) {
+  const key = FrontFilter.QUICK_BLOCK_UNDO_KEY;
+  try {
+    const { [key]: pending } = await chrome.storage.local.get(key);
+    // One use only: reloading, going back or visiting the blocked page again
+    // must not offer it.
+    await chrome.storage.local.remove(key);
+    if (subreddit && pending?.subreddit === subreddit && pending.token === token
+      && Date.now() < pending.expires) {
+      setUpUndo(subreddit);
+    }
+  } catch (error) {
+    console.error("Could not check the undo offer:", error);
+  }
+}
 
 function setUpUndo(subreddit) {
   const button = document.getElementById("undo-block");

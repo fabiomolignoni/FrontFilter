@@ -110,6 +110,8 @@
       transition: background 0.15s, transform 0.1s;
       text-decoration: none;
     }
+    /* The undo button is only shown right after a one-click block. */
+    .btn[hidden] { display: none; }
     .btn:active { transform: scale(0.98); }
 
     .btn-primary {
