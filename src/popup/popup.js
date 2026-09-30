@@ -87,6 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
     hideLeftSidebarCommunities: "hide-left-sidebar-communities",
     hideLeftSidebarResources: "hide-left-sidebar-resources",
     hideRelatedPosts: "hide-right-sidebar",
+    showBlockSubredditButton: "show-block-subreddit-button",
     limitInfiniteScroll: "limit-infinite-scroll",
   };
   const checkboxes = Object.fromEntries(

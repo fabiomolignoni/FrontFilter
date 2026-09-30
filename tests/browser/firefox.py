@@ -829,6 +829,35 @@ chrome.storage.local.set({
             configure(limitInfiniteScroll=True, blockedFlairs=[],
                       blockedSubreddits=[{"name": "blocked", "mode": "all"}])
             print("PASS keyword filters hide comments with their replies", flush=True)
+
+            # One-click Block buttons are off by default. The page is r/test, so
+            # its own posts get none, and allowed subreddits get none either.
+            block_buttons = "return Array.from(document.querySelectorAll('.frontfilter-block-subreddit'), (b) => b.dataset.subreddit)"
+            block_rows = ("resetFeed([post('one','alpha',{credit:true}), post('two','beta',{credit:true}), "
+                          "post('own','test',{credit:true})])")
+            configure(limitInfiniteScroll=False, blockedSubreddits=[])
+            js(block_rows)
+            expect(["one", "two", "own"])
+            driver.execute_async_script("setTimeout(arguments[0], 300)")
+            assert js(block_buttons) == []
+            configure(showBlockSubredditButton=True)
+            wait.until(lambda _: js(block_buttons) == ["alpha", "beta"])
+            # The button sits in the actions group, before Join.
+            assert js("return document.querySelector('.frontfilter-block-subreddit').nextElementSibling.textContent") == "Join"
+            configure(allowedSubreddits=["beta"])
+            wait.until(lambda _: js(block_buttons) == ["alpha"])
+            js("document.querySelector('.frontfilter-block-subreddit').click()")
+            # An ALL rule hides the subreddit's posts; the page does not navigate.
+            expect(["two", "own"])
+            wait.until(lambda _: js("return document.querySelector('.frontfilter-block-toast')?.textContent") == "r/alpha blockedUndo")
+            assert js("return location.pathname") == "/r/test/"
+            js("document.querySelector('.frontfilter-block-toast button').click()")
+            expect(["one", "two", "own"])
+            wait.until(lambda _: js("return document.querySelector('.frontfilter-block-toast')?.textContent") == "r/alpha unblocked")
+            configure(showBlockSubredditButton=False, allowedSubreddits=[])
+            wait.until(lambda _: js(block_buttons) == [])
+            configure(limitInfiniteScroll=True, blockedSubreddits=[{"name": "blocked", "mode": "all"}])
+            print("PASS one-click Block button, undo and visibility rules", flush=True)
             configure(scrollLimit=3, scrollMode="button")
 
             # Verify the actual settings UI as well as the unit-test mock.

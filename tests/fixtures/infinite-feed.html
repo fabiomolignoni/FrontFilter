@@ -248,6 +248,20 @@ article { padding: 10px; }
       card.setAttribute("permalink", `/r/${row.subreddit}/comments/${row.id}/title`);
       card.setAttribute("post-title", row.title || `Post ${row.id}`);
       if (row.ad) card.setAttribute("is-promoted", "");
+      // The credit bar as Reddit renders it: subreddit and time on the left,
+      // Join and the overflow menu on the right.
+      if (row.credit) {
+        const creditBar = document.createElement("span");
+        creditBar.slot = "credit-bar";
+        const source = document.createElement("span");
+        source.textContent = `r/${row.subreddit}`;
+        const actions = document.createElement("span");
+        const join = document.createElement("button");
+        join.textContent = "Join";
+        actions.append(join);
+        creditBar.append(source, actions);
+        card.append(creditBar);
+      }
       if (row.flair) {
         const flair = document.createElement("shreddit-post-flair");
         flair.slot = "post-flair";

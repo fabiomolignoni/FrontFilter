@@ -194,6 +194,7 @@ for (const file of [
   "content/post-elements.js",
   "content/main.js",
   "content/feed-limit.js",
+  "content/quick-block.js",
   "popup/popup.js",
   "popup/index.html",
   "blocked/blocked.js",

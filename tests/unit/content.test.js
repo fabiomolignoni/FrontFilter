@@ -94,7 +94,9 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl }) 
     };
   `, context);
 
-  for (const file of ["shared/core.js", "content/post-elements.js", "content/main.js"]) {
+  for (const file of [
+    "shared/core.js", "content/post-elements.js", "content/quick-block.js", "content/main.js",
+  ]) {
     const source = readFileSync(join(__dirname, "..", "..", "src", file), "utf8");
     vm.runInContext(source, context, { filename: file });
     if (file === "shared/core.js") {
