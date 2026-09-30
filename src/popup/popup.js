@@ -72,6 +72,12 @@ document.addEventListener("DOMContentLoaded", () => {
     disableAutoplay: "disable-autoplay",
     hideSuggestedCommunities: "hide-suggested-communities",
     hideAds: "hide-ads",
+    hideSocialSignals: "hide-social-signals",
+    hideVotes: "hide-votes",
+    hideKarma: "hide-karma",
+    hideAwards: "hide-awards",
+    hideAvatars: "hide-avatars",
+    hideUsernames: "hide-usernames",
     hideNavbar: "hide-navbar",
     hideNavbarMenu: "hide-navbar-menu",
     hideNavbarSearch: "hide-navbar-search",
@@ -121,6 +127,19 @@ document.addEventListener("DOMContentLoaded", () => {
     "hideLeftSidebarCommunities",
     "hideLeftSidebarResources",
   ];
+  const socialSignalKeys = [
+    "hideVotes",
+    "hideKarma",
+    "hideAwards",
+    "hideAvatars",
+    "hideUsernames",
+  ];
+  // These parents switch all of their children on and off together.
+  const sectionGroups = {
+    hideNavbar: navbarSectionKeys,
+    hideLeftSidebar: leftSidebarSectionKeys,
+    hideSocialSignals: socialSignalKeys,
+  };
   const settingGroups = [
     {
       id: "comments",
@@ -139,6 +158,12 @@ document.addEventListener("DOMContentLoaded", () => {
       parentKey: "hideLeftSidebar",
       childKeys: leftSidebarSectionKeys,
       describe: (count, total) => `${count} of ${total} sections hidden`,
+    },
+    {
+      id: "social",
+      parentKey: "hideSocialSignals",
+      childKeys: socialSignalKeys,
+      describe: (count, total) => `${count} of ${total} hidden`,
     },
   ].map((group) => ({
     ...group,
@@ -200,8 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     updateScrollControls();
     updateCommentControls();
-    updateNavbarControls();
-    updateLeftSidebarControls();
+    updateSectionControls();
     updateGroupSummaries();
   }
 
@@ -220,18 +244,13 @@ document.addEventListener("DOMContentLoaded", () => {
       || checkboxes.hideComments.checked;
   }
 
-  function updateNavbarControls() {
-    for (const key of navbarSectionKeys) {
-      if (checkboxes.hideNavbar.checked) checkboxes[key].checked = true;
-      checkboxes[key].disabled = controlsDisabled || checkboxes.hideNavbar.checked;
-    }
-  }
-
-  function updateLeftSidebarControls() {
-    for (const key of leftSidebarSectionKeys) {
-      if (checkboxes.hideLeftSidebar.checked) checkboxes[key].checked = true;
-      checkboxes[key].disabled = controlsDisabled
-        || checkboxes.hideLeftSidebar.checked;
+  function updateSectionControls() {
+    for (const [parentKey, childKeys] of Object.entries(sectionGroups)) {
+      const parentChecked = checkboxes[parentKey].checked;
+      for (const key of childKeys) {
+        if (parentChecked) checkboxes[key].checked = true;
+        checkboxes[key].disabled = controlsDisabled || parentChecked;
+      }
     }
   }
 
@@ -738,25 +757,18 @@ document.addEventListener("DOMContentLoaded", () => {
   Object.entries(checkboxes).forEach(([key, checkbox]) => {
     checkbox.addEventListener("change", () => {
       const changedKeys = [key];
-      if (key === "hideNavbar") {
-        for (const sectionKey of navbarSectionKeys) {
+      if (sectionGroups[key]) {
+        for (const sectionKey of sectionGroups[key]) {
           checkboxes[sectionKey].checked = checkbox.checked;
         }
-        changedKeys.push(...navbarSectionKeys);
-      }
-      if (key === "hideLeftSidebar") {
-        for (const sectionKey of leftSidebarSectionKeys) {
-          checkboxes[sectionKey].checked = checkbox.checked;
-        }
-        changedKeys.push(...leftSidebarSectionKeys);
+        changedKeys.push(...sectionGroups[key]);
       }
       if (key === "hideComments") {
         changedKeys.push("hideCommentReplies");
       }
       updateScrollControls();
       updateCommentControls();
-      updateNavbarControls();
-      updateLeftSidebarControls();
+      updateSectionControls();
       updateGroupSummaries();
       scheduleAutoSave(changedKeys, true);
     });

@@ -94,6 +94,36 @@
                   communities</span></label>
               <label class="checkbox-label"><input type="checkbox" role="switch"
                   id="hide-ads" /><span>Hide ads and promoted posts</span></label>
+              <div class="setting-group" role="group"
+                aria-label="Votes and user info visibility">
+                <div class="checkbox-label group-header">
+                  <button type="button" class="group-toggle" id="social-toggle"
+                    aria-expanded="false" aria-controls="social-options"><svg
+                      viewBox="0 0 12 12" aria-hidden="true"><path
+                        d="M4.5 3 7.5 6 4.5 9" /></svg><span><span
+                        id="social-title">Hide votes and user info</span><small
+                        id="social-summary" hidden></small></span></button>
+                  <input type="checkbox" role="switch" id="hide-social-signals"
+                    aria-labelledby="social-title" />
+                </div>
+                <div class="sub-options" id="social-options" hidden>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-votes" /><span>Hide votes</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-karma" /><span>Hide karma</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-awards" /><span>Hide awards</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-avatars" /><span>Hide avatars</span></label>
+                  <label class="checkbox-label sub-option"><input
+                      type="checkbox" role="switch"
+                      id="hide-usernames" /><span>Hide usernames</span></label>
+                </div>
+              </div>
             </div>
           </div>
 

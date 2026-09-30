@@ -717,6 +717,100 @@ test("hides modern feed comment actions inside shreddit-post shadow roots", asyn
   assert.match(styles[0].textContent, /display: none !important/);
 });
 
+function createShadowHost() {
+  const host = { styles: [], writes: 0 };
+  host.shadowRoot = {
+    appendChild(style) {
+      let text = style.textContent;
+      Object.defineProperty(style, "textContent", {
+        get: () => text,
+        set: (value) => {
+          text = value;
+          host.writes += 1;
+        },
+      });
+      host.styles.push(style);
+    },
+    querySelector(selector) {
+      return host.styles.find((style) => `#${style.id}` === selector) || null;
+    },
+  };
+  return host;
+}
+
+test("hides votes, karma, awards, avatars and usernames with page and shadow rules", async () => {
+  const post = createShadowHost();
+  const actionRow = createShadowHost();
+  const content = await loadContent({
+    querySelectorAll: (selector) => ({
+      "shreddit-post": [post],
+      "shreddit-comment-action-row": [actionRow],
+    })[selector] || [],
+    settings: {
+      hideVotes: true,
+      hideKarma: true,
+      hideAwards: true,
+      hideAvatars: true,
+      hideUsernames: true,
+    },
+    startUrl: "https://www.reddit.com/r/test/comments/abc/title/",
+  });
+  const pageRules = () => content.injectedStyles[0].textContent.split("\n");
+  const rule = (selector) => `${selector} { display: none !important; }`;
+
+  for (const selector of [
+    ".thing div.midcol",
+    ".comment p.tagline span.score",
+    'div:has(> p > [data-testid="karma-number"])',
+    '[noun="karma_help"]',
+    "award-button",
+    'shreddit-comment [noun="comment_author_avatar"]',
+    '[noun="user_profile"] [avatar]',
+    'shreddit-post [slot="authorName"]',
+    'shreddit-comment [noun="comment_author"]',
+  ]) {
+    assert.ok(pageRules().includes(rule(selector)), selector);
+  }
+  for (const host of [post, actionRow]) {
+    assert.equal(host.styles.length, 1);
+    assert.equal(host.styles[0].id, "frontfilter-social-signals-style");
+    assert.deepEqual(host.styles[0].textContent.split("\n"), [
+      rule(':has(> button[upvote]):not(:has(slot, award-button, [data-post-click-location="comments-button"], [name="comments-action-button"]))'),
+      rule(".rpl-vote-button-group"),
+      rule("button[upvote]"),
+      rule("button[downvote]"),
+      rule("button[upvote] ~ span:has(faceplate-number)"),
+      rule("award-button"),
+    ]);
+  }
+
+  // Unchanged shadow stylesheets are not rewritten on later mutations.
+  content.processFilteredContent();
+  assert.deepEqual([post.writes, actionRow.writes], [1, 1]);
+
+  content.storageListeners[0]({ hideAwards: { newValue: false } }, "local");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(!pageRules().includes(rule("award-button")));
+  assert.ok(!post.styles[0].textContent.split("\n").includes(rule("award-button")));
+  assert.match(post.styles[0].textContent, /button\[downvote\]/);
+
+  content.storageListeners[0]({ hideVotes: { newValue: false } }, "local");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(post.styles[0].textContent, "");
+  assert.equal(actionRow.styles[0].textContent, "");
+  assert.ok(pageRules().includes(rule('shreddit-post [slot="authorName"]')));
+});
+
+test("hides user info without scanning the DOM when no shadow rules are needed", async () => {
+  const content = await loadContent({
+    settings: { hideKarma: true, hideAvatars: true, hideUsernames: true },
+    startUrl: "https://www.reddit.com/",
+  });
+
+  assert.match(content.injectedStyles[0].textContent, /karma-number/);
+  assert.deepEqual(content.queriedSelectors, []);
+});
+
 test("toggles comment visibility live while preserving post and community filters", async () => {
   const post = createPost({ subreddit: "firefox" });
   const content = await loadContent({

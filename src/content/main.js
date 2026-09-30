@@ -19,6 +19,7 @@ let communityFilteringActive = false;
 let commentActionsHidden = false;
 let videoAutoplayDisabled = false;
 let mainPageLinksHidden = false;
+let shadowSocialSignalsHidden = false;
 let observerOptionsSignature = "";
 const feedLimiter = FrontFilter.createFeedLimiter({
   getSettings: () => config,
@@ -130,6 +131,52 @@ const AD_SELECTORS = [
   `[data-faceplate-tracking-context*='"promoted":true']`,
   'div[data-before-content="advertisement"]',
 ];
+// Identifiers come from Reddit's component markup (slots, tracking nouns and
+// test IDs), never translated text. Subreddit icons are not user avatars.
+const SOCIAL_SIGNAL_SELECTORS = Object.freeze({
+  hideVotes: [
+    // Modern vote controls render in shadow roots; see
+    // SOCIAL_SIGNAL_SHADOW_SELECTORS. Old Reddit keeps arrows and score in
+    // the middle column, and repeats comment scores in the tagline.
+    ".thing div.midcol",
+    ".comment p.tagline span.score",
+  ],
+  hideKarma: [
+    // Profile cards wrap the number in a paragraph; user hover cards do not.
+    'div:has(> p > [data-testid="karma-number"])',
+    'div:has(> [data-testid="karma-number"])',
+    '[data-testid="karma-number"]',
+    '[noun="karma_help"]',
+    "#header-bottom-right .user span",
+  ],
+  hideAwards: ["award-button"],
+  hideAvatars: [
+    'shreddit-comment [noun="comment_author_avatar"]',
+    '[noun="user_profile"] [avatar]',
+    'faceplate-hovercard[data-id="user-hover-card"] [slot="content"] [avatar]',
+  ],
+  hideUsernames: [
+    'shreddit-post [slot="authorName"]',
+    'shreddit-comment [noun="comment_author"]',
+    ".entry .tagline .author",
+  ],
+});
+const SOCIAL_SIGNAL_STYLE_ID = "frontfilter-social-signals-style";
+const SOCIAL_SIGNAL_SHADOW_HOSTS = ["shreddit-post", "shreddit-comment-action-row"];
+// Vote buttons, scores and post awards render inside these components'
+// shadow roots. The whole vote group goes, so no empty pill is left, unless
+// its wrapper also holds other actions; the individual controls are then
+// hidden on their own.
+const SOCIAL_SIGNAL_SHADOW_SELECTORS = Object.freeze({
+  hideVotes: [
+    ':has(> button[upvote]):not(:has(slot, award-button, [data-post-click-location="comments-button"], [name="comments-action-button"]))',
+    ".rpl-vote-button-group",
+    "button[upvote]",
+    "button[downvote]",
+    "button[upvote] ~ span:has(faceplate-number)",
+  ],
+  hideAwards: ["award-button"],
+});
 const AD_STYLE_TEXT = AD_SELECTORS
   .map((selector) => `\n${selector} { display: none !important; }`)
   .join("");
@@ -532,6 +579,7 @@ function needsDynamicContentProcessing() {
     || filterIndex.blockedFrontSubreddits.length > 0
     || config.hideComments
     || config.disableAutoplay
+    || hasShadowSocialSignals()
     || MAIN_PAGE_SETTING_KEYS.some((setting) => config[setting]);
 }
 
@@ -593,7 +641,8 @@ function ensureHiddenStyle() {
     ? `\n${commentSelector} { display: none !important; }`
     : "") + (config.hideSuggestedCommunities
     ? `\n${SUGGESTED_COMMUNITIES_SELECTOR} { display: none !important; }`
-    : "") + (config.hideAds ? AD_STYLE_TEXT : "") + (config.hideNavbar
+    : "") + (config.hideAds ? AD_STYLE_TEXT : "")
+    + createSettingRules(SOCIAL_SIGNAL_SELECTORS) + (config.hideNavbar
     ? `\n${NAVBAR_SELECTOR} { display: none !important; }\n${NAVBAR_LAYOUT_STYLE}`
     : "") + navbarSectionRules + navbarLogoRule + (config.hideLeftSidebar
     ? `\n${LEFT_SIDEBAR_SELECTOR} { display: none !important; }`
@@ -610,6 +659,16 @@ function ensureHiddenStyle() {
   style.id = HIDDEN_STYLE_ID;
   style.textContent = styleText;
   document.documentElement.appendChild(style);
+}
+
+// Each selector gets its own rule so one the browser rejects cannot disable
+// the others.
+function createSettingRules(selectorsBySetting) {
+  return Object.entries(selectorsBySetting)
+    .filter(([setting]) => config[setting])
+    .flatMap(([, selectors]) => selectors)
+    .map((selector) => `\n${selector} { display: none !important; }`)
+    .join("");
 }
 
 function createMainPageLinkRule(scope = "") {
@@ -662,12 +721,17 @@ function processFilteredContent() {
   if (shouldHideMainPageLinks || mainPageLinksHidden) {
     syncShadowMainPageLinks();
   }
+  const shouldHideShadowSocialSignals = hasShadowSocialSignals();
+  if (shouldHideShadowSocialSignals || shadowSocialSignalsHidden) {
+    syncShadowSocialSignals();
+  }
 
   postFilteringActive = shouldFilterPosts;
   communityFilteringActive = shouldFilterCommunities;
   commentActionsHidden = config.hideComments;
   videoAutoplayDisabled = config.disableAutoplay;
   mainPageLinksHidden = shouldHideMainPageLinks;
+  shadowSocialSignalsHidden = shouldHideShadowSocialSignals;
 }
 
 function syncShadowMainPageLinks() {
@@ -689,7 +753,8 @@ function syncShadowRootStyles(hostSelector, styleId, styleText) {
       style.id = styleId;
       shadowRoot.appendChild(style);
     }
-    if (style) style.textContent = styleText;
+    // Rewriting an unchanged stylesheet would re-parse it on every mutation.
+    if (style && style.textContent !== styleText) style.textContent = styleText;
   });
 }
 
@@ -720,6 +785,23 @@ function syncShadowCommentActions() {
     COMMENT_ACTION_STYLE_ID,
     config.hideComments ? COMMENT_ACTION_STYLE_TEXT : "",
   );
+}
+
+function hasShadowSocialSignals() {
+  return Object.keys(SOCIAL_SIGNAL_SHADOW_SELECTORS).some((setting) => config[setting]);
+}
+
+function syncShadowSocialSignals() {
+  const styleText = createSettingRules(SOCIAL_SIGNAL_SHADOW_SELECTORS).trimStart();
+  for (const host of SOCIAL_SIGNAL_SHADOW_HOSTS) {
+    syncShadowRootStyles(host, SOCIAL_SIGNAL_STYLE_ID, styleText);
+  }
+}
+
+function setupSocialSignalMonitor() {
+  for (const host of SOCIAL_SIGNAL_SHADOW_HOSTS) {
+    monitorCustomElement(host, hasShadowSocialSignals, syncShadowSocialSignals);
+  }
 }
 
 function setupCommentActionMonitor() {
@@ -940,4 +1022,5 @@ void filterPosts();
 setupCommentActionMonitor();
 setupVideoAutoplayMonitor();
 setupMainPageLinkMonitor();
+setupSocialSignalMonitor();
 setupUrlChangeMonitor();

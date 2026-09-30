@@ -42,8 +42,8 @@ FrontFilter stores the choices you make in its settings interface, including:
   exceptions;
 - words or phrases used to filter post titles and text previews;
 - Reddit page-blocking preferences;
-- interface, comment-visibility, ad-visibility, and video-autoplay
-  preferences;
+- interface, comment-visibility, ad-visibility, vote-and-user-info
+  visibility, and video-autoplay preferences;
 - feed-limit status, size, and mode; and
 - the selected light, dark, or system theme.
 

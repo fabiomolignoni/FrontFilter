@@ -211,6 +211,12 @@ test("rejects malformed stored values instead of throwing or enabling flags", ()
       disableAutoplay: false,
       hideSuggestedCommunities: false,
       hideAds: false,
+      hideSocialSignals: false,
+      hideVotes: false,
+      hideKarma: false,
+      hideAwards: false,
+      hideAvatars: false,
+      hideUsernames: false,
       hideNavbar: false,
       hideNavbarMenu: false,
       hideNavbarSearch: false,
@@ -294,6 +300,12 @@ test("settings store preserves changes received during its initial load", async 
       disableAutoplay: false,
       hideSuggestedCommunities: false,
       hideAds: false,
+      hideSocialSignals: false,
+      hideVotes: false,
+      hideKarma: false,
+      hideAwards: false,
+      hideAvatars: false,
+      hideUsernames: false,
       hideNavbar: false,
       hideNavbarMenu: false,
       hideNavbarSearch: false,
@@ -397,6 +409,32 @@ test("hiding the left sidebar implies every section, but sections remain indepen
   assert.equal(gamesOnly.hideLeftSidebar, false);
   assert.equal(gamesOnly.hideLeftSidebarGames, true);
   for (const key of sectionKeys.slice(1)) assert.equal(gamesOnly[key], false);
+});
+
+test("hiding votes and user info implies every signal, but signals remain independent", () => {
+  const signalKeys = [
+    "hideVotes",
+    "hideKarma",
+    "hideAwards",
+    "hideAvatars",
+    "hideUsernames",
+  ];
+  const allSignals = FrontFilter.coerceSettings({
+    hideSocialSignals: true,
+    ...Object.fromEntries(signalKeys.map((key) => [key, false])),
+  });
+  assert.equal(allSignals.hideSocialSignals, true);
+  for (const key of signalKeys) assert.equal(allSignals[key], true);
+
+  const karmaOnly = FrontFilter.coerceSettings({
+    hideSocialSignals: false,
+    hideKarma: true,
+  });
+  assert.equal(karmaOnly.hideSocialSignals, false);
+  assert.equal(karmaOnly.hideKarma, true);
+  for (const key of signalKeys.filter((key) => key !== "hideKarma")) {
+    assert.equal(karmaOnly[key], false);
+  }
 });
 
 test("accepts only HTTP(S) Reddit URLs", () => {
