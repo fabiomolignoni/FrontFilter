@@ -16,11 +16,10 @@ Object.assign(firefoxManifest, firefoxOverrides);
 const packageJson = JSON.parse(
   readFileSync(join(root, "package.json"), "utf8"),
 );
-const projectUrl = "https://github.com/SilentFoxDev/FrontFilter";
+const projectUrl = "https://github.com/fabiomolignoni/FrontFilter";
 const allowedExternalLinks = new Set([
   projectUrl,
   `${projectUrl}/issues`,
-  "https://ko-fi.com/silentfoxdev/donate",
 ]);
 const htmlPages = [
   { file: "popup/index.html", script: "popup/popup.js" },

@@ -4,7 +4,7 @@ Thanks for helping improve FrontFilter.
 
 ## Report a bug or propose a change
 
-Search the [issue tracker](https://github.com/SilentFoxDev/FrontFilter/issues)
+Search the [issue tracker](https://github.com/fabiomolignoni/FrontFilter/issues)
 before opening a new issue. For bugs, include:
 
 - FrontFilter and browser versions;

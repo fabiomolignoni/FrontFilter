@@ -1,15 +1,15 @@
 {
   "name": "frontfilter",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "private": true,
   "description": "Validation and packaging tools for the FrontFilter browser extension",
-  "homepage": "https://github.com/SilentFoxDev/FrontFilter#readme",
+  "homepage": "https://github.com/fabiomolignoni/FrontFilter#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SilentFoxDev/FrontFilter.git"
+    "url": "git+https://github.com/fabiomolignoni/FrontFilter.git"
   },
   "bugs": {
-    "url": "https://github.com/SilentFoxDev/FrontFilter/issues"
+    "url": "https://github.com/fabiomolignoni/FrontFilter/issues"
   },
   "engines": {
     "node": ">=20"
