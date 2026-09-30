@@ -144,6 +144,28 @@ def verify_settings_tabs(driver, wait, screenshot):
     wait.until(lambda _: left_sidebar_sections[0].is_selected())
     left_sidebar_sections[0].click()
     wait.until(lambda _: all(not toggle.is_selected() for toggle in left_sidebar_sections))
+    all_social = driver.find_element("id", "hide-social-signals")
+    social_signals = [driver.find_element("id", element_id) for element_id in [
+        "hide-votes",
+        "hide-karma",
+        "hide-awards",
+        "hide-avatars",
+        "hide-usernames",
+    ]]
+    assert all(not toggle.is_selected() and toggle.is_enabled() for toggle in social_signals)
+    assert not any(toggle.is_displayed() for toggle in social_signals)
+    driver.find_element("id", "social-toggle").click()
+    wait.until(lambda _: all(toggle.is_displayed() for toggle in social_signals))
+    all_social.click()
+    wait.until(lambda _: all(
+        toggle.is_selected() and not toggle.is_enabled()
+        for toggle in social_signals
+    ))
+    all_social.click()
+    wait.until(lambda _: all(
+        not toggle.is_selected() and toggle.is_enabled()
+        for toggle in social_signals
+    ))
     driver.find_element("id", "tab-controls").send_keys(Keys.ARROW_RIGHT)
     selected("filters")
     assert driver.switch_to.active_element.get_dom_attribute("id") == "tab-filters"
@@ -369,6 +391,36 @@ window.addEventListener("frontfilter-test-sync-rules", async () => {
             configure(hideAds=False)
             wait.until(lambda _: js("return adVisibility()") == ads_shown)
             print("PASS ads and promoted posts visibility", flush=True)
+
+            signal_keys = ["hideVotes", "hideKarma", "hideAwards", "hideAvatars", "hideUsernames"]
+            signals_shown = {
+                "post-author": True, "post-author-avatar": True, "community-icon": True,
+                "comment-avatar": True, "comment-author": True, "comment-time": True,
+                "comment-award": True, "card-avatar": True, "card-karma": True,
+                "karma-help": True, "card-follow": True, "profile-karma": True,
+                "post-score": True, "post-award": True, "post-upvote": True, "post-downvote": True,
+                "comment-score": True, "comment-upvote": True, "post-comments": True,
+            }
+            # Avatars hide on their own: names and subreddit icons stay visible.
+            avatars_hidden = {
+                **signals_shown,
+                "post-author-avatar": False, "comment-avatar": False, "card-avatar": False,
+            }
+            # Timestamps, subreddit icons, other post actions and hover-card actions stay.
+            signals_hidden = {
+                **{key: False for key in signals_shown},
+                "community-icon": True, "comment-time": True, "card-follow": True,
+                "post-comments": True,
+            }
+            configure(hideSocialSignals=False, **{key: False for key in signal_keys})
+            wait.until(lambda _: js("return socialVisibility()") == signals_shown)
+            configure(hideAvatars=True)
+            wait.until(lambda _: js("return socialVisibility()") == avatars_hidden)
+            configure(hideSocialSignals=True, **{key: True for key in signal_keys})
+            wait.until(lambda _: js("return socialVisibility()") == signals_hidden)
+            configure(hideSocialSignals=False, **{key: False for key in signal_keys})
+            wait.until(lambda _: js("return socialVisibility()") == signals_shown)
+            print("PASS votes, karma, awards, avatars and usernames visibility", flush=True)
 
             all_navbar_sections = {
                 "hideNavbarMenu": True,

@@ -5,7 +5,7 @@
 body { font: 16px sans-serif; }
 shreddit-feed, shreddit-post, shreddit-comment, reddit-sidebar-nav,
 shreddit-ad-post, shreddit-comments-page-ad, shreddit-comment-tree-ad,
-shreddit-async-loader,
+shreddit-async-loader, faceplate-hovercard, shreddit-comment-action-row,
 left-nav-top-section, faceplate-loader, faceplate-tracker,
 faceplate-expandable-section-helper { display: block; }
 search-dynamic-id-cache-controller, reddit-search-large, reddit-chat-header-button,
@@ -89,6 +89,52 @@ article { padding: 10px; }
   <div id="old-promoted" class="thing promotedlink">Old Reddit promoted link</div>
   <div id="old-placeholder" class="promotedlink" style="height: 1px;">Placeholder</div>
 </section>
+<section id="social-signals">
+  <shreddit-post id="social-post" author="alice" score="42">
+    <span slot="credit-bar">
+      <faceplate-hovercard data-id="community-hover-card">
+        <a href="/r/test/"><span avatar id="community-icon">r/</span>r/test</a>
+      </faceplate-hovercard>
+      <span slot="authorName" id="post-author">
+        <faceplate-hovercard data-id="user-hover-card">
+          <faceplate-tracker noun="user_profile">
+            <a href="/user/alice/"><span avatar id="post-author-avatar">A</span>u/alice</a>
+          </faceplate-tracker>
+        </faceplate-hovercard>
+      </span>
+    </span>
+  </shreddit-post>
+  <shreddit-comment id="social-comment" author="bob">
+    <div slot="commentAvatar">
+      <faceplate-hovercard data-id="user-hover-card">
+        <faceplate-tracker noun="comment_author_avatar" id="comment-avatar">
+          <a href="/user/bob/">B</a>
+        </faceplate-tracker>
+      </faceplate-hovercard>
+    </div>
+    <div slot="commentMeta">
+      <faceplate-hovercard data-id="user-hover-card">
+        <faceplate-tracker noun="comment_author" id="comment-author">
+          <a href="/user/bob/">bob</a>
+        </faceplate-tracker>
+      </faceplate-hovercard>
+      <span id="comment-time">2 hr. ago</span>
+    </div>
+    <div slot="comment">Comment body</div>
+    <shreddit-comment-action-row slot="actionRow" id="comment-actions" score="7">
+      <award-button slot="comment-award" id="comment-award">Award</award-button>
+    </shreddit-comment-action-row>
+  </shreddit-comment>
+  <faceplate-hovercard data-id="user-hover-card">
+    <div slot="content">
+      <span avatar id="card-avatar">B</span>
+      <div id="card-karma"><span data-testid="karma-number">3</span><div>Post karma</div></div>
+      <faceplate-tracker noun="karma_help" id="karma-help"><a>What is karma?</a></faceplate-tracker>
+      <div id="card-follow">Follow</div>
+    </div>
+  </faceplate-hovercard>
+  <div id="profile-karma"><p><span data-testid="karma-number">1</span></p><p>Post Karma</p></div>
+</section>
 <aside><article><shreddit-post id="t3_sidebar" subreddit-name="safe">Sidebar post</shreddit-post></article></aside>
 <script>
   window.loadCalls = 0;
@@ -116,11 +162,45 @@ article { padding: 10px; }
       shadow.append(list);
     }
   });
+  // Scores and post awards render in shadow roots, as on modern Reddit.
+  const createSlot = (name) => {
+    const slot = document.createElement("slot");
+    slot.name = name;
+    return slot;
+  };
+  const createVoteGroup = (host) => {
+    const group = document.createElement("span");
+    group.className = "rpl-vote-button-group";
+    const upvote = document.createElement("button");
+    upvote.setAttribute("upvote", "");
+    upvote.textContent = "Upvote";
+    const score = document.createElement("span");
+    score.id = "score";
+    const number = document.createElement("faceplate-number");
+    number.textContent = host.getAttribute("score") || "0";
+    score.append(number);
+    const downvote = document.createElement("button");
+    downvote.setAttribute("downvote", "");
+    downvote.textContent = "Downvote";
+    group.append(upvote, score, downvote);
+    return group;
+  };
+  customElements.define("shreddit-comment-action-row", class extends HTMLElement {
+    constructor() {
+      super();
+      const shadow = this.attachShadow({ mode: "open" });
+      shadow.append(createVoteGroup(this), createSlot("comment-award"));
+    }
+  });
   customElements.define("shreddit-post", class extends HTMLElement {
     constructor() {
       super();
       const shadow = this.attachShadow({ mode: "open" });
-      shadow.append(document.createElement("slot"));
+      shadow.append(createSlot("credit-bar"), document.createElement("slot"));
+      const award = document.createElement("award-button");
+      award.id = "award";
+      award.textContent = "Award";
+      shadow.append(createVoteGroup(this), award);
       const comments = document.createElement("a");
       comments.href = "#comments";
       comments.textContent = "Comments";
@@ -256,6 +336,26 @@ article { padding: 10px; }
   window.visibleComments = () => Array.from(document.querySelectorAll("#comments shreddit-comment"))
     .filter((el) => el.getClientRects().length && getComputedStyle(el).display !== "none")
     .map((el) => el.id);
+  window.socialVisibility = () => {
+    const visible = (element) => Boolean(element?.getClientRects().length)
+      && getComputedStyle(element).display !== "none";
+    const post = document.querySelector("#social-post").shadowRoot;
+    const actions = document.querySelector("#comment-actions").shadowRoot;
+    return {
+      ...Object.fromEntries([
+        "post-author", "post-author-avatar", "community-icon", "comment-avatar",
+        "comment-author", "comment-time", "comment-award", "card-avatar",
+        "card-karma", "karma-help", "card-follow", "profile-karma",
+      ].map((id) => [id, visible(document.getElementById(id))])),
+      "post-score": visible(post.querySelector("#score")),
+      "post-award": visible(post.querySelector("#award")),
+      "post-upvote": visible(post.querySelector("button[upvote]")),
+      "post-downvote": visible(post.querySelector("button[downvote]")),
+      "post-comments": visible(post.querySelector('[data-action-bar-action="comments"]')),
+      "comment-score": visible(actions.querySelector("#score")),
+      "comment-upvote": visible(actions.querySelector("button[upvote]")),
+    };
+  };
   // Feed cards report their own visibility and that of the divider after them.
   window.adVisibility = () => {
     const visible = (element) => Boolean(element?.getClientRects().length)

@@ -19,6 +19,12 @@ var FrontFilter = (() => {
     disableAutoplay: false,
     hideSuggestedCommunities: false,
     hideAds: false,
+    hideSocialSignals: false,
+    hideVotes: false,
+    hideKarma: false,
+    hideAwards: false,
+    hideAvatars: false,
+    hideUsernames: false,
     hideNavbar: false,
     hideNavbarMenu: false,
     hideNavbarSearch: false,
@@ -277,6 +283,13 @@ var FrontFilter = (() => {
       settings.hideNavbarNotifications = true;
       settings.hideNavbarProfile = true;
       settings.hideNavbarOthers = true;
+    }
+    if (settings.hideSocialSignals) {
+      settings.hideVotes = true;
+      settings.hideKarma = true;
+      settings.hideAwards = true;
+      settings.hideAvatars = true;
+      settings.hideUsernames = true;
     }
     if (settings.hideLeftSidebar) {
       settings.hideLeftSidebarGames = true;

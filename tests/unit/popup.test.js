@@ -147,6 +147,12 @@ async function loadPopup({
     "disable-autoplay",
     "hide-suggested-communities",
     "hide-ads",
+    "hide-social-signals",
+    "hide-votes",
+    "hide-karma",
+    "hide-awards",
+    "hide-avatars",
+    "hide-usernames",
     "hide-navbar",
     "hide-navbar-menu",
     "hide-navbar-search",
@@ -161,7 +167,7 @@ async function loadPopup({
     "hide-left-sidebar-communities",
     "hide-left-sidebar-resources",
     "hide-right-sidebar",
-    ...["comments", "navbar", "left-sidebar"].flatMap((group) => [
+    ...["comments", "navbar", "left-sidebar", "social"].flatMap((group) => [
       `${group}-toggle`, `${group}-options`, `${group}-summary`,
     ]),
     "limit-infinite-scroll",
@@ -178,7 +184,7 @@ async function loadPopup({
     elements[`panel-${name}`].hidden = index !== 0;
     return tab;
   });
-  for (const group of ["comments", "navbar", "left-sidebar"]) {
+  for (const group of ["comments", "navbar", "left-sidebar", "social"]) {
     elements[`${group}-toggle`].setAttribute("aria-expanded", "false");
     elements[`${group}-options`].hidden = true;
     elements[`${group}-summary`].hidden = true;
@@ -736,6 +742,53 @@ test("collapses grouped sub-options and summarizes the hidden ones", async () =>
   assert.equal(elements["comments-summary"].textContent, "Replies hidden");
 });
 
+test("makes hiding votes and user info imply every signal toggle", async () => {
+  const { elements, writes } = await loadPopup({ autoResolveWrites: true,
+    storedSettings: { hideKarma: true, hideAwards: true },
+  });
+  const signalIds = [
+    "hide-votes",
+    "hide-karma",
+    "hide-awards",
+    "hide-avatars",
+    "hide-usernames",
+  ];
+  assert.equal(elements["social-summary"].textContent, "2 of 5 hidden");
+
+  elements["hide-social-signals"].checked = true;
+  elements["hide-social-signals"].dispatch("change");
+  await new Promise((resolve) => setImmediate(resolve));
+  for (const id of signalIds) {
+    assert.equal(elements[id].checked, true);
+    assert.equal(elements[id].disabled, true);
+  }
+  assert.equal(elements["social-summary"].hidden, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    hideSocialSignals: true,
+    hideVotes: true,
+    hideKarma: true,
+    hideAwards: true,
+    hideAvatars: true,
+    hideUsernames: true,
+  });
+
+  elements["hide-social-signals"].checked = false;
+  elements["hide-social-signals"].dispatch("change");
+  await new Promise((resolve) => setImmediate(resolve));
+  for (const id of signalIds) {
+    assert.equal(elements[id].checked, false);
+    assert.equal(elements[id].disabled, false);
+  }
+
+  elements["hide-usernames"].checked = true;
+  elements["hide-usernames"].dispatch("change");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    hideUsernames: true,
+  });
+  assert.equal(elements["social-summary"].textContent, "1 of 5 hidden");
+});
+
 test("makes hiding the left sidebar imply its indented section toggles", async () => {
   const { elements, writes } = await loadPopup({ autoResolveWrites: true });
   const allSidebar = elements["hide-left-sidebar"];
@@ -790,6 +843,12 @@ test("maps every checkbox to the matching storage setting", async () => {
     "disable-autoplay": "disableAutoplay",
     "hide-suggested-communities": "hideSuggestedCommunities",
     "hide-ads": "hideAds",
+    "hide-social-signals": "hideSocialSignals",
+    "hide-votes": "hideVotes",
+    "hide-karma": "hideKarma",
+    "hide-awards": "hideAwards",
+    "hide-avatars": "hideAvatars",
+    "hide-usernames": "hideUsernames",
     "hide-navbar": "hideNavbar",
     "hide-navbar-menu": "hideNavbarMenu",
     "hide-navbar-search": "hideNavbarSearch",
