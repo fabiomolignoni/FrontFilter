@@ -146,6 +146,7 @@ async function loadPopup({
     "hide-comment-replies",
     "disable-autoplay",
     "hide-suggested-communities",
+    "hide-ads",
     "hide-navbar",
     "hide-navbar-menu",
     "hide-navbar-search",
@@ -584,6 +585,7 @@ test("exports the normalized stored configuration as a JSON download", async () 
       disableAutoTranslation: true,
       disableAutoplay: true,
       hideSuggestedCommunities: true,
+      hideAds: true,
       blockedSubreddits: ["Firefox"],
       allowedSubreddits: ["ItalyPersonalFinance", "ITALYPERSONALFINANCE"],
       blockedTitleKeywords: [" Trump ", "TRUMP"],
@@ -601,6 +603,7 @@ test("exports the normalized stored configuration as a JSON download", async () 
   assert.equal(exported.hideRelatedPosts, true);
   assert.equal(exported.disableAutoplay, true);
   assert.equal(exported.hideSuggestedCommunities, true);
+  assert.equal(exported.hideAds, true);
   assert.deepEqual(exported.allowedSubreddits, ["italypersonalfinance"]);
   assert.deepEqual(exported.blockedTitleKeywords, ["Trump"]);
   assert.equal(exported.theme, "system");
@@ -786,6 +789,7 @@ test("maps every checkbox to the matching storage setting", async () => {
     "hide-comment-replies": "hideCommentReplies",
     "disable-autoplay": "disableAutoplay",
     "hide-suggested-communities": "hideSuggestedCommunities",
+    "hide-ads": "hideAds",
     "hide-navbar": "hideNavbar",
     "hide-navbar-menu": "hideNavbarMenu",
     "hide-navbar-search": "hideNavbarSearch",

@@ -4,6 +4,8 @@
 <style>
 body { font: 16px sans-serif; }
 shreddit-feed, shreddit-post, shreddit-comment, reddit-sidebar-nav,
+shreddit-ad-post, shreddit-comments-page-ad, shreddit-comment-tree-ad,
+shreddit-async-loader,
 left-nav-top-section, faceplate-loader, faceplate-tracker,
 faceplate-expandable-section-helper { display: block; }
 search-dynamic-id-cache-controller, reddit-search-large, reddit-chat-header-button,
@@ -77,6 +79,16 @@ article { padding: 10px; }
   </in-feed-community-recommendations>
 </main>
 <section id="comments"></section>
+<section id="ad-placements">
+  <shreddit-comments-page-ad id="comments-page-ad" class="promotedlink">Comments page ad</shreddit-comments-page-ad>
+  <shreddit-comment-tree-ad id="comment-tree-ad">Comment tree ad</shreddit-comment-tree-ad>
+  <shreddit-async-loader id="sidebar-ad" bundlename="sidebar_ad">Sidebar ad</shreddit-async-loader>
+  <faceplate-tracker id="tracked-promoted" data-faceplate-tracking-context='{"promoted":true}'>Tracked promotion</faceplate-tracker>
+  <faceplate-tracker id="tracked-organic" data-faceplate-tracking-context='{"promoted":false}'>Tracked organic content</faceplate-tracker>
+  <div id="legacy-ad" data-before-content="advertisement">Legacy ad</div>
+  <div id="old-promoted" class="thing promotedlink">Old Reddit promoted link</div>
+  <div id="old-placeholder" class="promotedlink" style="height: 1px;">Placeholder</div>
+</section>
 <aside><article><shreddit-post id="t3_sidebar" subreddit-name="safe">Sidebar post</shreddit-post></article></aside>
 <script>
   window.loadCalls = 0;
@@ -150,7 +162,7 @@ article { padding: 10px; }
   window.appendRows = (feed, rows) => {
     for (const row of rows) {
       const article = document.createElement("article");
-      const card = document.createElement("shreddit-post");
+      const card = document.createElement(row.adPost ? "shreddit-ad-post" : "shreddit-post");
       card.id = `t3_${row.id}`;
       card.setAttribute("subreddit-name", row.subreddit);
       card.setAttribute("permalink", `/r/${row.subreddit}/comments/${row.id}/title`);
@@ -166,6 +178,10 @@ article { padding: 10px; }
         body.slot = "text-body";
         body.textContent = row.body;
         card.append(body);
+      }
+      if (row.unwrapped) {
+        feed.append(card, document.createElement("hr"));
+        continue;
       }
       article.append(card);
       feed.append(article, document.createElement("hr"));
@@ -240,6 +256,24 @@ article { padding: 10px; }
   window.visibleComments = () => Array.from(document.querySelectorAll("#comments shreddit-comment"))
     .filter((el) => el.getClientRects().length && getComputedStyle(el).display !== "none")
     .map((el) => el.id);
+  // Feed cards report their own visibility and that of the divider after them.
+  window.adVisibility = () => {
+    const visible = (element) => Boolean(element?.getClientRects().length)
+      && getComputedStyle(element).display !== "none";
+    const cards = document.querySelectorAll(
+      "main shreddit-feed :is(shreddit-post, shreddit-ad-post):not(shreddit-post *)",
+    );
+    return {
+      feed: Object.fromEntries(Array.from(cards, (card) => {
+        const item = card.parentElement.matches("article") ? card.parentElement : card;
+        return [card.id, [visible(card), visible(item.nextElementSibling)]];
+      })),
+      placements: Object.fromEntries(Array.from(
+        document.querySelectorAll("#ad-placements > [id]"),
+        (element) => [element.id, visible(element)],
+      )),
+    };
+  };
   window.suggestedCommunitiesVisible = () => {
     const element = document.querySelector("#suggested-communities");
     return Boolean(element?.getClientRects().length)

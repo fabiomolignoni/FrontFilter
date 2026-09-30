@@ -18,6 +18,7 @@ var FrontFilter = (() => {
     hideCommentReplies: false,
     disableAutoplay: false,
     hideSuggestedCommunities: false,
+    hideAds: false,
     hideNavbar: false,
     hideNavbarMenu: false,
     hideNavbarSearch: false,
