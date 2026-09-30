@@ -40,16 +40,17 @@ FrontFilter stores the choices you make in its settings interface, including:
 
 - blocked subreddit names, wildcard rules, block modes, and allowed-subreddit
   exceptions;
-- words or phrases used to filter post titles and text previews;
+- words or phrases used to filter post titles, text previews, and comments;
+- post flairs used as filters;
 - Reddit page-blocking preferences;
 - interface, comment-visibility, ad-visibility, suggested-post,
   vote-and-user-info visibility, and video-autoplay preferences;
 - feed-limit status, size, and mode; and
 - the selected light, dark, or system theme.
 
-Subreddit rules and post-filter terms can reveal interests or preferences, so
-they should be treated as private even though FrontFilter never sends them to
-the developer.
+Subreddit rules and filter terms can reveal interests or preferences, so they
+should be treated as private even though FrontFilter never sends them to the
+developer.
 
 These settings are used only to apply the controls you selected. They are kept
 in the browser's local extension storage. The theme is also cached in local
@@ -94,7 +95,9 @@ can include:
 
 - subreddit names and Reddit links;
 - post identifiers and permalinks;
-- post titles and visible text previews, for user-configured term filtering;
+- post titles, visible text previews, and comment text, for user-configured
+  term filtering;
+- post flairs, for user-configured flair filtering;
 - indicators that distinguish ordinary posts from promoted content;
 - feed containers, continuation elements, and the current set of feed cards;
   and
@@ -103,9 +106,9 @@ can include:
 
 This information can include public or personalized content served by Reddit.
 FrontFilter uses it in memory for the current page and does not persist a copy
-of post titles, previews, identifiers, or page content as a browsing-history or
-content database. It does not send that content to the developer or to an
-analytics or data-processing service.
+of post titles, previews, comments, identifiers, or page content as a
+browsing-history or content database. It does not send that content to the
+developer or to an analytics or data-processing service.
 
 FrontFilter is not designed to read authentication credentials, cookies,
 payment information, private messages, form entries, or precise location. It

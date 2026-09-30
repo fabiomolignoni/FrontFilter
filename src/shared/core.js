@@ -9,6 +9,7 @@ var FrontFilter = (() => {
     // Keep the original key so existing title-filter settings and backups now
     // apply to both post titles and text previews without a migration.
     blockedTitleKeywords: Object.freeze([]),
+    blockedFlairs: Object.freeze([]),
     blockHomepage: false,
     blockPopular: false,
     blockExplore: false,
@@ -131,18 +132,29 @@ var FrontFilter = (() => {
     return /[a-z0-9_]/.test(normalized) ? normalized : "";
   }
 
+  // Filters match every post on each page update; compile each pattern once.
+  const wildcardPatterns = new Map();
+  function getWildcardPattern(pattern) {
+    let regex = wildcardPatterns.get(pattern);
+    if (!regex) {
+      const regexSource = pattern
+        .split("*")
+        .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join(".*");
+      regex = new RegExp(`^${regexSource}$`, "i");
+      if (wildcardPatterns.size > 1000) wildcardPatterns.clear();
+      wildcardPatterns.set(pattern, regex);
+    }
+    return regex;
+  }
+
   function matchesSubredditPattern(pattern, subredditName) {
     const normalizedPattern = normalizeSubredditName(pattern);
     const normalizedSubreddit = normalizeSubredditName(subredditName);
     if (!normalizedPattern || !normalizedSubreddit) return false;
     if (normalizedPattern === normalizedSubreddit) return true;
     if (!normalizedPattern.includes("*")) return false;
-
-    const regexSource = normalizedPattern
-      .split("*")
-      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-      .join(".*");
-    return new RegExp(`^${regexSource}$`, "i").test(normalizedSubreddit);
+    return getWildcardPattern(normalizedPattern).test(normalizedSubreddit);
   }
 
   function normalizeMode(mode) {
@@ -208,6 +220,23 @@ var FrontFilter = (() => {
     return Array.from(deduped.values());
   }
 
+  // Flairs are free text chosen by each subreddit: keep their spelling, but
+  // compare them case-insensitively and allow * wildcards.
+  function normalizeBlockedFlairs(flairs = []) {
+    return normalizeTitleKeywords(flairs).filter((flair) => flair.length <= 100);
+  }
+
+  function normalizeFlairText(text) {
+    return typeof text === "string" ? text.trim().replace(/\s+/g, " ") : "";
+  }
+
+  function matchesFlairPattern(pattern, flairText) {
+    const flair = normalizeFlairText(flairText);
+    if (!flair || !pattern) return false;
+    if (!pattern.includes("*")) return pattern.toLowerCase() === flair.toLowerCase();
+    return getWildcardPattern(pattern).test(flair);
+  }
+
   function textMatchesKeywords(text, keywords = []) {
     if (typeof text !== "string" || !text) return false;
     const normalizedText = text.trim().replace(/\s+/g, " ").toLowerCase();
@@ -235,6 +264,11 @@ var FrontFilter = (() => {
         typeof entry === "string" && normalizeTitleKeywords([entry]).length === 1
       );
     }
+    if (key === "blockedFlairs") {
+      return Array.isArray(value) && value.every((entry) =>
+        typeof entry === "string" && normalizeBlockedFlairs([entry]).length === 1
+      );
+    }
     if (key === "scrollLimit") return Number.isSafeInteger(value) && value > 0;
     if (key === "scrollMode") return value === "fixed" || value === "button";
     if (key === "theme") return value === "system" || value === "dark" || value === "light";
@@ -256,6 +290,7 @@ var FrontFilter = (() => {
       blockedSubreddits: [],
       allowedSubreddits: [],
       blockedTitleKeywords: [],
+      blockedFlairs: [],
     };
     for (const key of STORAGE_KEYS) {
       if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
@@ -265,6 +300,8 @@ var FrontFilter = (() => {
         settings[key] = normalizeAllowedSubreddits(source[key]);
       } else if (key === "blockedTitleKeywords") {
         settings[key] = normalizeTitleKeywords(source[key]);
+      } else if (key === "blockedFlairs") {
+        settings[key] = normalizeBlockedFlairs(source[key]);
       } else if (key === "scrollLimit") {
         settings[key] = Number.isSafeInteger(source[key]) && source[key] > 0
           ? source[key] : DEFAULT_SETTINGS.scrollLimit;
@@ -460,6 +497,9 @@ var FrontFilter = (() => {
     normalizeBlockedSubreddits,
     normalizeSubredditName,
     normalizeTitleKeywords,
+    normalizeBlockedFlairs,
+    normalizeFlairText,
+    matchesFlairPattern,
     normalizeTheme,
     textMatchesKeywords,
     blockedRouteToQuery,

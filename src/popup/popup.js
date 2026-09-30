@@ -43,15 +43,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const blockedCount = document.getElementById("blocked-count");
   const addBtn = document.getElementById("add-subreddit");
   const addCurrent = document.getElementById("add-current-subreddit");
-  const allowedListEl = document.getElementById("allowed-list");
-  const allowedCount = document.getElementById("allowed-count");
-  const addAllowed = document.getElementById("add-allowed-subreddit");
   const addCurrentAllowed = document.getElementById(
     "add-current-allowed-subreddit",
   );
-  const titleKeywordListEl = document.getElementById("title-keyword-list");
-  const titleKeywordCount = document.getElementById("title-keyword-count");
-  const addTitleKeyword = document.getElementById("add-title-keyword");
   const saveIndicator = document.getElementById("save-indicator");
   const toast = document.getElementById("toast");
   const exportBtn = document.getElementById("export-config");
@@ -103,8 +97,6 @@ document.addEventListener("DOMContentLoaded", () => {
   );
 
   let blockedEntries = [];
-  let allowedEntries = [];
-  let keywordEntries = [];
   let toastTimer = null;
   let indicatorTimer = null;
   let debounceTimer = null;
@@ -196,9 +188,8 @@ document.addEventListener("DOMContentLoaded", () => {
       ...Object.values(checkboxes),
       addBtn,
       addCurrent,
-      addAllowed,
       addCurrentAllowed,
-      addTitleKeyword,
+      ...Object.values(textLists).map((list) => list.addButton),
       exportBtn,
       importBtn,
       importFile,
@@ -214,16 +205,13 @@ document.addEventListener("DOMContentLoaded", () => {
       .forEach((control) => {
         control.disabled = disabled;
       });
-    allowedListEl
-      .querySelectorAll("input, button")
-      .forEach((control) => {
-        control.disabled = disabled;
-      });
-    titleKeywordListEl
-      .querySelectorAll("input, button")
-      .forEach((control) => {
-        control.disabled = disabled;
-      });
+    for (const list of Object.values(textLists)) {
+      list.listEl
+        .querySelectorAll("input, button")
+        .forEach((control) => {
+          control.disabled = disabled;
+        });
+    }
     updateScrollControls();
     updateCommentControls();
     updateSectionControls();
@@ -302,11 +290,8 @@ document.addEventListener("DOMContentLoaded", () => {
     return {
       ...getCheckboxSettings(),
       blockedSubreddits: FrontFilter.normalizeBlockedSubreddits(blockedEntries),
-      allowedSubreddits: FrontFilter.normalizeAllowedSubreddits(
-        allowedEntries.map((entry) => entry.name),
-      ),
-      blockedTitleKeywords: FrontFilter.normalizeTitleKeywords(
-        keywordEntries.map((entry) => entry.value),
+      ...Object.fromEntries(
+        Object.values(textLists).map((list) => [list.key, list.values()]),
       ),
       scrollLimit: lastScrollLimit,
       scrollMode: scrollMode.value === "button" ? "button" : "fixed",
@@ -332,8 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
       Array.from(keys, (key) => [key, snapshot[key]]),
     );
     updateBlockedCount();
-    updateAllowedCount();
-    updateTitleKeywordCount();
+    for (const list of Object.values(textLists)) list.updateCount();
     showSaving();
 
     enqueueStorageWrite(settings);
@@ -441,20 +425,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setCount(blockedCount, count, "rule", "rules");
   }
 
-  function updateAllowedCount() {
-    const count = FrontFilter.normalizeAllowedSubreddits(
-      allowedEntries.map((entry) => entry.name),
-    ).length;
-    setCount(allowedCount, count, "exception", "exceptions");
-  }
-
-  function updateTitleKeywordCount() {
-    const count = FrontFilter.normalizeTitleKeywords(
-      keywordEntries.map((entry) => entry.value),
-    ).length;
-    setCount(titleKeywordCount, count, "keyword", "keywords");
-  }
-
   function renderList() {
     blockedListEl.innerHTML = "";
     updateBlockedCount();
@@ -539,138 +509,138 @@ document.addEventListener("DOMContentLoaded", () => {
     if (normalizedName) scheduleAutoSave(["blockedSubreddits"], true);
   }
 
-  function normalizeAllowedName(value) {
-    return FrontFilter.normalizeAllowedSubreddits([value])[0] || "";
-  }
+  // Plain text filter lists share one editor: drafts keep what the user
+  // typed until the field loses focus, and saves store the normalized list.
+  function createTextList({
+    key, listId, countId, addId, itemClass, normalizeList, placeholder, label,
+    removeLabel, emptyMessage, invalidMessage, countNouns, sortOptions,
+  }) {
+    const listEl = document.getElementById(listId);
+    const countEl = document.getElementById(countId);
+    const addButton = document.getElementById(addId);
+    let entries = [];
+    const normalize = (value) => normalizeList([value])[0] || "";
+    const values = () => normalizeList(entries.map((entry) => entry.value));
+    const updateCount = () => setCount(countEl, values().length, ...countNouns);
 
-  function renderAllowedList() {
-    allowedListEl.innerHTML = "";
-    updateAllowedCount();
+    function render() {
+      listEl.innerHTML = "";
+      updateCount();
 
-    if (allowedEntries.length === 0) {
-      appendEmptyState(allowedListEl, "No subreddit exceptions yet");
-      return;
+      if (entries.length === 0) {
+        appendEmptyState(listEl, emptyMessage);
+        return;
+      }
+
+      sortDraftEntries(entries, "value", sortOptions);
+      entries.forEach((entry) => {
+        const item = document.createElement("div");
+        item.className = itemClass;
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = entry.value;
+        input.placeholder = placeholder;
+        input.setAttribute("aria-label", label);
+        input.spellcheck = false;
+        input.disabled = controlsDisabled;
+
+        const removeBtn = createRemoveButton(removeLabel);
+
+        input.addEventListener("input", (event) => {
+          entry.value = event.target.value;
+          scheduleAutoSave([key]);
+        });
+        input.addEventListener("blur", (event) => {
+          const normalized = normalize(event.target.value);
+          if (invalidMessage && event.target.value.trim() && !normalized) {
+            showToast(invalidMessage, "error");
+          }
+          entry.value = normalized;
+          event.target.value = normalized;
+          scheduleAutoSave([key], true);
+        });
+        removeBtn.addEventListener("click", () => {
+          const entryIndex = entries.indexOf(entry);
+          if (entryIndex < 0) return;
+          entries.splice(entryIndex, 1);
+          render();
+          scheduleAutoSave([key], true);
+        });
+
+        item.appendChild(input);
+        item.appendChild(removeBtn);
+        listEl.appendChild(item);
+      });
     }
 
-    sortDraftEntries(allowedEntries, "name");
-    allowedEntries.forEach((entry) => {
-      const item = document.createElement("div");
-      item.className = "allowed-item";
-
-      const input = document.createElement("input");
-      input.type = "text";
-      input.value = entry.name;
-      input.placeholder = "Exact subreddit or Reddit URL";
-      input.setAttribute("aria-label", "Allowed subreddit or Reddit URL");
-      input.spellcheck = false;
-      input.disabled = controlsDisabled;
-
-      const removeBtn = createRemoveButton("Remove subreddit exception");
-
-      input.addEventListener("input", (event) => {
-        entry.name = event.target.value;
-        scheduleAutoSave(["allowedSubreddits"]);
-      });
-      input.addEventListener("blur", (event) => {
-        const normalizedName = normalizeAllowedName(event.target.value);
-        if (event.target.value.trim() && !normalizedName) {
-          showToast("Whitelist entries must be exact subreddit names", "error");
-        }
-        entry.name = normalizedName;
-        event.target.value = normalizedName;
-        scheduleAutoSave(["allowedSubreddits"], true);
-      });
-      removeBtn.addEventListener("click", () => {
-        const entryIndex = allowedEntries.indexOf(entry);
-        if (entryIndex < 0) return;
-        allowedEntries.splice(entryIndex, 1);
-        renderAllowedList();
-        scheduleAutoSave(["allowedSubreddits"], true);
-      });
-
-      item.appendChild(input);
-      item.appendChild(removeBtn);
-      allowedListEl.appendChild(item);
-    });
-  }
-
-  function focusAllowedEntry(name, animate) {
-    const normalizedName = normalizeAllowedName(name);
-    focusListInput(allowedListEl, ".allowed-item", normalizedName, animate);
-  }
-
-  function addAllowedEntry(name = "", animate = true) {
-    const normalizedName = normalizeAllowedName(name);
-    allowedEntries.unshift({ name: normalizedName });
-    renderAllowedList();
-    focusAllowedEntry(normalizedName, animate);
-
-    if (normalizedName) scheduleAutoSave(["allowedSubreddits"], true);
-  }
-
-  function renderKeywordList() {
-    titleKeywordListEl.innerHTML = "";
-    updateTitleKeywordCount();
-
-    if (keywordEntries.length === 0) {
-      appendEmptyState(titleKeywordListEl, "No post keywords filtered yet");
-      return;
+    function add(value = "", animate = true) {
+      const normalized = normalize(value);
+      entries.unshift({ value: normalized });
+      render();
+      focusListInput(listEl, `.${itemClass}`, normalized, animate);
+      if (normalized) scheduleAutoSave([key], true);
     }
 
-    sortDraftEntries(keywordEntries, "value", { sensitivity: "base" });
-    keywordEntries.forEach((entry) => {
-      const item = document.createElement("div");
-      item.className = "keyword-item";
-
-      const input = document.createElement("input");
-      input.type = "text";
-      input.value = entry.value;
-      input.placeholder = "Keyword or phrase";
-      input.setAttribute("aria-label", "Post keyword or phrase");
-      input.spellcheck = false;
-      input.disabled = controlsDisabled;
-
-      const removeBtn = createRemoveButton("Remove post keyword");
-
-      input.addEventListener("input", (event) => {
-        entry.value = event.target.value;
-        scheduleAutoSave(["blockedTitleKeywords"]);
-      });
-      input.addEventListener("blur", (event) => {
-        const [normalizedKeyword = ""] = FrontFilter.normalizeTitleKeywords([
-          event.target.value,
-        ]);
-        entry.value = normalizedKeyword;
-        event.target.value = normalizedKeyword;
-        scheduleAutoSave(["blockedTitleKeywords"], true);
-      });
-      removeBtn.addEventListener("click", () => {
-        const entryIndex = keywordEntries.indexOf(entry);
-        if (entryIndex < 0) return;
-        keywordEntries.splice(entryIndex, 1);
-        renderKeywordList();
-        scheduleAutoSave(["blockedTitleKeywords"], true);
-      });
-
-      item.appendChild(input);
-      item.appendChild(removeBtn);
-      titleKeywordListEl.appendChild(item);
-    });
+    addButton.addEventListener("click", () => add());
+    return {
+      key,
+      listEl,
+      addButton,
+      add,
+      values,
+      updateCount,
+      load(list) {
+        entries = list.map((value) => ({ value }));
+        render();
+      },
+    };
   }
 
-  function focusKeyword(keyword, animate) {
-    const [normalizedKeyword = ""] = FrontFilter.normalizeTitleKeywords([keyword]);
-    focusListInput(titleKeywordListEl, ".keyword-item", normalizedKeyword, animate);
-  }
-
-  function addKeyword(keyword = "", animate = true) {
-    const [normalizedKeyword = ""] = FrontFilter.normalizeTitleKeywords([keyword]);
-    keywordEntries.unshift({ value: normalizedKeyword });
-    renderKeywordList();
-    focusKeyword(normalizedKeyword, animate);
-
-    if (normalizedKeyword) scheduleAutoSave(["blockedTitleKeywords"], true);
-  }
+  const textLists = Object.fromEntries([
+    {
+      key: "allowedSubreddits",
+      listId: "allowed-list",
+      countId: "allowed-count",
+      addId: "add-allowed-subreddit",
+      itemClass: "allowed-item",
+      normalizeList: FrontFilter.normalizeAllowedSubreddits,
+      placeholder: "Exact subreddit or Reddit URL",
+      label: "Allowed subreddit or Reddit URL",
+      removeLabel: "Remove subreddit exception",
+      emptyMessage: "No subreddit exceptions yet",
+      invalidMessage: "Whitelist entries must be exact subreddit names",
+      countNouns: ["exception", "exceptions"],
+    },
+    {
+      key: "blockedTitleKeywords",
+      listId: "title-keyword-list",
+      countId: "title-keyword-count",
+      addId: "add-title-keyword",
+      itemClass: "keyword-item",
+      normalizeList: FrontFilter.normalizeTitleKeywords,
+      placeholder: "Keyword or phrase",
+      label: "Keyword or phrase",
+      removeLabel: "Remove keyword",
+      emptyMessage: "No keywords filtered yet",
+      countNouns: ["keyword", "keywords"],
+      sortOptions: { sensitivity: "base" },
+    },
+    {
+      key: "blockedFlairs",
+      listId: "blocked-flair-list",
+      countId: "blocked-flair-count",
+      addId: "add-blocked-flair",
+      itemClass: "flair-item",
+      normalizeList: FrontFilter.normalizeBlockedFlairs,
+      placeholder: "Flair, e.g. Meme or *politic*",
+      label: "Post flair",
+      removeLabel: "Remove flair",
+      emptyMessage: "No flairs filtered yet",
+      countNouns: ["flair", "flairs"],
+      sortOptions: { sensitivity: "base" },
+    },
+  ].map((options) => [options.key, createTextList(options)]));
 
   async function loadSettings() {
     const result = FrontFilter.coerceSettings(
@@ -678,8 +648,6 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     blockedEntries = result.blockedSubreddits;
-    allowedEntries = result.allowedSubreddits.map((name) => ({ name }));
-    keywordEntries = result.blockedTitleKeywords.map((value) => ({ value }));
     scrollLimit.value = String(result.scrollLimit);
     lastScrollLimit = result.scrollLimit;
     scrollMode.value = result.scrollMode;
@@ -688,8 +656,7 @@ document.addEventListener("DOMContentLoaded", () => {
       checkbox.checked = result[key];
     });
     renderList();
-    renderAllowedList();
-    renderKeywordList();
+    for (const list of Object.values(textLists)) list.load(result[list.key]);
   }
 
   async function exportConfig() {
@@ -792,8 +759,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   addBtn.addEventListener("click", () => addEntry());
-  addAllowed.addEventListener("click", () => addAllowedEntry());
-  addTitleKeyword.addEventListener("click", () => addKeyword());
 
   async function addCurrentSubreddit(addEntryCallback) {
     try {
@@ -820,7 +785,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   addCurrent.addEventListener("click", () => addCurrentSubreddit(addEntry));
   addCurrentAllowed.addEventListener("click", () =>
-    addCurrentSubreddit(addAllowedEntry)
+    addCurrentSubreddit((name) => textLists.allowedSubreddits.add(name))
   );
 
   exportBtn.addEventListener("click", exportConfig);

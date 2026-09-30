@@ -796,6 +796,37 @@ chrome.storage.local.set({
             js("disableNativeLoading(); history.pushState({}, '', '/r/test/')")
             configure(limitInfiniteScroll=True, blockedSubreddits=[{"name": "blocked", "mode": "all"}])
             print("PASS native infinite scroll pauses after fully filtered pages", flush=True)
+
+            # Flair-filtered posts take their wrapper and divider and never count
+            # toward the scroll limit.
+            filter_rows = ("resetFeed([post('a'), post('b','safe',{flair:'US Politics'}), "
+                           "post('c','safe',{flair:'MEME'}), post('d','safe',{flair:'Question'}), "
+                           "post('e'), post('f')])")
+            configure(limitInfiniteScroll=False, blockedSubreddits=[], blockedFlairs=["*politic*", "meme"])
+            js(filter_rows)
+            expect(["a", "d", "e", "f"])
+            wait.until(lambda _: js("return adVisibility().feed") == {
+                **{f"t3_{i}": [True, True] for i in "adef"},
+                **{f"t3_{i}": [False, False] for i in "bc"},
+            })
+            configure(limitInfiniteScroll=True, scrollLimit=3, scrollMode="fixed")
+            js(filter_rows)
+            expect(["a", "d", "e"])
+            print("PASS flair filters in feeds and the scroll limit", flush=True)
+
+            configure(limitInfiniteScroll=False, blockedTitleKeywords=["trump"])
+            js("resetFilterComments()")
+            wait.until(lambda _: js("return visibleComments()") == [
+                "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
+            ])
+            configure(blockedTitleKeywords=[])
+            wait.until(lambda _: js("return visibleComments()") == [
+                "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
+                "comment-politics", "comment-politics-reply",
+            ])
+            configure(limitInfiniteScroll=True, blockedFlairs=[],
+                      blockedSubreddits=[{"name": "blocked", "mode": "all"}])
+            print("PASS keyword filters hide comments with their replies", flush=True)
             configure(scrollLimit=3, scrollMode="button")
 
             # Verify the actual settings UI as well as the unit-test mock.

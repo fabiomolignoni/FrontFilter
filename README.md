@@ -10,7 +10,7 @@ elements, filters posts, and replaces endless scrolling with a finite feed.
 - Block exact or wildcard subreddit names. `HOME` rules cover front and sort
   pages; `ALL` rules also cover posts and other pages in that subreddit.
 - Allow exact subreddit exceptions to override subreddit rules.
-- Filter post titles and text previews by keyword or phrase.
+- Filter posts and comments by keyword or phrase, and posts by flair.
 - Hide comments, suggested communities, ads and promoted posts, navigation
   controls, sidebar sections, and related posts, or disable video autoplay.
 - Hide suggested posts from communities you have not joined in the Home feed.

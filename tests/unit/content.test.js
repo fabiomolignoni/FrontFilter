@@ -1010,6 +1010,94 @@ test("still applies post keyword filters inside allowed subreddits", async () =>
   assert.equal(post.dataset.frontfilterPostHidden, "true");
 });
 
+function createFlairPost(flair) {
+  const post = createPost();
+  const flairElement = { textContent: ` ${flair} `, closest: () => post };
+  post.querySelectorAll = (selector) =>
+    selector === "shreddit-post-flair, .linkflairlabel" ? [flairElement] : [];
+  return post;
+}
+
+function createComment(text) {
+  const comment = { dataset: {}, localName: "shreddit-comment", textReads: 0 };
+  const body = {
+    get textContent() {
+      comment.textReads += 1;
+      return text;
+    },
+  };
+  comment.querySelector = (selector) =>
+    selector === ':scope > [slot="comment"]' ? body : null;
+  return comment;
+}
+
+test("hides posts whose flair matches a blocked flair or wildcard", async () => {
+  const meme = createFlairPost("MEME");
+  const politics = createFlairPost("US Politics");
+  const question = createFlairPost("Question");
+
+  await loadContent({
+    querySelectorAll: (selector) => isPostCollectionSelector(selector)
+      ? [meme, politics, question]
+      : [],
+    settings: { blockedFlairs: ["meme", "*politic*"] },
+    startUrl: "https://www.reddit.com/r/test/",
+  });
+
+  assert.equal(meme.dataset.frontfilterPostHidden, "true");
+  assert.equal(politics.dataset.frontfilterPostHidden, "true");
+  assert.equal("frontfilterPostHidden" in question.dataset, false);
+});
+
+test("filters comments by keyword, reading each comment's text only once", async () => {
+  const blocked = createComment("I think TRUMP will win");
+  const allowed = createComment("Nice photo");
+  const pending = createComment("");
+  const comments = [blocked, allowed, pending];
+  const content = await loadContent({
+    querySelectorAll: (selector) => ({
+      "shreddit-comment, .thing.comment": comments,
+      '[data-frontfilter-comment-hidden="true"]': comments.filter(
+        (comment) => comment.dataset.frontfilterCommentHidden === "true",
+      ),
+    })[selector] || [],
+    settings: { blockedTitleKeywords: ["Trump"] },
+    startUrl: "https://www.reddit.com/r/test/comments/abc/post/",
+  });
+
+  assert.equal(blocked.dataset.frontfilterCommentHidden, "true");
+  assert.equal("frontfilterCommentHidden" in allowed.dataset, false);
+  assert.deepEqual([blocked.textReads, allowed.textReads], [1, 1]);
+
+  // Later mutations reuse the cached result; empty bodies are retried.
+  content.processFilteredContent();
+  content.processFilteredContent();
+  assert.deepEqual([blocked.textReads, allowed.textReads], [1, 1]);
+  assert.ok(pending.textReads > 1);
+
+  // New keywords re-check every comment once.
+  content.storageListeners[0]({ blockedTitleKeywords: { newValue: ["photo"] } }, "local");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal("frontfilterCommentHidden" in blocked.dataset, false);
+  assert.equal(allowed.dataset.frontfilterCommentHidden, "true");
+  assert.deepEqual([blocked.textReads, allowed.textReads], [2, 2]);
+
+  // With every comment hidden, or no keywords, no comment text is read.
+  content.storageListeners[0]({ hideComments: { newValue: true } }, "local");
+  await new Promise((resolve) => setImmediate(resolve));
+  content.processFilteredContent();
+  assert.deepEqual([blocked.textReads, allowed.textReads], [2, 2]);
+  assert.equal("frontfilterCommentHidden" in allowed.dataset, false);
+
+  content.storageListeners[0]({
+    hideComments: { newValue: false },
+    blockedTitleKeywords: { newValue: [] },
+  }, "local");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual([blocked.textReads, allowed.textReads], [2, 2]);
+  assert.equal("frontfilterCommentHidden" in allowed.dataset, false);
+});
+
 test("hides post titles containing configured keywords case-insensitively", async () => {
   const blockedPost = createPost({ title: "Latest TRUMP campaign update" });
   const allowedPost = createPost({ title: "A different headline" });
@@ -1145,7 +1233,7 @@ test("uses post permalinks when a Reddit layout has no known post selector", asy
   await loadContent({
     fetch: async () => ({ ok: false }),
     querySelectorAll(selector) {
-      if (selector === 'a[href*="/comments/"]') return [link];
+      if (selector.startsWith('a[href*="/comments/"]:not(')) return [link];
       return [];
     },
     settings: {
