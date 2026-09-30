@@ -8,6 +8,10 @@ html[data-frontfilter-feed-gate] shreddit-feed faceplate-partial[slot="load-afte
 [data-frontfilter-limit-hidden] {
   display: none !important;
 }
+/* Native loading paused after several fully filtered pages. */
+shreddit-feed[data-frontfilter-feed-paused] > faceplate-partial[slot="load-after"] {
+  display: none !important;
+}
 .frontfilter-feed-controls {
   overflow-anchor: none;
   display: flex; flex-direction: column; align-items: center; gap: 10px;

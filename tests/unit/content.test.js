@@ -23,9 +23,18 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl }) 
       redirects.push(url);
     },
   };
+  const rootAttributes = new Set();
   const document = {
     body: {},
-    documentElement: { appendChild(style) { injectedStyles.push(style); } },
+    documentElement: {
+      appendChild(style) { injectedStyles.push(style); },
+      hasAttribute: (name) => rootAttributes.has(name),
+      toggleAttribute(name, force) {
+        if (force) rootAttributes.add(name);
+        else rootAttributes.delete(name);
+        return force;
+      },
+    },
     createElement: () => ({ id: "", style: {}, textContent: "" }),
     getElementById: (id) => injectedStyles.find((style) => style.id === id) || null,
     querySelectorAll(selector) {
@@ -79,7 +88,10 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl }) 
     const source = readFileSync(join(__dirname, "..", "..", "src", file), "utf8");
     vm.runInContext(source, context, { filename: file });
     if (file === "shared/core.js") {
-      vm.runInContext('FrontFilter.createFeedLimiter = () => FrontFilterFeedStub;', context);
+      vm.runInContext(`FrontFilter.createFeedLimiter = (options) => {
+        FrontFilterFeedStub.options = options;
+        return FrontFilterFeedStub;
+      };`, context);
     }
   }
   await new Promise((resolve) => setImmediate(resolve));
@@ -87,6 +99,7 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl }) 
   return {
     checkCurrentPage: context.checkCurrentPage,
     getFeedLimiterUpdateCount: () => context.FrontFilterFeedStub.updateCount,
+    isFeedRecordBlocked: (record) => context.FrontFilterFeedStub.options.isBlocked(record),
     processFilteredContent: context.processFilteredContent,
     location,
     redirects,
@@ -94,6 +107,7 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl }) 
     queriedSelectors,
     observerOptions,
     injectedStyles,
+    rootAttributes,
   };
 }
 
@@ -799,6 +813,47 @@ test("hides votes, karma, awards, avatars and usernames with page and shadow rul
   assert.equal(post.styles[0].textContent, "");
   assert.equal(actionRow.styles[0].textContent, "");
   assert.ok(pageRules().includes(rule('shreddit-post [slot="authorName"]')));
+});
+
+test("hides suggested posts only in the Home feed, in CSS and in the feed limiter", async () => {
+  const content = await loadContent({
+    settings: { hideSuggestedPosts: true },
+    startUrl: "https://www.reddit.com/",
+  });
+  const rules = () => content.injectedStyles[0].textContent.split("\n");
+  const scope = "html[data-frontfilter-home-feed] shreddit-feed";
+  const post = 'shreddit-post[recommendation-source]:not([recommendation-source=""])';
+  const suggested = { subreddit: "safe", title: "", bodyTexts: [], recommended: true };
+  const joined = { ...suggested, recommended: false };
+
+  assert.ok(content.rootAttributes.has("data-frontfilter-home-feed"));
+  for (const selector of [
+    `${scope} ${post}`,
+    `${scope} article:has(> ${post})`,
+    `${scope} :is(${post}, article:has(> ${post})) + hr`,
+  ]) {
+    assert.ok(rules().includes(`${selector} { display: none !important; }`), selector);
+  }
+  assert.deepEqual(content.queriedSelectors, []);
+  assert.equal(content.isFeedRecordBlocked(suggested), true);
+  assert.equal(content.isFeedRecordBlocked(joined), false);
+
+  // Popular and other feeds consist of recommendations by design.
+  content.location.href = "https://www.reddit.com/r/popular/";
+  content.location.pathname = "/r/popular/";
+  await content.checkCurrentPage();
+  assert.equal(content.rootAttributes.has("data-frontfilter-home-feed"), false);
+  assert.equal(content.isFeedRecordBlocked(suggested), false);
+
+  content.location.href = "https://www.reddit.com/best/";
+  content.location.pathname = "/best/";
+  await content.checkCurrentPage();
+  assert.ok(content.rootAttributes.has("data-frontfilter-home-feed"));
+
+  content.storageListeners[0]({ hideSuggestedPosts: { newValue: false } }, "local");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(rules().some((rule) => rule.includes("recommendation-source")), false);
+  assert.equal(content.isFeedRecordBlocked(suggested), false);
 });
 
 test("hides user info without scanning the DOM when no shadow rules are needed", async () => {

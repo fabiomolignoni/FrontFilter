@@ -71,6 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
     hideCommentReplies: "hide-comment-replies",
     disableAutoplay: "disable-autoplay",
     hideSuggestedCommunities: "hide-suggested-communities",
+    hideSuggestedPosts: "hide-suggested-posts",
     hideAds: "hide-ads",
     hideSocialSignals: "hide-social-signals",
     hideVotes: "hide-votes",

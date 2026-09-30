@@ -23,9 +23,10 @@ let shadowSocialSignalsHidden = false;
 let observerOptionsSignature = "";
 const feedLimiter = FrontFilter.createFeedLimiter({
   getSettings: () => config,
-  isBlocked: ({ subreddit, title, bodyTexts }) =>
+  isBlocked: ({ subreddit, title, bodyTexts, recommended }) =>
     isSubredditNameBlocked(subreddit)
-    || containsBlockedPostText(title, bodyTexts),
+    || containsBlockedPostText(title, bodyTexts)
+    || (recommended && areSuggestedPostsHidden()),
 });
 
 const HIDDEN_STYLE_ID = "frontfilter-hidden-style";
@@ -177,6 +178,18 @@ const SOCIAL_SIGNAL_SHADOW_SELECTORS = Object.freeze({
   ],
   hideAwards: ["award-button"],
 });
+// Reddit marks every recommended Home post with the reason it was picked,
+// including ones whose "Suggested"/"Because you..." label is hidden. The
+// attribute is language-independent; posts from joined communities lack it.
+const HOME_FEED_ATTRIBUTE = "data-frontfilter-home-feed";
+const SUGGESTED_POST_SELECTOR =
+  'shreddit-post[recommendation-source]:not([recommendation-source=""])';
+const SUGGESTED_ARTICLE_SELECTOR = `article:has(> ${SUGGESTED_POST_SELECTOR})`;
+const SUGGESTED_POST_SELECTORS = [
+  SUGGESTED_POST_SELECTOR,
+  SUGGESTED_ARTICLE_SELECTOR,
+  `:is(${SUGGESTED_POST_SELECTOR}, ${SUGGESTED_ARTICLE_SELECTOR}) + hr`,
+].map((selector) => `html[${HOME_FEED_ATTRIBUTE}] shreddit-feed ${selector}`);
 const AD_STYLE_TEXT = AD_SELECTORS
   .map((selector) => `\n${selector} { display: none !important; }`)
   .join("");
@@ -350,6 +363,21 @@ function createFilterIndex(settings) {
   };
 }
 
+function areSuggestedPostsHidden() {
+  return config.hideSuggestedPosts
+    && FrontFilter.isHomeFeedPath(window.location.pathname);
+}
+
+// Other feeds, such as Popular, consist of recommendations by design.
+function syncHomeFeedMarker() {
+  const root = document.documentElement;
+  if (!root) return;
+  const isHomeFeed = FrontFilter.isHomeFeedPath(window.location.pathname);
+  if (isHomeFeed !== root.hasAttribute(HOME_FEED_ATTRIBUTE)) {
+    root.toggleAttribute(HOME_FEED_ATTRIBUTE, isHomeFeed);
+  }
+}
+
 function setConfig(settings) {
   config = settings;
   filterIndex = createFilterIndex(settings);
@@ -383,6 +411,7 @@ async function checkCurrentPage({ force = false } = {}) {
   const urlChanged = currentUrl !== lastCheckedUrl;
   if (!force && !urlChanged) return;
   lastCheckedUrl = currentUrl;
+  syncHomeFeedMarker();
   if (urlChanged) feedLimiter.update();
   const path = window.location.pathname;
   const route = FrontFilter.getBlockedRoute(path, config);
@@ -642,6 +671,7 @@ function ensureHiddenStyle() {
     : "") + (config.hideSuggestedCommunities
     ? `\n${SUGGESTED_COMMUNITIES_SELECTOR} { display: none !important; }`
     : "") + (config.hideAds ? AD_STYLE_TEXT : "")
+    + createSettingRules({ hideSuggestedPosts: SUGGESTED_POST_SELECTORS })
     + createSettingRules(SOCIAL_SIGNAL_SELECTORS) + (config.hideNavbar
     ? `\n${NAVBAR_SELECTOR} { display: none !important; }\n${NAVBAR_LAYOUT_STYLE}`
     : "") + navbarSectionRules + navbarLogoRule + (config.hideLeftSidebar

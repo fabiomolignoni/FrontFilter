@@ -18,6 +18,7 @@ var FrontFilter = (() => {
     hideCommentReplies: false,
     disableAutoplay: false,
     hideSuggestedCommunities: false,
+    hideSuggestedPosts: false,
     hideAds: false,
     hideSocialSignals: false,
     hideVotes: false,
@@ -417,6 +418,11 @@ var FrontFilter = (() => {
     return null;
   }
 
+  // The Home feed and its sort views, which mix in recommended posts.
+  function isHomeFeedPath(pathname) {
+    return FRONT_PAGE_PATTERN.test(pathname);
+  }
+
   function isFeedPath(pathname) {
     return FRONT_PAGE_PATTERN.test(pathname) || FEED_PAGE_PATTERN.test(pathname);
   }
@@ -458,5 +464,6 @@ var FrontFilter = (() => {
     textMatchesKeywords,
     blockedRouteToQuery,
     isFeedPath,
+    isHomeFeedPath,
   };
 })();

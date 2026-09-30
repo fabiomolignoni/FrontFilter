@@ -18,10 +18,17 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     "data-subreddit", "data-subreddit-prefixed", "is-promoted", "promoted",
     "data-promoted", "data-shreddit-promoted",
     "src", "loading", "class", "href", "data-testid", "post-title", "data-title",
-    "post-body", "data-post-body",
+    "post-body", "data-post-body", "recommendation-source",
   ];
+  const PAUSE_ATTRIBUTE = "data-frontfilter-feed-paused";
+  // Reddit loads the next page whenever its loader is within two screens of
+  // the viewport. When filters hide whole pages the loader never moves, so
+  // Reddit would keep fetching invisible pages; native loading pauses after
+  // this many pages without a newly visible post.
+  const EMPTY_PAGE_LIMIT = 3;
   let ready = false;
   let session = null;
+  let guard = null;
   let bridgeReady = false;
   let disposed = false;
   let navigation = null;
@@ -95,7 +102,9 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       const text = bodyElement.textContent?.trim();
       if (text) bodyTexts.add(text);
     }
-    return { id, subreddit, title, bodyTexts: Array.from(bodyTexts), ad };
+    // An empty value means Reddit did not recommend the post.
+    const recommended = Boolean(post.getAttribute("recommendation-source"));
+    return { id, subreddit, title, bodyTexts: Array.from(bodyTexts), ad, recommended };
   }
 
   function collect(feed) {
@@ -338,6 +347,96 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     waitForDOM();
   }
 
+  function isShown(element) {
+    return element.checkVisibility
+      ? element.checkVisibility()
+      : element.getClientRects().length > 0;
+  }
+
+  function stopGuard() {
+    if (!guard) return;
+    clearTimeout(guard.timer);
+    guard.feed.removeAttribute(PAUSE_ATTRIBUTE);
+    guard.controls?.remove();
+    guard = null;
+  }
+
+  // Identities outlive recycled cards, so removed posts are not re-counted.
+  function countNewVisiblePosts(current) {
+    let added = 0;
+    for (const row of collect(current.feed)) {
+      const identity = row.id || row.post;
+      if (row.ad || current.seen.has(identity) || !isShown(row.post)) continue;
+      current.seen.add(identity);
+      added += 1;
+    }
+    return added;
+  }
+
+  function pauseGuard(current) {
+    current.paused = true;
+    current.feed.setAttribute(PAUSE_ATTRIBUTE, "");
+    if (!current.controls) {
+      const controls = document.createElement("div");
+      controls.className = "frontfilter-feed-controls frontfilter-feed-paused";
+      const status = document.createElement("div");
+      status.setAttribute("role", "status");
+      status.textContent = `The last ${EMPTY_PAGE_LIMIT} pages had no posts left after filtering.`;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Load more";
+      button.addEventListener("click", () => {
+        if (guard === current) resumeGuard(current);
+      });
+      controls.append(status, button);
+      current.controls = controls;
+    }
+    current.feed.after(current.controls);
+  }
+
+  function resumeGuard(current) {
+    current.paused = false;
+    current.emptyPages = 0;
+    current.feed.removeAttribute(PAUSE_ATTRIBUTE);
+    current.controls?.remove();
+  }
+
+  function evaluateGuard(current) {
+    if (guard !== current || !current.feed.isConnected) return;
+    const added = countNewVisiblePosts(current);
+    if (current.paused) {
+      // A settings change can reveal posts that filters were hiding.
+      if (added > 0) resumeGuard(current);
+      return;
+    }
+    current.emptyPages = added > 0 ? 0 : current.emptyPages + 1;
+    if (current.emptyPages >= EMPTY_PAGE_LIMIT) pauseGuard(current);
+  }
+
+  function guardNativeFeed() {
+    const feed = FrontFilter.isFeedPath(window.location.pathname)
+      ? document.querySelector(`main ${FEED}`) || document.querySelector(FEED)
+      : null;
+    if (guard && (guard.feed !== feed || guard.key !== key())) stopGuard();
+    if (!feed) return;
+    if (!guard) {
+      guard = {
+        feed, key: key(), loader: undefined, seen: new Set(),
+        emptyPages: 0, paused: false, timer: null, controls: null,
+      };
+    }
+    const current = guard;
+    const loader = Array.from(feed.querySelectorAll(LOADER))
+      .filter((element) => element.closest(FEED) === feed).at(-1) || null;
+    // Each new loader marks a completed page. While paused, re-check on any
+    // update so settings changes can resume loading.
+    if (loader === current.loader && !current.paused) return;
+    current.loader = loader;
+    clearTimeout(current.timer);
+    // Page filters classify new cards on the next frame; measure afterwards.
+    current.timer = setTimeout(() => evaluateGuard(current), 100);
+  }
+
   function update() {
     if (disposed) return;
     updateGate();
@@ -347,8 +446,10 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       navigation = null;
       stopSession();
       document.dispatchEvent(new Event(RELEASE_EVENT));
+      guardNativeFeed();
       return;
     }
+    stopGuard();
     const feed = document.querySelector(`main ${FEED}`) || document.querySelector(FEED);
     const config = getSettings();
     if (session && session.key !== key() && session.feed === feed) {
@@ -371,13 +472,13 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     const current = session;
     const rows = collect(feed);
     const records = new Map();
-    for (const { id, subreddit, title, bodyTexts, ad } of rows) {
+    for (const { id, subreddit, title, bodyTexts, ad, recommended } of rows) {
       // A partially hydrated card may precede complete cards. Wait for its
       // identity before admitting later results, preserving feed order.
       if (!ad && (!id || !subreddit)) break;
       // A promoted copy must not override the organic card with the same ID.
       if (id && (!records.has(id) || !ad)) {
-        records.set(id, { id, subreddit, title, bodyTexts, ad });
+        records.set(id, { id, subreddit, title, bodyTexts, ad, recommended });
       }
     }
     const visibleBefore = current.window.snapshot().allowed.size;
@@ -416,6 +517,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       document.removeEventListener("visibilitychange", update);
       document.removeEventListener(READY_EVENT, onBridgeReady);
       stopSession();
+      stopGuard();
       document.documentElement?.removeAttribute("data-frontfilter-feed-gate");
       document.dispatchEvent(new Event(RELEASE_EVENT));
     },
