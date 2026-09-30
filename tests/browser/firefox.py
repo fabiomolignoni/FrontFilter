@@ -78,6 +78,9 @@ def verify_settings_tabs(driver, wait, screenshot):
     comment_replies = driver.find_element("id", "hide-comment-replies")
     assert not all_comments.is_selected()
     assert not comment_replies.is_selected() and comment_replies.is_enabled()
+    assert not comment_replies.is_displayed()
+    driver.find_element("id", "comments-toggle").click()
+    wait.until(lambda _: comment_replies.is_displayed())
     all_comments.click()
     wait.until(lambda _: comment_replies.is_selected() and not comment_replies.is_enabled())
     all_comments.click()
@@ -98,6 +101,9 @@ def verify_settings_tabs(driver, wait, screenshot):
         "hide-navbar-others",
     ]]
     assert all(not toggle.is_selected() and toggle.is_enabled() for toggle in navbar_sections)
+    assert not any(toggle.is_displayed() for toggle in navbar_sections)
+    driver.find_element("id", "navbar-toggle").click()
+    wait.until(lambda _: all(toggle.is_displayed() for toggle in navbar_sections))
     all_navbar.click()
     wait.until(lambda _: all(
         toggle.is_selected() and not toggle.is_enabled()
@@ -121,6 +127,9 @@ def verify_settings_tabs(driver, wait, screenshot):
         "hide-left-sidebar-resources",
     ]]
     assert all(not toggle.is_selected() and toggle.is_enabled() for toggle in left_sidebar_sections)
+    assert not any(toggle.is_displayed() for toggle in left_sidebar_sections)
+    driver.find_element("id", "left-sidebar-toggle").click()
+    wait.until(lambda _: all(toggle.is_displayed() for toggle in left_sidebar_sections))
     all_left_sidebar.click()
     wait.until(lambda _: all(
         toggle.is_selected() and not toggle.is_enabled()
