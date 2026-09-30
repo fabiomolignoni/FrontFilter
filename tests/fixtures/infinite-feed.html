@@ -427,6 +427,27 @@ article { padding: 10px; }
       ]),
     );
   };
+  // A subreddit header as Reddit renders it: Create Post, then the element
+  // holding Join, notifications and the overflow menu.
+  window.setSubredditHeader = (name) => {
+    document.querySelector("#subreddit-header")?.remove();
+    const header = document.createElement("div");
+    header.id = "subreddit-header";
+    header.style.display = "flex";
+    const create = document.createElement("span");
+    const wrapper = document.createElement("create-post-entry-point-wrapper");
+    const button = document.createElement("button");
+    button.dataset.testid = "create-post";
+    button.textContent = "Create Post";
+    wrapper.append(button);
+    create.append(wrapper);
+    const buttons = document.createElement("shreddit-subreddit-header-buttons");
+    buttons.setAttribute("name", name);
+    buttons.setAttribute("prefixed-name", `r/${name}`);
+    buttons.textContent = "Join";
+    header.append(create, buttons);
+    document.querySelector("main").prepend(header);
+  };
   window.configure = (settings) => window.dispatchEvent(new CustomEvent("frontfilter-test-settings", {
     detail: JSON.stringify(settings),
   }));

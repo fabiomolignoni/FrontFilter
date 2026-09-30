@@ -455,8 +455,12 @@ async function checkCurrentPage({ force = false } = {}) {
 }
 
 function redirectToBlock(route, returnUrl) {
+  // A one-click block of this subreddit lands here; the block page offers
+  // to undo it.
+  const undo = route.type === "subreddit" && quickBlock.takeUndo(route.subreddit);
   window.location.replace(
     chrome.runtime.getURL("blocked/index.html") + FrontFilter.blockedRouteToQuery(route, returnUrl)
+    + (undo ? "&undo=1" : "")
   );
 }
 
