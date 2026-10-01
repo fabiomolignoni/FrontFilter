@@ -53,7 +53,7 @@
         "content/quick-block.js",
         "content/main.js"
       ],
-      "css": ["content/feed-limit.css"],
+      "css": ["content/feed-limit.css", "content/quick-block.css"],
       "run_at": "document_start"
     }
   ],
