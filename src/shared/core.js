@@ -198,6 +198,19 @@ var FrontFilter = (() => {
     return theme === "dark" || theme === "light" ? theme : "system";
   }
 
+  // For extension pages. The cached mode lets theme-bootstrap.js apply it
+  // before the next page renders; that script keeps its own copy of the key.
+  function applyTheme(theme) {
+    const normalizedTheme = normalizeTheme(theme);
+    document.documentElement.setAttribute("data-theme", normalizedTheme);
+    try {
+      globalThis.localStorage?.setItem("frontfilter-theme", normalizedTheme);
+    } catch {
+      // The theme still works for this page if local storage is unavailable.
+    }
+    return normalizedTheme;
+  }
+
   function normalizeBlockedEntry(entry) {
     if (typeof entry === "string") {
       const name = normalizeSubredditName(entry);
@@ -543,6 +556,7 @@ var FrontFilter = (() => {
     normalizeFlairText,
     matchesFlairPattern,
     normalizeTheme,
+    applyTheme,
     createKeywordMatcher,
     blockPageQuery,
     isFeedPath,
