@@ -1,88 +1,105 @@
 # FrontFilter
 
-FrontFilter is a browser extension for making Reddit less distracting. It
-blocks unwanted destinations and communities, removes selected interface
-elements, filters posts, and replaces endless scrolling with a finite feed.
+A browser extension that makes Reddit less distracting: block feeds and
+subreddits, filter posts and comments, and limit endless scrolling.
+
+## Install
+
+- [Chrome Web Store](https://chromewebstore.google.com/detail/frontfilter-reddit-feed-d/ekjnpdhgghniefiljlfopdjgoegneiie)
+  (Chrome 121 or later)
+- [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/frontfilter/)
+  (Firefox 140 or later, Firefox for Android 142 or later)
+
+To install from source, see [Development](#development).
 
 ## Features
 
-- Block Home, Popular, Explore, News, or every subreddit front page.
-- Block exact or wildcard subreddit names, optionally with a one-click Block
-  button on feed posts and subreddit pages. `HOME` rules cover front and sort
-  pages; `ALL` rules also cover posts and other pages in that subreddit.
-- Allow exact subreddit exceptions to override subreddit rules.
-- Filter posts and comments by keyword or phrase, and posts by flair.
-- Hide comments, suggested communities, ads and promoted posts, navigation
-  controls, sidebar sections, and related posts, or disable video autoplay.
-- Hide suggested posts from communities you have not joined in the Home feed.
+### Block
+
+- Block Home, Popular, Explore, News, or every subreddit's front page.
+- Block subreddits by exact name or with `*` wildcards. `HOME` rules block a
+  subreddit's front page and sort views; `ALL` rules block every page of it and
+  hide its posts from other feeds.
+- Allow exceptions that override subreddit rules.
+- Optionally add one-click **Block** buttons to feed posts and subreddit
+  pages, with undo.
+
+### Filter
+
+- Hide posts and comments that contain your keywords.
+- Hide posts by flair, with `*` wildcards.
+- Hide suggested posts in the Home feed, and ads and promoted posts.
+
+### Simplify
+
+- Hide comments or only their replies, suggested communities, and the right
+  sidebar.
+- Hide the navbar and the left sidebar, or only some of their sections.
 - Hide votes, karma, awards, avatars, and usernames.
-- Show a fixed number of feed posts or reveal them in finite groups.
-- Import and export settings as JSON, with system, light, and dark themes.
+- Turn off video autoplay.
 
-All filtering and settings stay in the browser. FrontFilter has no analytics,
-accounts, ads, or remote services. See [PRIVACY.md](PRIVACY.md) for details.
+### Limit scrolling
 
-## Browser support
+- Show a fixed number of posts, or reveal them in groups of your chosen size.
 
-| Browser | Minimum version |
-| --- | ---: |
-| Chrome | 121 |
-| Firefox | 140 |
-| Firefox for Android | 142 |
+Settings can be exported and imported as JSON. FrontFilter's pages follow your
+system theme or use a light or dark one.
 
-## Install from source
+## Usage
 
-Node.js 20 or newer and Python 3 are required to build release archives.
+Open FrontFilter from the browser toolbar or extensions menu. The
+**Controls** tab turns features on and off, **Filters** holds subreddit,
+keyword, and flair rules, and **Settings** covers the theme, the Block
+buttons, and backups. Changes are saved automatically and apply right away.
 
-```bash
-npm run build
-```
+## Privacy
 
-For Chrome, open `chrome://extensions`, enable **Developer mode**, choose
-**Load unpacked**, and select `src/`. For Firefox, open
-`about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and
-select the generated `dist/frontfilter-firefox-<version>.xpi` file.
-
-The source manifest is directly loadable by Chrome. The build applies
-`manifests/firefox.json` to create the Firefox package and writes both archives
-to `dist/`.
+FrontFilter works entirely on your device. It has no servers, accounts,
+analytics, or ads, and never sends your data anywhere. It runs only on
+`reddit.com` and asks only for `storage` and `declarativeNetRequest`
+permissions. See the [privacy policy](PRIVACY.md) for details.
 
 ## Development
 
-FrontFilter has no runtime or npm package dependencies.
+FrontFilter has no runtime or npm dependencies. Development requires Node.js
+20 or later; building packages also requires Python 3.
 
 ```bash
-npm test       # unit and DOM-harness regression tests
-npm run check  # source and manifest validation
-npm run build  # deterministic Firefox and Chrome archives
+npm test        # unit tests
+npm run check   # validate sources and manifests
+npm run build   # write Chrome and Firefox packages to dist/
 ```
 
-Set `SOURCE_DATE_EPOCH` to control archive timestamps.
+`SOURCE_DATE_EPOCH` sets the archive timestamps for reproducible builds.
 
-Optional Selenium suites exercise packaged extensions against local fixtures;
-they do not visit Reddit:
+To try a local copy:
+
+- **Chrome:** open `chrome://extensions`, turn on **Developer mode**, choose
+  **Load unpacked**, and select the `src/` folder.
+- **Firefox:** run `npm run build`, open
+  `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**,
+  and select `dist/frontfilter-firefox-<version>.xpi`.
+
+Optional browser tests drive a local test page with Selenium
+(`pip install selenium`) and never visit Reddit:
 
 ```bash
-python3 tests/browser/firefox.py --firefox /path/to/firefox
-python3 tests/browser/chrome.py --chrome /path/to/chrome
+python3 tests/browser/firefox.py [--firefox /path/to/firefox]
+python3 tests/browser/chrome.py --chrome /path/to/chromium [--driver /path/to/chromedriver]
 ```
 
-Install Selenium in a temporary virtual environment before running those
-commands. Chrome requires `--chrome`; Firefox uses the system browser when
-`--firefox` is omitted.
-
-## Permissions
-
-| Permission | Why it is needed |
-| --- | --- |
-| `storage` | Save settings in the local browser profile. |
-| `declarativeNetRequest` | Redirect blocked Reddit navigations to the bundled block page. |
-| Access to `reddit.com` | Apply filters and identify the current subreddit for **Add Current**. |
+Chrome 137 and later ignore the `--load-extension` switch these tests rely
+on, so run the Chrome suite with Chromium or Chrome for Testing.
 
 ## Contributing
 
-Bug reports and focused pull requests are welcome. Read
-[CONTRIBUTING.md](CONTRIBUTING.md) before making a change.
+Bug reports, questions, and focused pull requests are welcome in the
+[issue tracker](https://github.com/fabiomolignoni/FrontFilter/issues). Read
+[CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
-Development is human-directed and uses AI coding tools. This note is included
+Development is human-directed and uses AI coding tools; this note is included
 for transparency.
+
+## License
+
+[Mozilla Public License 2.0](LICENSE)
