@@ -198,6 +198,12 @@ body.standalone { width: auto; max-width: 100vw; }
   background: var(--primary);
 }
 .checkbox-label input[type="checkbox"]:checked::before { transform: translateX(16px); }
+/* A group switch that is off while some of its sections are on. */
+.checkbox-label input[type="checkbox"]:indeterminate {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 45%, var(--toggle-off));
+}
+.checkbox-label input[type="checkbox"]:indeterminate::before { transform: translateX(8px); }
 .checkbox-label input[type="checkbox"]:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 3px;

@@ -167,7 +167,7 @@ async function loadPopup({
     "hide-right-sidebar",
     "show-block-subreddit-button",
     ...["comments", "navbar", "left-sidebar", "social"].flatMap((group) => [
-      `${group}-toggle`, `${group}-options`, `${group}-summary`,
+      `${group}-toggle`, `${group}-options`,
     ]),
     "limit-infinite-scroll",
     "scroll-limit",
@@ -187,7 +187,6 @@ async function loadPopup({
   for (const group of ["comments", "navbar", "left-sidebar", "social"]) {
     elements[`${group}-toggle`].setAttribute("aria-expanded", "false");
     elements[`${group}-options`].hidden = true;
-    elements[`${group}-summary`].hidden = true;
   }
   let readyListener;
   const createdElements = [];
@@ -706,7 +705,7 @@ test("keeps controls disabled after an initial storage read failure", async () =
   assert.equal(elements["add-subreddit"].disabled, true);
 });
 
-test("makes hiding all comments imply the nested reply toggle", async () => {
+test("makes hiding all comments imply the nested reply toggle and turn it off with it", async () => {
   const { elements, writes } = await loadPopup({ autoResolveWrites: true });
   const allComments = elements["hide-comments"];
   const replies = elements["hide-comment-replies"];
@@ -724,15 +723,19 @@ test("makes hiding all comments imply the nested reply toggle", async () => {
   allComments.checked = false;
   allComments.dispatch("change");
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(replies.checked, true);
+  assert.equal(replies.checked, false);
   assert.equal(replies.disabled, false);
-  assert.equal(writes.at(-1).settings.hideComments, false);
-  assert.equal(writes.at(-1).settings.hideCommentReplies, true);
+  assert.equal(allComments.indeterminate, false);
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    hideComments: false,
+    hideCommentReplies: false,
+  });
 
-  replies.checked = false;
+  replies.checked = true;
   replies.dispatch("change");
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(writes.at(-1).settings.hideCommentReplies, false);
+  assert.equal(writes.at(-1).settings.hideCommentReplies, true);
+  assert.equal(allComments.indeterminate, true);
 });
 
 test("makes hiding the navbar imply its indented section toggles", async () => {
@@ -778,19 +781,19 @@ test("makes hiding the navbar imply its indented section toggles", async () => {
   });
 });
 
-test("collapses grouped sub-options and summarizes the hidden ones", async () => {
+test("collapses grouped sub-options and shows partly hidden groups as mixed", async () => {
   const { elements, writes } = await loadPopup({ autoResolveWrites: true,
     storedSettings: { hideNavbarChat: true, hideNavbarProfile: true },
   });
   const toggle = elements["navbar-toggle"];
   const options = elements["navbar-options"];
-  const summary = elements["navbar-summary"];
+  const navbar = elements["hide-navbar"];
 
   assert.equal(toggle.getAttribute("aria-expanded"), "false");
   assert.equal(options.hidden, true);
-  assert.equal(summary.hidden, false);
-  assert.equal(summary.textContent, "2 of 6 sections hidden");
-  assert.equal(elements["left-sidebar-summary"].hidden, true);
+  assert.equal(navbar.checked, false);
+  assert.equal(navbar.indeterminate, true);
+  assert.equal(elements["hide-left-sidebar"].indeterminate, false);
 
   toggle.click();
   assert.equal(toggle.getAttribute("aria-expanded"), "true");
@@ -800,18 +803,21 @@ test("collapses grouped sub-options and summarizes the hidden ones", async () =>
   assert.equal(options.hidden, true);
   assert.equal(writes.length, 0);
 
+  // A mixed group turns fully on when clicked, then fully off.
+  navbar.checked = true;
+  navbar.dispatch("change");
+  assert.equal(navbar.indeterminate, false);
+  navbar.checked = false;
+  navbar.dispatch("change");
+  assert.equal(navbar.indeterminate, false);
+  assert.equal(elements["hide-navbar-chat"].checked, false);
+
   elements["hide-navbar-search"].checked = true;
   elements["hide-navbar-search"].dispatch("change");
-  assert.equal(summary.textContent, "3 of 6 sections hidden");
-
-  elements["hide-navbar"].checked = true;
-  elements["hide-navbar"].dispatch("change");
-  assert.equal(summary.hidden, true);
-
-  elements["hide-comment-replies"].checked = true;
-  elements["hide-comment-replies"].dispatch("change");
-  assert.equal(elements["comments-summary"].hidden, false);
-  assert.equal(elements["comments-summary"].textContent, "Replies hidden");
+  assert.equal(navbar.indeterminate, true);
+  elements["hide-navbar-search"].checked = false;
+  elements["hide-navbar-search"].dispatch("change");
+  assert.equal(navbar.indeterminate, false);
 });
 
 test("makes hiding votes and user info imply every signal toggle", async () => {
@@ -825,7 +831,7 @@ test("makes hiding votes and user info imply every signal toggle", async () => {
     "hide-avatars",
     "hide-usernames",
   ];
-  assert.equal(elements["social-summary"].textContent, "2 of 5 hidden");
+  assert.equal(elements["hide-social-signals"].indeterminate, true);
 
   elements["hide-social-signals"].checked = true;
   elements["hide-social-signals"].dispatch("change");
@@ -834,7 +840,7 @@ test("makes hiding votes and user info imply every signal toggle", async () => {
     assert.equal(elements[id].checked, true);
     assert.equal(elements[id].disabled, true);
   }
-  assert.equal(elements["social-summary"].hidden, true);
+  assert.equal(elements["hide-social-signals"].indeterminate, false);
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     hideSocialSignals: true,
     hideVotes: true,
@@ -858,7 +864,7 @@ test("makes hiding votes and user info imply every signal toggle", async () => {
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     hideUsernames: true,
   });
-  assert.equal(elements["social-summary"].textContent, "1 of 5 hidden");
+  assert.equal(elements["hide-social-signals"].indeterminate, true);
 });
 
 test("makes hiding the left sidebar imply its indented section toggles", async () => {

@@ -11,6 +11,9 @@ Notable changes to FrontFilter, newest first.
 
 ### Changed
 
+- A group's main switch, such as **Hide navbar**, shows a mixed state while
+  only some of its parts are hidden, instead of a summary. Turning it off
+  turns its parts off too, comment replies included.
 - Each subreddit has at most one block rule. When rules for the same
   subreddit differ, ALL wins over HOME, and a one-click **Block** turns a
   HOME rule into ALL; undo turns it back.

@@ -108,50 +108,27 @@ document.addEventListener("DOMContentLoaded", () => {
   let latestSaveId = 0;
   let controlsDisabled = false;
   let lastScrollLimit = FrontFilter.DEFAULT_SETTINGS.scrollLimit;
-  // A parent switch checks and locks its sections. These parents also turn
-  // their sections off with them; turning off "Hide comments" leaves replies
-  // hidden until their own switch is turned off.
-  const sectionsFollowParent = new Set(["hideNavbar", "hideLeftSidebar", "hideSocialSignals"]);
+  // A parent switch checks and locks its sections, and turns them off with
+  // it. While it is off with some sections on, it shows a mixed state.
   const settingGroups = [
-    { id: "comments", parentKey: "hideComments", describe: () => "Replies hidden" },
-    {
-      id: "navbar",
-      parentKey: "hideNavbar",
-      describe: (count, total) => `${count} of ${total} sections hidden`,
-    },
-    {
-      id: "left-sidebar",
-      parentKey: "hideLeftSidebar",
-      describe: (count, total) => `${count} of ${total} sections hidden`,
-    },
-    {
-      id: "social",
-      parentKey: "hideSocialSignals",
-      describe: (count, total) => `${count} of ${total} hidden`,
-    },
+    { id: "comments", parentKey: "hideComments" },
+    { id: "navbar", parentKey: "hideNavbar" },
+    { id: "left-sidebar", parentKey: "hideLeftSidebar" },
+    { id: "social", parentKey: "hideSocialSignals" },
   ].map((group) => ({
     ...group,
     childKeys: FrontFilter.SETTING_GROUPS[group.parentKey],
     toggle: document.getElementById(`${group.id}-toggle`),
     options: document.getElementById(`${group.id}-options`),
-    summary: document.getElementById(`${group.id}-summary`),
   }));
 
-  // Sub-options start collapsed; the summary keeps hidden choices visible.
+  // Sub-options start collapsed; the mixed state keeps hidden choices visible.
   for (const { toggle, options } of settingGroups) {
     toggle.addEventListener("click", () => {
       const expanded = toggle.getAttribute("aria-expanded") !== "true";
       toggle.setAttribute("aria-expanded", String(expanded));
       options.hidden = !expanded;
     });
-  }
-
-  function updateGroupSummaries() {
-    for (const { parentKey, childKeys, describe, summary } of settingGroups) {
-      const count = childKeys.filter((key) => checkboxes[key].checked).length;
-      summary.hidden = checkboxes[parentKey].checked || count === 0;
-      summary.textContent = summary.hidden ? "" : describe(count, childKeys.length);
-    }
   }
 
   function setControlsDisabled(disabled) {
@@ -186,7 +163,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     updateScrollControls();
     updateGroupControls();
-    updateGroupSummaries();
   }
 
   function updateScrollControls() {
@@ -198,11 +174,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updateGroupControls() {
     for (const { parentKey, childKeys } of settingGroups) {
-      const parentChecked = checkboxes[parentKey].checked;
+      const parent = checkboxes[parentKey];
       for (const key of childKeys) {
-        if (parentChecked) checkboxes[key].checked = true;
-        checkboxes[key].disabled = controlsDisabled || parentChecked;
+        if (parent.checked) checkboxes[key].checked = true;
+        checkboxes[key].disabled = controlsDisabled || parent.checked;
       }
+      parent.indeterminate = !parent.checked
+        && childKeys.some((key) => checkboxes[key].checked);
     }
   }
 
@@ -701,12 +679,9 @@ document.addEventListener("DOMContentLoaded", () => {
     checkbox.addEventListener("change", () => {
       // Sections are saved with their parent, as storage implies them.
       const sections = FrontFilter.SETTING_GROUPS[key] || [];
-      if (sectionsFollowParent.has(key)) {
-        for (const section of sections) checkboxes[section].checked = checkbox.checked;
-      }
+      for (const section of sections) checkboxes[section].checked = checkbox.checked;
       updateScrollControls();
       updateGroupControls();
-      updateGroupSummaries();
       scheduleAutoSave([key, ...sections], true);
     });
   });
