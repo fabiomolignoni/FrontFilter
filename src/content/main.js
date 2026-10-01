@@ -642,11 +642,13 @@ function collectPostCandidates() {
 
 async function filterPosts() {
   await loadConfig();
+  // Page rules need no body: applying them now keeps hidden parts of the
+  // page from showing while Reddit's HTML streams in.
+  ensureHiddenStyle();
   if (!document.body) {
     document.addEventListener("DOMContentLoaded", () => void filterPosts(), { once: true });
     return;
   }
-  ensureHiddenStyle();
 
   if (!observer) {
     observer = new MutationObserver((mutations) => {

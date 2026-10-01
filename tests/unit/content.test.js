@@ -12,8 +12,9 @@ function deferred() {
   return { promise, resolve };
 }
 
-async function loadContent({ querySelectorAll = () => [], settings, startUrl }) {
+async function loadContent({ querySelectorAll = () => [], settings, startUrl, body = {} }) {
   const redirects = [];
+  const readyListeners = [];
   const injectedStyles = [];
   const location = {
     href: startUrl,
@@ -25,7 +26,10 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl }) 
   };
   const rootAttributes = new Set();
   const document = {
-    body: {},
+    body,
+    addEventListener(type, listener) {
+      if (type === "DOMContentLoaded") readyListeners.push(listener);
+    },
     documentElement: {
       appendChild(style) { injectedStyles.push(style); },
       hasAttribute: (name) => rootAttributes.has(name),
@@ -113,6 +117,12 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl }) 
     getFeedLimiterUpdateCount: () => context.FrontFilterFeedStub.updateCount,
     isFeedRecordBlocked: (record) => context.FrontFilterFeedStub.options.isBlocked(record),
     processFilteredContent: context.processFilteredContent,
+    // Simulates the parser reaching the end of the page.
+    async finishParsing() {
+      document.body = {};
+      readyListeners.splice(0).forEach((listener) => listener());
+      await new Promise((resolve) => setImmediate(resolve));
+    },
     location,
     redirects,
     storageListeners,
@@ -189,6 +199,22 @@ test("does not scan the Reddit DOM when feed filters are inactive", async () => 
   assert.doesNotMatch(content.injectedStyles[0].textContent, /reddit-header|#header/);
   assert.doesNotMatch(content.injectedStyles[0].textContent, /LeftNavGamesSection/);
   assert.doesNotMatch(content.injectedStyles[0].textContent, /pdp-right-rail/);
+});
+
+test("applies page rules as soon as settings load, before the page body exists", async () => {
+  const content = await loadContent({
+    body: null,
+    settings: { hideNavbar: true },
+    startUrl: "https://www.reddit.com/",
+  });
+
+  assert.equal(content.injectedStyles.length, 1);
+  assert.match(content.injectedStyles[0].textContent, /reddit-header-large/);
+  assert.deepEqual(content.observerOptions, []);
+
+  await content.finishParsing();
+  assert.equal(content.injectedStyles.length, 1);
+  assert.equal(content.observerOptions.length, 1);
 });
 
 test("observes attributes and text only while a matching filter needs them", async () => {
