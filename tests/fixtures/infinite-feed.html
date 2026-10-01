@@ -234,6 +234,12 @@ article { padding: 10px; }
       super();
       const shadow = this.attachShadow({ mode: "open" });
       shadow.append(document.createElement("video"));
+      // Reddit's player tries autoplay as it scrolls into view; this one
+      // counts the tries the extension asks for.
+      this.autoplayAttempts = 0;
+      this.mediaVisibilityController = {
+        attemptAutoplay: () => { this.autoplayAttempts += 1; },
+      };
     }
   });
   window.addAutoplayPlayer = () => {
@@ -255,6 +261,7 @@ article { padding: 10px; }
       playerManaged: player.hasAttribute("data-frontfilter-autoplay-state"),
       videoAutoplay: video.autoplay,
       videoManaged: video.hasAttribute("data-frontfilter-autoplay-state"),
+      autoplayAttempts: player.autoplayAttempts,
     } : null;
   };
   window.post = (id, subreddit = "safe", extra = {}) => ({ id, subreddit, ...extra });

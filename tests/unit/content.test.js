@@ -84,6 +84,7 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
     chrome,
     console,
     document,
+    Event,
     MutationObserver,
     requestAnimationFrame: (callback) => callback(),
     setInterval: () => 0,
@@ -157,6 +158,7 @@ function createMediaElement({ attributes = [], localName, paused = true, shadowV
     tagName: localName.toUpperCase(),
     paused,
     pauseCount: 0,
+    dispatchedEvents: [],
     shadowRoot: shadowVideos.length > 0 ? {
       querySelectorAll: (selector) => selector === "video" ? shadowVideos : [],
     } : null,
@@ -169,6 +171,10 @@ function createMediaElement({ attributes = [], localName, paused = true, shadowV
     pause() {
       this.paused = true;
       this.pauseCount += 1;
+    },
+    dispatchEvent(event) {
+      this.dispatchedEvents.push(event.type);
+      return true;
     },
     removeAttribute(name) {
       values.delete(name);
@@ -582,6 +588,10 @@ test("disables video autoplay while preserving manual playback and restores it l
   assert.equal(nativeVideo.autoplay, true);
   assert.equal(player.hasAttribute("data-frontfilter-autoplay-state"), false);
   assert.equal(playerVideo.hasAttribute("data-frontfilter-autoplay-state"), false);
+  // The page-world bridge then asks the restored player to try autoplay.
+  assert.deepEqual(player.dispatchedEvents, ["frontfilter-autoplay-restored"]);
+  assert.deepEqual(playerVideo.dispatchedEvents, []);
+  assert.deepEqual(nativeVideo.dispatchedEvents, []);
 });
 
 test("hides posts from ALL-mode subreddits using post attributes", async () => {
