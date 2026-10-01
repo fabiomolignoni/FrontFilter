@@ -62,7 +62,7 @@ permissions. See the [privacy policy](PRIVACY.md) for details.
 ## Development
 
 FrontFilter has no runtime or npm dependencies. Development requires Node.js
-20 or later; building packages also requires Python 3.
+22 or later; building packages also requires Python 3.
 
 ```bash
 npm test        # unit tests

@@ -27,7 +27,7 @@ approach can be agreed first. Small fixes can go straight to a pull request.
 
 ## Development setup
 
-You need Node.js 20 or later, and Python 3 to build packages. There are no npm
+You need Node.js 22 or later, and Python 3 to build packages. There are no npm
 dependencies, so there is no `npm install` step. See the README's
 [Development](README.md#development) section for loading a local copy and
 running the Selenium browser tests.
