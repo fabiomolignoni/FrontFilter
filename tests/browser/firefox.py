@@ -121,9 +121,11 @@ class FirefoxSettingsTests(ExtensionTestCase):
             self.js("window.dispatchEvent(new Event('frontfilter-test-open-popup'))")
             self.wait_until(lambda: len(driver.window_handles) == len(handles) + 1)
             driver.switch_to.window(next(iter(set(driver.window_handles) - handles)))
-            field = driver.find_element("id", "scroll-limit")
-            self.wait_until(lambda: field.is_enabled())
-            return field
+            # The new tab may still be loading.
+            self.wait_until(lambda: any(
+                field.is_enabled() for field in driver.find_elements("id", "scroll-limit")
+            ))
+            return driver.find_element("id", "scroll-limit")
 
         field = open_settings()
         self.assertEqual(field.get_property("value"), "3")
