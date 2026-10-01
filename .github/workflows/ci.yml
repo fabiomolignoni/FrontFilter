@@ -53,7 +53,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [firefox, chrome, edge]
+        browser: [firefox, chrome]
 
     steps:
       - name: Check out source
@@ -95,8 +95,3 @@ jobs:
       - name: Run Chrome tests
         if: matrix.browser == 'chrome'
         run: python tests/browser/chrome.py --chrome "$CHROME_BINARY" --driver "$CHROMEDRIVER_BINARY" -v
-
-      # The runner image includes Microsoft Edge and msedgedriver.
-      - name: Run Edge tests
-        if: matrix.browser == 'edge'
-        run: python tests/browser/edge.py -v

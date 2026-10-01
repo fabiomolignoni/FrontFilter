@@ -40,8 +40,8 @@ npm run build    # source and manifest validation, then packaging
 git diff --check # whitespace errors
 ```
 
-CI runs these, and the Firefox, Chrome, and Edge browser tests, on every push
-and pull request. Run the browser tests yourself when you change page behavior.
+CI runs these, and the Firefox and Chrome browser tests, on every push and
+pull request. Run the browser tests yourself when you change page behavior.
 
 ## Guidelines
 
@@ -98,11 +98,10 @@ Never commit snapshots.
    describe user-facing changes in `CHANGELOG.md`.
 2. On `main`, once CI passes, tag the release (`git tag v<version>`) and run
    `SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) npm run build`, which writes
-   the Firefox, Chrome, and Edge packages to `dist/`.
-3. Upload `dist/frontfilter-firefox-<version>.xpi` to Firefox Add-ons,
-   `dist/frontfilter-chrome-<version>.zip` to the Chrome Web Store, and
-   `dist/frontfilter-edge-<version>.zip` to Microsoft Edge Add-ons through
-   Partner Center, with the changelog entry as release notes.
+   both packages to `dist/`.
+3. Upload `dist/frontfilter-firefox-<version>.xpi` to Firefox Add-ons and
+   `dist/frontfilter-chrome-<version>.zip` to the Chrome Web Store and to
+   Microsoft Edge Add-ons, with the changelog entry as release notes.
 
 ## Pull requests
 
