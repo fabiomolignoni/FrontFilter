@@ -8,6 +8,7 @@ session to check the unmodified extension on reddit.com.
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import sys
 import threading
 import unittest
 from urllib.parse import parse_qs, urlparse
@@ -21,7 +22,9 @@ from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.support.ui import WebDriverWait
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "src"
+sys.path.insert(0, str(ROOT / "scripts"))
+from package import SOURCE, browser_manifest, source_files  # noqa: E402
+
 FIXTURES = ROOT / "tests" / "fixtures"
 WINDOW_SIZE = (1366, 900)
 TIMEOUT = 15
@@ -57,14 +60,7 @@ chrome.storage.local.set(settings)
 """
 
 
-def firefox_manifest():
-    manifest = json.loads((SOURCE / "manifest.json").read_text())
-    manifest.pop("minimum_chrome_version")
-    manifest.update(json.loads((ROOT / "manifests/firefox.json").read_text()))
-    return manifest
-
-
-FIREFOX_ADDON_ID = firefox_manifest()["browser_specific_settings"]["gecko"]["id"]
+FIREFOX_ADDON_ID = browser_manifest("firefox")["browser_specific_settings"]["gecko"]["id"]
 
 
 def build_extension(destination, browser, fixture_port=None):
@@ -74,14 +70,8 @@ def build_extension(destination, browser, fixture_port=None):
     fixture server instead of reddit.com, and the fixture bridge is added.
     Without one, the copy is the extension as published.
     """
-    files = {
-        path.relative_to(SOURCE).as_posix(): path.read_bytes()
-        for path in SOURCE.rglob("*") if path.is_file()
-    }
-    if browser == "firefox":
-        manifest = firefox_manifest()
-    else:
-        manifest = json.loads(files["manifest.json"])
+    files = {path.relative_to(SOURCE).as_posix(): path.read_bytes() for path in source_files()}
+    manifest = browser_manifest(browser)
 
     if fixture_port is not None:
         # Firefox match patterns cannot name a port.
