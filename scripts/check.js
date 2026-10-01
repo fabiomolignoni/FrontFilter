@@ -62,9 +62,17 @@ if (!firefoxManifest.browser_specific_settings?.gecko?.id) {
   throw new Error("The Firefox manifest must define a Gecko extension ID");
 }
 const allowedFirefoxOverrides = new Set([
+  "name",
   "background",
   "browser_specific_settings",
 ]);
+// Firefox Add-ons rejects longer names; Chrome allows 75 characters.
+if (firefoxManifest.name.length > 45) {
+  throw new Error("The Firefox manifest name must not exceed 45 characters");
+}
+if (manifest.name.length > 75) {
+  throw new Error("The manifest name must not exceed 75 characters");
+}
 if (
   Object.keys(firefoxOverrides).some((key) => !allowedFirefoxOverrides.has(key))
 ) {

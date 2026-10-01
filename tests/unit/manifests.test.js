@@ -59,6 +59,10 @@ test("builds the Firefox manifest from browser-specific overrides", () => {
     firefoxManifest.browser_specific_settings.gecko_android.strict_min_version,
     "142.0",
   );
+  // Firefox Add-ons rejects names over 45 characters; the published add-on
+  // is named FrontFilter, while Chrome shows the longer store title.
+  assert.equal(firefoxManifest.name, "FrontFilter");
+  assert.ok(chromeManifest.name.length <= 75);
   assert.equal("minimum_chrome_version" in firefoxManifest, false);
   assert.ok(firefoxManifest.background.scripts.every(
     (file) => existsSync(join(sourceRoot, file)),
