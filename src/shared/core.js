@@ -49,6 +49,32 @@ var FrontFilter = (() => {
     theme: "system",
   });
   const STORAGE_KEYS = Object.freeze(Object.keys(DEFAULT_SETTINGS));
+  // Switches that imply their sections: while one is on, so are they.
+  const SETTING_GROUPS = Object.freeze({
+    hideComments: Object.freeze(["hideCommentReplies"]),
+    hideNavbar: Object.freeze([
+      "hideNavbarMenu",
+      "hideNavbarSearch",
+      "hideNavbarChat",
+      "hideNavbarNotifications",
+      "hideNavbarProfile",
+      "hideNavbarOthers",
+    ]),
+    hideSocialSignals: Object.freeze([
+      "hideVotes",
+      "hideKarma",
+      "hideAwards",
+      "hideAvatars",
+      "hideUsernames",
+    ]),
+    hideLeftSidebar: Object.freeze([
+      "hideLeftSidebarGames",
+      "hideLeftSidebarCustomFeeds",
+      "hideLeftSidebarRecent",
+      "hideLeftSidebarCommunities",
+      "hideLeftSidebarResources",
+    ]),
+  });
   // A one-time marker, not a setting: it lets the block page offer to undo
   // a one-click block only on the redirect that block caused.
   const QUICK_BLOCK_UNDO_KEY = "quickBlockUndo";
@@ -339,28 +365,9 @@ var FrontFilter = (() => {
         settings[key] = source[key] === true;
       }
     }
-    if (settings.hideComments) settings.hideCommentReplies = true;
-    if (settings.hideNavbar) {
-      settings.hideNavbarMenu = true;
-      settings.hideNavbarSearch = true;
-      settings.hideNavbarChat = true;
-      settings.hideNavbarNotifications = true;
-      settings.hideNavbarProfile = true;
-      settings.hideNavbarOthers = true;
-    }
-    if (settings.hideSocialSignals) {
-      settings.hideVotes = true;
-      settings.hideKarma = true;
-      settings.hideAwards = true;
-      settings.hideAvatars = true;
-      settings.hideUsernames = true;
-    }
-    if (settings.hideLeftSidebar) {
-      settings.hideLeftSidebarGames = true;
-      settings.hideLeftSidebarCustomFeeds = true;
-      settings.hideLeftSidebarRecent = true;
-      settings.hideLeftSidebarCommunities = true;
-      settings.hideLeftSidebarResources = true;
+    for (const [parent, sections] of Object.entries(SETTING_GROUPS)) {
+      if (!settings[parent]) continue;
+      for (const section of sections) settings[section] = true;
     }
     return settings;
   }
@@ -514,6 +521,7 @@ var FrontFilter = (() => {
 
   return {
     STORAGE_KEYS,
+    SETTING_GROUPS,
     NAVIGATION_STORAGE_KEYS,
     QUICK_BLOCK_UNDO_KEY,
     LISTING_SORTS,

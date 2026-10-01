@@ -106,61 +106,30 @@ document.addEventListener("DOMContentLoaded", () => {
   let latestSaveId = 0;
   let controlsDisabled = false;
   let lastScrollLimit = FrontFilter.DEFAULT_SETTINGS.scrollLimit;
-  const navbarSectionKeys = [
-    "hideNavbarMenu",
-    "hideNavbarSearch",
-    "hideNavbarChat",
-    "hideNavbarNotifications",
-    "hideNavbarProfile",
-    "hideNavbarOthers",
-  ];
-  const leftSidebarSectionKeys = [
-    "hideLeftSidebarGames",
-    "hideLeftSidebarCustomFeeds",
-    "hideLeftSidebarRecent",
-    "hideLeftSidebarCommunities",
-    "hideLeftSidebarResources",
-  ];
-  const socialSignalKeys = [
-    "hideVotes",
-    "hideKarma",
-    "hideAwards",
-    "hideAvatars",
-    "hideUsernames",
-  ];
-  // These parents switch all of their children on and off together.
-  const sectionGroups = {
-    hideNavbar: navbarSectionKeys,
-    hideLeftSidebar: leftSidebarSectionKeys,
-    hideSocialSignals: socialSignalKeys,
-  };
+  // A parent switch checks and locks its sections. These parents also turn
+  // their sections off with them; turning off "Hide comments" leaves replies
+  // hidden until their own switch is turned off.
+  const sectionsFollowParent = new Set(["hideNavbar", "hideLeftSidebar", "hideSocialSignals"]);
   const settingGroups = [
-    {
-      id: "comments",
-      parentKey: "hideComments",
-      childKeys: ["hideCommentReplies"],
-      describe: () => "Replies hidden",
-    },
+    { id: "comments", parentKey: "hideComments", describe: () => "Replies hidden" },
     {
       id: "navbar",
       parentKey: "hideNavbar",
-      childKeys: navbarSectionKeys,
       describe: (count, total) => `${count} of ${total} sections hidden`,
     },
     {
       id: "left-sidebar",
       parentKey: "hideLeftSidebar",
-      childKeys: leftSidebarSectionKeys,
       describe: (count, total) => `${count} of ${total} sections hidden`,
     },
     {
       id: "social",
       parentKey: "hideSocialSignals",
-      childKeys: socialSignalKeys,
       describe: (count, total) => `${count} of ${total} hidden`,
     },
   ].map((group) => ({
     ...group,
+    childKeys: FrontFilter.SETTING_GROUPS[group.parentKey],
     toggle: document.getElementById(`${group.id}-toggle`),
     options: document.getElementById(`${group.id}-options`),
     summary: document.getElementById(`${group.id}-summary`),
@@ -214,8 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     updateScrollControls();
-    updateCommentControls();
-    updateSectionControls();
+    updateGroupControls();
     updateGroupSummaries();
   }
 
@@ -226,16 +194,8 @@ document.addEventListener("DOMContentLoaded", () => {
     scrollMode.disabled = disabled;
   }
 
-  function updateCommentControls() {
-    if (checkboxes.hideComments.checked) {
-      checkboxes.hideCommentReplies.checked = true;
-    }
-    checkboxes.hideCommentReplies.disabled = controlsDisabled
-      || checkboxes.hideComments.checked;
-  }
-
-  function updateSectionControls() {
-    for (const [parentKey, childKeys] of Object.entries(sectionGroups)) {
+  function updateGroupControls() {
+    for (const { parentKey, childKeys } of settingGroups) {
       const parentChecked = checkboxes[parentKey].checked;
       for (const key of childKeys) {
         if (parentChecked) checkboxes[key].checked = true;
@@ -725,21 +685,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   Object.entries(checkboxes).forEach(([key, checkbox]) => {
     checkbox.addEventListener("change", () => {
-      const changedKeys = [key];
-      if (sectionGroups[key]) {
-        for (const sectionKey of sectionGroups[key]) {
-          checkboxes[sectionKey].checked = checkbox.checked;
-        }
-        changedKeys.push(...sectionGroups[key]);
-      }
-      if (key === "hideComments") {
-        changedKeys.push("hideCommentReplies");
+      // Sections are saved with their parent, as storage implies them.
+      const sections = FrontFilter.SETTING_GROUPS[key] || [];
+      if (sectionsFollowParent.has(key)) {
+        for (const section of sections) checkboxes[section].checked = checkbox.checked;
       }
       updateScrollControls();
-      updateCommentControls();
-      updateSectionControls();
+      updateGroupControls();
       updateGroupSummaries();
-      scheduleAutoSave(changedKeys, true);
+      scheduleAutoSave([key, ...sections], true);
     });
   });
 
