@@ -11,6 +11,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (pageParams.get("standalone") === "true") {
     document.body.classList.add("standalone");
   }
+  document.getElementById("app-version").textContent =
+    `FrontFilter v${chrome.runtime.getManifest().version}`;
 
   // Keep panels mounted: switching sections must preserve edits and scroll position.
   const tabs = Array.from(document.querySelectorAll('[role="tab"]'));

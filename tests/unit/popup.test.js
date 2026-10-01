@@ -173,6 +173,7 @@ async function loadPopup({
     "scroll-limit",
     "scroll-mode",
     "color-theme",
+    "app-version",
   ];
   const elements = Object.fromEntries(ids.map((id) => [id, new FakeElement()]));
   const tabsElements = ["controls", "filters", "settings"].map((name, index) => {
@@ -224,6 +225,7 @@ async function loadPopup({
         },
       },
     },
+    runtime: { getManifest: () => ({ version: "9.8.7" }) },
     tabs: { query: async () => tabs },
   };
   const context = vm.createContext({
@@ -263,6 +265,11 @@ function getRenderedAllowedItems(elements) {
 function getRenderedKeywords(elements) {
   return elements["title-keyword-list"].querySelectorAll(".keyword-item");
 }
+
+test("shows the extension version from its manifest", async () => {
+  const { elements } = await loadPopup();
+  assert.equal(elements["app-version"].textContent, "FrontFilter v9.8.7");
+});
 
 test("navigates settings tabs with arrows, Home and End without saving configuration", async () => {
   const { elements, writes } = await loadPopup();

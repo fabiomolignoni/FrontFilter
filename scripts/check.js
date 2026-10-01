@@ -41,14 +41,6 @@ for (const document of ["README.md", "CONTRIBUTING.md"]) {
   accessSync(join(root, document));
 }
 
-const popupHtml = readFileSync(join(sourceRoot, "popup/index.html"), "utf8");
-const popupVersion = popupHtml.match(/\bFrontFilter v(\d+\.\d+\.\d+)\b/)?.[1];
-if (popupVersion !== manifest.version) {
-  throw new Error(
-    "src/popup/index.html and src/manifest.json versions do not match",
-  );
-}
-
 if (manifest.manifest_version !== 3) {
   throw new Error("FrontFilter must use Manifest V3");
 }
