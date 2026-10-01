@@ -1,6 +1,6 @@
 """Build deterministic Firefox and Chrome release archives."""
-from datetime import datetime, timezone
 from copy import deepcopy
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -12,7 +12,26 @@ DIST = ROOT / "dist"
 CHROME_MANIFEST = json.loads((SOURCE / "manifest.json").read_text())
 FIREFOX_OVERRIDES = json.loads((ROOT / "manifests/firefox.json").read_text())
 VERSION = CHROME_MANIFEST["version"]
-FILES = sorted(path for path in SOURCE.rglob("*") if path.is_file())
+
+
+def source_files():
+    """Every packaged file, skipping hidden ones such as .DS_Store."""
+    return sorted(
+        path for path in SOURCE.rglob("*")
+        if path.is_file()
+        and not any(part.startswith(".") for part in path.relative_to(SOURCE).parts)
+    )
+
+
+def browser_manifest(browser):
+    """The source manifest, with Firefox's overrides for Firefox."""
+    manifest = deepcopy(CHROME_MANIFEST)
+    if browser == "firefox":
+        manifest.pop("minimum_chrome_version")
+        manifest.update(deepcopy(FIREFOX_OVERRIDES))
+    elif browser != "chrome":
+        raise ValueError(f"Unsupported browser: {browser}")
+    return manifest
 
 
 def timestamp():
@@ -21,32 +40,24 @@ def timestamp():
     return (value.year, value.month, value.day, value.hour, value.minute, value.second)
 
 
-def target_manifest(browser):
-    manifest = deepcopy(CHROME_MANIFEST)
-    if browser == "firefox":
-        manifest.pop("minimum_chrome_version")
-        manifest.update(deepcopy(FIREFOX_OVERRIDES))
-    elif browser == "chrome":
-        pass
-    else:
-        raise ValueError(f"Unsupported browser: {browser}")
-    return (json.dumps(manifest, indent=2) + "\n").encode()
-
-
 def build(name, browser):
     target = DIST / name
+    manifest = (json.dumps(browser_manifest(browser), indent=2) + "\n").encode()
     with ZipFile(target, "w", ZIP_DEFLATED, compresslevel=9) as archive:
-        for path in FILES:
+        for path in source_files():
             relative = path.relative_to(SOURCE).as_posix()
             info = ZipInfo(relative, timestamp())
             info.compress_type = ZIP_DEFLATED
             info.external_attr = 0o644 << 16
-            contents = target_manifest(browser) if relative == "manifest.json" \
-                else path.read_bytes()
-            archive.writestr(info, contents)
+            archive.writestr(info, manifest if relative == "manifest.json" else path.read_bytes())
     print(f"Built {target.relative_to(ROOT)}")
 
 
-DIST.mkdir(exist_ok=True)
-build(f"frontfilter-firefox-{VERSION}.xpi", "firefox")
-build(f"frontfilter-chrome-{VERSION}.zip", "chrome")
+def main():
+    DIST.mkdir(exist_ok=True)
+    build(f"frontfilter-firefox-{VERSION}.xpi", "firefox")
+    build(f"frontfilter-chrome-{VERSION}.zip", "chrome")
+
+
+if __name__ == "__main__":
+    main()
