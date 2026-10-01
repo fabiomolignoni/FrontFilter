@@ -343,7 +343,9 @@ test("does not offer an undo when visiting an already blocked subreddit", async 
 test("keeps hidden action buttons out of the layout", () => {
   // .btn sets display, which would otherwise override the hidden attribute
   // and show the undo button on every block page.
-  const html = readFileSync(join(__dirname, "..", "..", "src", "blocked", "index.html"), "utf8");
-  assert.match(html, /\.btn\[hidden\]\s*\{\s*display:\s*none;?\s*\}/);
+  const blocked = join(__dirname, "..", "..", "src", "blocked");
+  const css = readFileSync(join(blocked, "blocked.css"), "utf8");
+  const html = readFileSync(join(blocked, "index.html"), "utf8");
+  assert.match(css, /\.btn\[hidden\]\s*\{\s*display:\s*none;?\s*\}/);
   assert.match(html, /<button id="undo-block"[^>]*\shidden>/);
 });
