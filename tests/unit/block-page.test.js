@@ -316,6 +316,21 @@ test("offers to undo a one-click block once and returns to the subreddit", async
   assert.deepEqual(page.redirects, [returnUrl]);
 });
 
+test("undoing a one-click block that upgraded a HOME rule restores that rule", async () => {
+  const page = await loadBlockPage({
+    ...undoPage("abc123"),
+    storedSettings: {
+      blockedSubreddits: [{ name: "news", mode: "all" }, { name: "pics", mode: "all" }],
+      ...undoMarker({ previousMode: "home" }),
+    },
+  });
+
+  await page.elements["undo-block"].click();
+  assert.deepEqual(page.writes, [{
+    blockedSubreddits: [{ name: "news", mode: "home" }, { name: "pics", mode: "all" }],
+  }]);
+});
+
 test("does not offer an undo when the token is wrong, spent, expired or for another subreddit", async () => {
   for (const [label, token, storedSettings] of [
     ["wrong token", "forged", undoMarker()],

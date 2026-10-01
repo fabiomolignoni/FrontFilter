@@ -9,6 +9,12 @@ Notable changes to FrontFilter, newest first.
 - FrontFilter is available for Microsoft Edge 121 or later, from Microsoft
   Edge Add-ons.
 
+### Changed
+
+- Each subreddit has at most one block rule. When rules for the same
+  subreddit differ, ALL wins over HOME, and a one-click **Block** turns a
+  HOME rule into ALL; undo turns it back.
+
 ### Fixed
 
 - Turning **Disable video autoplay** off starts videos already on screen,

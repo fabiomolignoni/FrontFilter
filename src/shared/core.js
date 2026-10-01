@@ -222,35 +222,53 @@ var FrontFilter = (() => {
     return name ? { name, mode: normalizeMode(entry.mode) } : null;
   }
 
+  // One rule per subreddit: a repeated name keeps its first position, and
+  // ALL, which blocks more, wins over HOME.
   function normalizeBlockedSubreddits(entries = []) {
     if (!Array.isArray(entries)) return [];
 
-    const deduped = new Map();
+    const byName = new Map();
     for (const entry of entries) {
       const normalized = normalizeBlockedEntry(entry);
       if (!normalized) continue;
-      deduped.set(`${normalized.name}:${normalized.mode}`, normalized);
+      const existing = byName.get(normalized.name);
+      if (!existing) {
+        byName.set(normalized.name, normalized);
+      } else if (normalized.mode === "all") {
+        existing.mode = "all";
+      }
     }
-    return Array.from(deduped.values());
+    return Array.from(byName.values());
   }
 
   // One-click blocks use ALL mode, the only mode that hides a subreddit's
-  // posts from feeds. An existing HOME entry for the same name is kept.
+  // posts from feeds, and turn a HOME rule for the same name into ALL.
+  // previousMode is what undoing the block restores.
   function addBlockedSubreddit(entries, name) {
     const normalized = normalizeBlockedSubreddits(entries);
     const subreddit = normalizeSubredditName(name);
-    if (!subreddit || subreddit.includes("*")
-      || normalized.some((entry) => entry.name === subreddit && entry.mode === "all")) {
-      return { entries: normalized, added: false };
+    const existing = normalized.find((entry) => entry.name === subreddit);
+    if (!subreddit || subreddit.includes("*") || existing?.mode === "all") {
+      return { entries: normalized, added: false, previousMode: null };
     }
-    return { entries: [...normalized, { name: subreddit, mode: "all" }], added: true };
+    const blocked = { name: subreddit, mode: "all" };
+    return {
+      entries: existing
+        ? normalized.map((entry) => (entry === existing ? blocked : entry))
+        : [...normalized, blocked],
+      added: true,
+      previousMode: existing ? existing.mode : null,
+    };
   }
 
-  function removeBlockedSubreddit(entries, name, mode = "all") {
+  // Undoes a one-click block: removes its ALL rule, or turns it back into
+  // the HOME rule it replaced.
+  function undoBlockedSubreddit(entries, name, previousMode = null) {
     const subreddit = normalizeSubredditName(name);
-    return normalizeBlockedSubreddits(entries).filter((entry) =>
-      entry.name !== subreddit || entry.mode !== mode
-    );
+    return normalizeBlockedSubreddits(entries).flatMap((entry) => {
+      if (entry.name !== subreddit || entry.mode !== "all") return [entry];
+      return previousMode === "home" ? [{ name: subreddit, mode: "home" }] : [];
+    });
   }
 
   function normalizeAllowedSubreddits(entries = []) {
@@ -549,7 +567,7 @@ var FrontFilter = (() => {
     normalizeAllowedSubreddits,
     normalizeBlockedSubreddits,
     addBlockedSubreddit,
-    removeBlockedSubreddit,
+    undoBlockedSubreddit,
     normalizeSubredditName,
     normalizeTitleKeywords,
     normalizeBlockedFlairs,

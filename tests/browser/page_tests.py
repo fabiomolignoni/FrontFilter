@@ -704,6 +704,21 @@ class PageTests:
         self.configure(showBlockSubredditButton=False, allowedSubreddits=[])
         self.wait_until(lambda: self.js(block_buttons) == [])
 
+        # A HOME rule, which leaves posts in feeds, becomes ALL; undo turns
+        # it back into HOME.
+        self.configure(showBlockSubredditButton=True, blockedSubreddits=[{"name": "alpha", "mode": "home"}])
+        self.wait_until(lambda: "alpha" in self.js(block_buttons))
+        self.js("document.querySelector('.frontfilter-block-subreddit[data-subreddit=alpha]').click()")
+        self.expect(["two", "own"])
+        self.js("document.querySelector('.frontfilter-block-toast button').click()")
+        self.expect(["one", "two", "own"])
+        self.wait_until(lambda: self.js(toast) == "r/alpha is back to HOME")
+        self.session.open_settings_page()
+        self.assertEqual(self.driver.execute_async_script(
+            "chrome.storage.local.get('blockedSubreddits')"
+            ".then((stored) => arguments[0](stored.blockedSubreddits))"
+        ), [{"name": "alpha", "mode": "home"}])
+
     def test_subreddit_header_block_button_and_one_time_undo(self):
         # On a subreddit's own page the button sits beside Create Post; the
         # block sends the page to the block page, which offers the undo.

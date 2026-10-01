@@ -421,6 +421,40 @@ test("normalizes edited entries and saves their selected mode", async () => {
   );
 });
 
+test("keeps one rule per subreddit, the ALL one when they differ", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedSubreddits: [{ name: "firefox", mode: "home" }] },
+    tabs: [{ url: "https://www.reddit.com/r/Firefox/" }],
+  });
+
+  // Adding the current subreddit upgrades its HOME rule instead of adding one.
+  await elements["add-current-subreddit"].click();
+  await new Promise((resolve) => setImmediate(resolve));
+  let items = getRenderedItems(elements);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].children[1].children[1].selected, true);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(writes.at(-1).settings.blockedSubreddits)),
+    [{ name: "firefox", mode: "all" }],
+  );
+
+  // Typing an existing name into a new row merges the two once it is done.
+  elements["add-subreddit"].click();
+  const input = getRenderedItems(elements)[0].querySelector("input");
+  input.value = "r/Firefox";
+  input.dispatch("input");
+  input.dispatch("blur");
+  await new Promise((resolve) => setImmediate(resolve));
+  items = getRenderedItems(elements);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].children[1].children[1].selected, true);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(writes.at(-1).settings.blockedSubreddits)),
+    [{ name: "firefox", mode: "all" }],
+  );
+});
+
 test("removes an entry and persists the resulting list", async () => {
   const { elements, writes } = await loadPopup({
     autoResolveWrites: true,

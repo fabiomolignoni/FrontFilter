@@ -423,6 +423,10 @@ document.addEventListener("DOMContentLoaded", () => {
         );
         entry.name = normalizedName;
         event.target.value = normalizedName;
+        if (mergeDuplicateEntries()) {
+          renderList();
+          focusEntry(normalizedName, true);
+        }
         scheduleAutoSave(["blockedSubreddits"], true);
       });
       select.addEventListener("change", (event) => {
@@ -449,12 +453,31 @@ document.addEventListener("DOMContentLoaded", () => {
     focusListInput(blockedListEl, ".blocked-item", normalizedName, animate);
   }
 
+  // One rule per subreddit, as storage keeps them: a repeated name merges
+  // into its first row, which becomes ALL if either row was.
+  function mergeDuplicateEntries() {
+    const byName = new Map();
+    const merged = blockedEntries.filter((entry) => {
+      const first = entry.name && byName.get(entry.name);
+      if (!first) {
+        if (entry.name) byName.set(entry.name, entry);
+        return true;
+      }
+      if (entry.mode === "all") first.mode = "all";
+      return false;
+    });
+    const changed = merged.length !== blockedEntries.length;
+    blockedEntries = merged;
+    return changed;
+  }
+
   function addEntry(name = "", mode = "all", animate = true) {
     const normalizedName = FrontFilter.normalizeSubredditName(name);
     blockedEntries.unshift({
       name: normalizedName,
       mode: mode === "all" ? "all" : "home",
     });
+    mergeDuplicateEntries();
     renderList();
     focusEntry(normalizedName, animate);
 
