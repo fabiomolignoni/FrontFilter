@@ -216,14 +216,20 @@ class PageTests:
             "playerManaged": True,
             "videoAutoplay": False,
             "videoManaged": True,
+            "autoplayAttempts": 0,
         })
+        # Restored players are asked to try autoplay once, as a video
+        # already on screen would not try again by itself.
         self.configure(disableAutoplay=False)
         self.wait_until(lambda: self.js("return autoplayState()") == {
             "player": [True, True, True],
             "playerManaged": False,
             "videoAutoplay": True,
             "videoManaged": False,
+            "autoplayAttempts": 1,
         })
+        self.pause(300)
+        self.assertEqual(self.js("return autoplayState().autoplayAttempts"), 1)
 
     def test_every_page_rule_is_valid_css(self):
         # Browsers drop a rule whose selector they reject, which would then

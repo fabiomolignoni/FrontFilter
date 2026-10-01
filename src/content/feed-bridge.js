@@ -1,10 +1,12 @@
 /**
- * Page-world adapter for Reddit's feed continuation element.
+ * Page-world adapter for Reddit's feed continuation element and video
+ * players.
  *
  * Content scripts cannot call page-defined custom-element methods in Chrome's
  * isolated world. This bridge uses fixed DOM events to invoke the native feed
- * loader and release native loads suppressed by the finite-feed gate. No
- * extension APIs, settings, or data enter the page world.
+ * loader, release native loads suppressed by the finite-feed gate, and ask
+ * players whose autoplay was restored to try it again. No extension APIs,
+ * settings, or data enter the page world.
  */
 (() => {
   "use strict";
@@ -19,6 +21,8 @@
   const REQUEST_EVENT = "frontfilter-feed-load-request";
   const ERROR_EVENT = "frontfilter-feed-load-error";
   const RELEASE_EVENT = "frontfilter-feed-load-release";
+  const PLAYER = "shreddit-player";
+  const AUTOPLAY_RESTORED_EVENT = "frontfilter-autoplay-restored";
   const suppressed = new Set();
   let originalLoad = null;
 
@@ -91,6 +95,18 @@
       }
     }
     suppressed.clear();
+  });
+
+  // A player tries autoplay as it scrolls into view, if it is visible
+  // enough; a restored one already on screen needs asking again.
+  document.addEventListener(AUTOPLAY_RESTORED_EVENT, (event) => {
+    const player = event.target;
+    if (!(player instanceof Element) || player.localName !== PLAYER) return;
+    try {
+      player.mediaVisibilityController?.attemptAutoplay?.();
+    } catch {
+      // Reddit's player keeps its own scroll-based autoplay.
+    }
   });
 
   install();

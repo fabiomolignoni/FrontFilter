@@ -6,6 +6,10 @@
 FrontFilter.syncVideoAutoplay = (() => {
   const { media, attributes } = FrontFilter.SELECTORS.autoplay;
   const STATE_ATTRIBUTE = "data-frontfilter-autoplay-state";
+  // Reddit's players try to autoplay only as they scroll into view. Once
+  // one is restored, the page-world bridge (feed-bridge.js) asks it to try
+  // again, so a video already on screen starts too.
+  const RESTORED_EVENT = "frontfilter-autoplay-restored";
 
   function savedAttributes(element) {
     return new Set((element.getAttribute(STATE_ATTRIBUTE) || "").split(",").filter(Boolean));
@@ -51,8 +55,9 @@ FrontFilter.syncVideoAutoplay = (() => {
   }
 
   function restore(element) {
-    if (element.hasAttribute(STATE_ATTRIBUTE)) {
-      const saved = savedAttributes(element);
+    const managed = element.hasAttribute(STATE_ATTRIBUTE);
+    const saved = savedAttributes(element);
+    if (managed) {
       element.removeAttribute(STATE_ATTRIBUTE);
       for (const attribute of saved) {
         element.setAttribute(attribute, "");
@@ -61,9 +66,11 @@ FrontFilter.syncVideoAutoplay = (() => {
         element.autoplay = saved.has("autoplay");
       }
     }
+    if (isVideo(element)) return;
 
-    if (!isVideo(element)) {
-      element.shadowRoot?.querySelectorAll("video").forEach(restore);
+    element.shadowRoot?.querySelectorAll("video").forEach(restore);
+    if (managed && saved.has("autoplay")) {
+      element.dispatchEvent(new Event(RESTORED_EVENT, { bubbles: true, composed: true }));
     }
   }
 

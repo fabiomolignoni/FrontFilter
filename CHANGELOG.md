@@ -9,6 +9,11 @@ Notable changes to FrontFilter, newest first.
 - FrontFilter is available for Microsoft Edge 121 or later, from Microsoft
   Edge Add-ons.
 
+### Fixed
+
+- Turning **Disable video autoplay** off starts videos already on screen,
+  and later ones as they scroll into view.
+
 ## 2.2.0 - 2026-10-01
 
 ### Added
