@@ -362,18 +362,24 @@ var FrontFilter = (() => {
     return settings;
   }
 
-  function applyStorageChanges(settings, changes = {}) {
+  // Applies storage.onChanged changes to stored values, which stay raw:
+  // settings are derived from them with coerceSettings.
+  function applyStorageChanges(storedValues, changes = {}) {
     const source = changes && typeof changes === "object" ? changes : {};
-    const updates = {};
+    const values = {};
     for (const key of STORAGE_KEYS) {
-      if (Object.prototype.hasOwnProperty.call(source, key)) {
-        updates[key] = source[key]?.newValue;
-      }
+      const value = Object.prototype.hasOwnProperty.call(source, key)
+        ? source[key]?.newValue
+        : storedValues?.[key];
+      if (value !== undefined) values[key] = value;
     }
-    return coerceSettings({ ...coerceSettings(settings), ...updates });
+    return values;
   }
 
   function createSettingsStore(storageArea, { onLoadError } = {}) {
+    // Settings come from the stored values every time, so a setting implied
+    // by another (replies by all comments) follows it when it changes alone.
+    let storedValues = {};
     let settings = coerceSettings();
     let loaded = false;
     let loadPromise = null;
@@ -383,7 +389,8 @@ var FrontFilter = (() => {
       if (!loaded) {
         pendingChanges = { ...pendingChanges, ...changes };
       }
-      settings = applyStorageChanges(settings, changes);
+      storedValues = applyStorageChanges(storedValues, changes);
+      settings = coerceSettings(storedValues);
       return settings;
     }
 
@@ -393,17 +400,17 @@ var FrontFilter = (() => {
       if (!loadPromise) {
         loadPromise = storageArea
           .get(STORAGE_KEYS)
-          .then((storedSettings) => {
-            settings = applyStorageChanges(
-              coerceSettings(storedSettings),
+          .then((stored) => {
+            storedValues = applyStorageChanges(
+              applyStorageChanges(stored),
               pendingChanges,
             );
           })
           .catch((error) => {
-            settings = coerceSettings(settings);
             onLoadError?.(error);
           })
           .then(() => {
+            settings = coerceSettings(storedValues);
             loaded = true;
             pendingChanges = {};
             return settings;
