@@ -11,6 +11,9 @@ const chromeManifest = JSON.parse(
 const firefoxOverrides = JSON.parse(
   readFileSync(join(root, "manifests", "firefox.json"), "utf8"),
 );
+const edgeOverrides = JSON.parse(
+  readFileSync(join(root, "manifests", "edge.json"), "utf8"),
+);
 
 test("keeps the source manifest directly loadable by Chrome MV3", () => {
   assert.equal(chromeManifest.manifest_version, 3);
@@ -67,4 +70,16 @@ test("builds the Firefox manifest from browser-specific overrides", () => {
   assert.ok(firefoxManifest.background.scripts.every(
     (file) => existsSync(join(sourceRoot, file)),
   ));
+});
+
+test("builds the Edge manifest from the Chrome manifest", () => {
+  const edgeManifest = { ...structuredClone(chromeManifest), ...edgeOverrides };
+
+  // Edge Add-ons also rejects names over 45 characters; everything else,
+  // including the minimum version, is Chrome's.
+  assert.equal(edgeManifest.name, "FrontFilter");
+  assert.deepEqual(Object.keys(edgeOverrides), ["name"]);
+  assert.equal(edgeManifest.background.service_worker, "background/service-worker.js");
+  assert.equal(edgeManifest.minimum_chrome_version, chromeManifest.minimum_chrome_version);
+  assert.equal("browser_specific_settings" in edgeManifest, false);
 });

@@ -1,9 +1,9 @@
 """Shared setup for the browser tests.
 
 Builds test copies of the extension, serves the local fixture pages and runs
-WebDriver sessions in Firefox and Chrome. The fixture tests in firefox.py and
-chrome.py never visit Reddit; tests/reddit/canary.py reuses the Firefox
-session to check the unmodified extension on reddit.com.
+WebDriver sessions in Firefox, Chrome and Edge. The fixture tests in
+firefox.py, chrome.py and edge.py never visit Reddit; tests/reddit/canary.py
+reuses the Firefox session to check the unmodified extension on reddit.com.
 """
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -17,6 +17,8 @@ from zipfile import ZipFile
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.edge.options import Options as EdgeOptions
+from selenium.webdriver.edge.service import Service as EdgeService
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.support.ui import WebDriverWait
@@ -64,7 +66,7 @@ FIREFOX_ADDON_ID = browser_manifest("firefox")["browser_specific_settings"]["gec
 
 
 def build_extension(destination, browser, fixture_port=None):
-    """Writes a test copy of the extension: a Firefox .xpi or a Chrome folder.
+    """Writes a test copy of the extension: a Firefox .xpi, or a folder for Chrome and Edge.
 
     With a fixture port, content scripts and navigation rules target the local
     fixture server instead of reddit.com, and the fixture bridge is added.
@@ -162,6 +164,19 @@ def start_chrome(binary, driver_path, extension_directory):
     options.add_argument(f"--load-extension={extension_directory}")
     service = ChromeService(executable_path=driver_path) if driver_path else ChromeService()
     return webdriver.Chrome(options=options, service=service)
+
+
+def start_edge(binary=None, driver_path=None):
+    # Edge ignores --load-extension too, but lets WebDriver BiDi install extensions.
+    options = EdgeOptions()
+    if binary:
+        options.binary_location = binary
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.enable_bidi = True
+    options.enable_webextensions = True
+    service = EdgeService(executable_path=driver_path) if driver_path else EdgeService()
+    return webdriver.Edge(options=options, service=service)
 
 
 class Session:
