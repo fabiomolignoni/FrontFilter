@@ -13,6 +13,8 @@ Notable changes to FrontFilter, newest first.
 
 - Turning **Disable video autoplay** off starts videos already on screen,
   and later ones as they scroll into view.
+- **Hide usernames** no longer hides the post author's avatar in subreddit
+  feeds.
 
 ## 2.2.0 - 2026-10-01
 

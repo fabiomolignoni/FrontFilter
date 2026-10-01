@@ -39,7 +39,7 @@ VISIBLE_SIDEBAR = {
 }
 SIGNAL_KEYS = ["hideVotes", "hideKarma", "hideAwards", "hideAvatars", "hideUsernames"]
 SIGNALS_SHOWN = {
-    "post-author": True, "post-author-avatar": True, "community-icon": True,
+    "post-author-name": True, "post-author-avatar": True, "community-icon": True,
     "comment-avatar": True, "comment-author": True, "comment-time": True,
     "comment-award": True, "card-avatar": True, "card-karma": True,
     "karma-help": True, "card-follow": True, "profile-karma": True,
@@ -131,6 +131,8 @@ class PageTests:
             **SIGNALS_SHOWN,
             "post-author-avatar": False, "comment-avatar": False, "card-avatar": False,
         }
+        # So do names, though a post author's avatar shares their slot.
+        usernames_hidden = {**SIGNALS_SHOWN, "post-author-name": False, "comment-author": False}
         # Timestamps, subreddit icons, other post actions and hover-card actions stay.
         signals_hidden = {
             **dict.fromkeys(SIGNALS_SHOWN, False),
@@ -140,6 +142,8 @@ class PageTests:
         self.wait_until(lambda: self.js("return socialVisibility()") == SIGNALS_SHOWN)
         self.configure(hideAvatars=True)
         self.wait_until(lambda: self.js("return socialVisibility()") == avatars_hidden)
+        self.configure(hideAvatars=False, hideUsernames=True)
+        self.wait_until(lambda: self.js("return socialVisibility()") == usernames_hidden)
         self.configure(hideSocialSignals=True, **dict.fromkeys(SIGNAL_KEYS, True))
         self.wait_until(lambda: self.js("return socialVisibility()") == signals_hidden)
         self.configure(hideSocialSignals=False, **dict.fromkeys(SIGNAL_KEYS, False))

@@ -115,7 +115,8 @@ article { padding: 10px; }
       <span slot="authorName" id="post-author">
         <faceplate-hovercard data-id="user-hover-card">
           <faceplate-tracker noun="user_profile">
-            <a href="/user/alice/"><span avatar id="post-author-avatar">A</span>u/alice</a>
+            <a href="/user/alice/"><div><span avatar id="post-author-avatar">A</span><span
+              data-testid="nameplate" id="post-author-name"><span>u/alice</span></span></div></a>
           </faceplate-tracker>
         </faceplate-hovercard>
       </span>
@@ -504,7 +505,7 @@ article { padding: 10px; }
     const actions = document.querySelector("#comment-actions").shadowRoot;
     return {
       ...Object.fromEntries([
-        "post-author", "post-author-avatar", "community-icon", "comment-avatar",
+        "post-author-name", "post-author-avatar", "community-icon", "comment-avatar",
         "comment-author", "comment-time", "comment-award", "card-avatar",
         "card-karma", "karma-help", "card-follow", "profile-karma",
       ].map((id) => [id, visible(document.getElementById(id))])),
