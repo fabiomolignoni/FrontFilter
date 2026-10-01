@@ -609,7 +609,10 @@ class PageTests:
             " [post('nested', 'safe', {flair: 'MEME', body: 'Embedded text'})])"
         )
         self.expect("abc")
-        self.assertFalse(self.js("return document.querySelector('#t3_nested').getClientRects().length > 0"))
+        # Page filters hide the embedded post on the next animation frame.
+        self.wait_until(lambda: not self.js(
+            "return document.querySelector('#t3_nested').getClientRects().length > 0"
+        ), "the embedded post stayed visible")
 
     def test_flair_filters_in_feeds_and_the_scroll_limit(self):
         # Flair-filtered posts take their wrapper and divider and never count
