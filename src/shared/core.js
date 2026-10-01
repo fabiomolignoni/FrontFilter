@@ -97,22 +97,25 @@ var FrontFilter = (() => {
     "controversial",
   ]);
   const LISTING_SORT_PATTERN = LISTING_SORTS.join("|");
-  const FRONT_PAGE_PATTERN = new RegExp(`^/(?:${LISTING_SORT_PATTERN})?/?$`, "i");
+  // Main pages that settings can block. Each path is a regular expression
+  // source that both the content script and declarativeNetRequest rules use.
+  const PAGE_ROUTES = Object.freeze([
+    { key: "blockHomepage", page: "homepage", filter: "Homepage", path: `(/(${LISTING_SORT_PATTERN}))?/?` },
+    { key: "blockPopular", page: "popular", filter: "r/popular", path: "/r/popular(/.*)?" },
+    { key: "blockExplore", page: "explore", filter: "Explore", path: "/explore(/.*)?" },
+    { key: "blockNews", page: "news", filter: "News", path: "/news(/.*)?" },
+  ].map((route) => Object.freeze({ type: "page", ...route })));
+  const SUBREDDIT_FRONTS_ROUTE = Object.freeze({
+    type: "page", page: "subhome", filter: "All Sub Fronts",
+  });
+  const PAGE_PATTERNS = new Map(PAGE_ROUTES.map((route) =>
+    [route, new RegExp(`^${route.path}$`, "i")]
+  ));
+  const FRONT_PAGE_PATTERN = PAGE_PATTERNS.get(PAGE_ROUTES[0]);
   const FEED_PAGE_PATTERN = new RegExp(
     `^/r/[^/]+(?:/(?:${LISTING_SORT_PATTERN}))?/?$`,
     "i",
   );
-  const PAGE_RULES = [
-    {
-      key: "blockHomepage",
-      page: "homepage",
-      filter: "Homepage",
-      pattern: FRONT_PAGE_PATTERN,
-    },
-    { key: "blockPopular", page: "popular", filter: "r/popular", pattern: /^\/r\/popular(?:\/.*)?$/i },
-    { key: "blockExplore", page: "explore", filter: "Explore", pattern: /^\/explore(?:\/.*)?$/i },
-    { key: "blockNews", page: "news", filter: "News", pattern: /^\/news(?:\/.*)?$/i },
-  ];
 
   const SUBREDDIT_SORTS = new Set(LISTING_SORTS);
   const REDDIT_HOST_PATTERN = /(^|\.)reddit\.com$/i;
@@ -466,24 +469,15 @@ var FrontFilter = (() => {
     const config = coerceSettings(settings);
     const subreddit = getSubredditPath(pathname);
 
-    for (const rule of PAGE_RULES) {
-      if (config[rule.key] && rule.pattern.test(pathname)) {
-        return { type: "page", page: rule.page, filter: rule.filter };
-      }
+    for (const route of PAGE_ROUTES) {
+      if (config[route.key] && PAGE_PATTERNS.get(route).test(pathname)) return route;
     }
 
     if (!subreddit) return null;
     if (isSubredditAllowed(subreddit.name, config.allowedSubreddits)) return null;
 
     const subredditFront = isSubredditFrontPath(pathname);
-    if (config.blockSubHome && subredditFront) {
-      return {
-        type: "page",
-        page: "subhome",
-        subreddit: subreddit.name,
-        filter: "All Sub Fronts",
-      };
-    }
+    if (config.blockSubHome && subredditFront) return SUBREDDIT_FRONTS_ROUTE;
 
     for (const entry of config.blockedSubreddits) {
       if (!matchesSubredditPattern(entry.name, subreddit.name)) continue;
@@ -504,17 +498,19 @@ var FrontFilter = (() => {
     return FRONT_PAGE_PATTERN.test(pathname) || FEED_PAGE_PATTERN.test(pathname);
   }
 
-  function blockedRouteToQuery(route, returnUrl = "") {
+  // The block page's query for a route; the blocked URL always follows in
+  // the fragment. Navigation rules cannot name the subreddit a pattern
+  // matched, so the page then reads it from that URL.
+  function blockPageQuery(route) {
     if (!route) return "";
 
     const params = new URLSearchParams();
     if (route.type === "page") {
       params.set("page", route.page);
     } else {
-      params.set("subreddit", route.subreddit);
+      params.set("target", "subreddit");
+      if (route.subreddit) params.set("subreddit", route.subreddit);
     }
-
-    if (returnUrl) params.set("returnUrl", returnUrl);
     if (route.filter) params.set("filter", route.filter);
     return `?${params.toString()}`;
   }
@@ -525,6 +521,8 @@ var FrontFilter = (() => {
     NAVIGATION_STORAGE_KEYS,
     QUICK_BLOCK_UNDO_KEY,
     LISTING_SORTS,
+    PAGE_ROUTES,
+    SUBREDDIT_FRONTS_ROUTE,
     DEFAULT_SETTINGS,
     applyStorageChanges,
     createSettingsStore,
@@ -546,7 +544,7 @@ var FrontFilter = (() => {
     matchesFlairPattern,
     normalizeTheme,
     createKeywordMatcher,
-    blockedRouteToQuery,
+    blockPageQuery,
     isFeedPath,
     isHomeFeedPath,
   };

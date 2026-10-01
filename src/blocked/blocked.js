@@ -6,14 +6,14 @@ document.addEventListener("DOMContentLoaded", () => {
   void loadTheme();
 
   const params = new URLSearchParams(window.location.search);
-  const returnUrl = getSafeReturnUrl(
-    params.get("returnUrl") || window.location.hash.slice(1),
-  );
+  // The blocked URL follows in the fragment (see FrontFilter.blockPageQuery).
+  const returnUrl = getSafeReturnUrl(window.location.hash.slice(1));
   const returnSubreddit = returnUrl
     ? FrontFilter.getSubredditPath(new URL(returnUrl).pathname)?.name
     : "";
-  const sub = params.get("subreddit")
-    || (params.get("target") === "subreddit" ? returnSubreddit : "");
+  const sub = params.get("target") === "subreddit"
+    ? FrontFilter.normalizeSubredditName(params.get("subreddit")) || returnSubreddit
+    : "";
   const page = params.get("page");
   const filter = params.get("filter");
 
@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // must match the one-time marker stored with the rule.
   const undoToken = params.get("undo");
   if (undoToken) {
-    void offerUndo(params.get("subreddit"), undoToken);
+    void offerUndo(sub, undoToken);
     params.delete("undo");
     window.history.replaceState(null, "", `?${params}${window.location.hash}`);
   }

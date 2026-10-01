@@ -521,10 +521,9 @@ test("parses subreddit paths and their remaining segments", () => {
 });
 
 test("recognizes page and subreddit blocking routes", () => {
+  const popular = FrontFilter.getBlockedRoute("/r/popular/new", { blockPopular: true });
   assert.deepEqual(
-    JSON.parse(JSON.stringify(FrontFilter.getBlockedRoute("/r/popular/new", {
-      blockPopular: true,
-    }))),
+    { type: popular.type, page: popular.page, filter: popular.filter },
     { type: "page", page: "popular", filter: "r/popular" },
   );
   assert.deepEqual(
@@ -613,30 +612,40 @@ test("distinguishes subreddit fronts from posts for HOME and ALL modes", () => {
     })?.subreddit,
     "firefox",
   );
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(FrontFilter.getBlockedRoute("/r/firefox/rising", {
-      blockSubHome: true,
-    }))),
-    {
-      type: "page",
-      page: "subhome",
-      subreddit: "firefox",
-      filter: "All Sub Fronts",
-    },
+  assert.equal(
+    FrontFilter.getBlockedRoute("/r/firefox/rising", { blockSubHome: true }),
+    FrontFilter.SUBREDDIT_FRONTS_ROUTE,
   );
 });
 
-test("serializes block details into a query string", () => {
-  const query = FrontFilter.blockedRouteToQuery(
-    { type: "subreddit", subreddit: "firefox", filter: "fire*" },
-    "https://www.reddit.com/r/firefox",
+test("serializes block details into the block page query", () => {
+  // Navigation rules cannot name the subreddit; the page then reads it
+  // from the blocked URL in the fragment.
+  assert.equal(
+    FrontFilter.blockPageQuery({ type: "subreddit", subreddit: "firefox", filter: "fire*" }),
+    "?target=subreddit&subreddit=firefox&filter=fire*",
   );
-  const params = new URLSearchParams(query);
+  assert.equal(
+    FrontFilter.blockPageQuery({ type: "subreddit", filter: "fire*" }),
+    "?target=subreddit&filter=fire*",
+  );
+  assert.equal(
+    FrontFilter.blockPageQuery(FrontFilter.SUBREDDIT_FRONTS_ROUTE),
+    "?page=subhome&filter=All+Sub+Fronts",
+  );
+  assert.equal(FrontFilter.blockPageQuery(null), "");
+});
 
-  assert.equal(params.get("subreddit"), "firefox");
-  assert.equal(params.get("filter"), "fire*");
-  assert.equal(params.get("returnUrl"), "https://www.reddit.com/r/firefox");
-  assert.equal(FrontFilter.blockedRouteToQuery(null), "");
+test("lists each blockable main page once, with its setting", () => {
+  for (const route of FrontFilter.PAGE_ROUTES) {
+    assert.ok(Object.isFrozen(route), route.page);
+    assert.equal(route.type, "page");
+    assert.equal(FrontFilter.DEFAULT_SETTINGS[route.key], false, route.key);
+  }
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(FrontFilter.PAGE_ROUTES.map(({ page }) => page))),
+    ["homepage", "popular", "explore", "news"],
+  );
 });
 
 test("normalizes typed scroll settings and resets removed values", () => {
