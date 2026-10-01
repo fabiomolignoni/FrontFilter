@@ -12,7 +12,7 @@
     "url": "https://github.com/fabiomolignoni/FrontFilter/issues"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "npm run check && python3 scripts/package.py",
