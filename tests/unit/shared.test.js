@@ -243,13 +243,13 @@ test("rejects malformed stored values instead of throwing or enabling flags", ()
 });
 
 test("applies only known local-storage changes", () => {
-  const settings = FrontFilter.applyStorageChanges(
+  const settings = FrontFilter.coerceSettings(FrontFilter.applyStorageChanges(
     { blockHomepage: true, blockPopular: true },
     {
       blockHomepage: { oldValue: true, newValue: false },
       unknown: { newValue: true },
     },
-  );
+  ));
 
   assert.equal(settings.blockHomepage, false);
   assert.equal(settings.blockPopular, true);
@@ -257,13 +257,13 @@ test("applies only known local-storage changes", () => {
 });
 
 test("resets a setting to its default when it is removed from storage", () => {
-  const settings = FrontFilter.applyStorageChanges(
+  const settings = FrontFilter.coerceSettings(FrontFilter.applyStorageChanges(
     { blockHomepage: true, blockedSubreddits: [{ name: "firefox", mode: "all" }] },
     {
       blockHomepage: { oldValue: true },
       blockedSubreddits: { oldValue: [{ name: "firefox", mode: "all" }] },
     },
-  );
+  ));
 
   assert.equal(settings.blockHomepage, false);
   assert.deepEqual(JSON.parse(JSON.stringify(settings.blockedSubreddits)), []);
@@ -334,6 +334,22 @@ test("settings store preserves changes received during its initial load", async 
   );
   await store.load();
   assert.equal(readCount, 1);
+});
+
+test("settings store derives implied settings from storage after every change", async () => {
+  const store = FrontFilter.createSettingsStore({
+    get: async () => ({ hideComments: true, hideNavbar: true, hideNavbarSearch: true }),
+  });
+  const settings = await store.load();
+  assert.equal(settings.hideCommentReplies, true);
+  assert.equal(settings.hideNavbarChat, true);
+
+  // A switch turned off alone takes the settings it implied with it, but
+  // values stored for those settings remain.
+  store.applyChanges({ hideComments: { oldValue: true }, hideNavbar: { oldValue: true, newValue: false } });
+  assert.equal(store.get().hideCommentReplies, false);
+  assert.equal(store.get().hideNavbarChat, false);
+  assert.equal(store.get().hideNavbarSearch, true);
 });
 
 test("settings store keeps valid updates when its initial load fails", async () => {
@@ -632,9 +648,9 @@ test("normalizes typed scroll settings and resets removed values", () => {
   }
   assert.equal(FrontFilter.coerceSettings({ scrollMode: "button" }).scrollMode, "button");
   assert.equal(FrontFilter.coerceSettings({ scrollMode: "other" }).scrollMode, "fixed");
-  const settings = FrontFilter.applyStorageChanges({ scrollLimit: 10, scrollMode: "button" }, {
+  const settings = FrontFilter.coerceSettings(FrontFilter.applyStorageChanges({ scrollLimit: 10, scrollMode: "button" }, {
     scrollLimit: { oldValue: 10 }, scrollMode: { oldValue: "button" },
-  });
+  }));
   assert.equal(settings.scrollLimit, 25);
   assert.equal(settings.scrollMode, "fixed");
 });
@@ -649,10 +665,10 @@ test("normalizes color themes and resets removed themes to system", () => {
     assert.equal(FrontFilter.coerceSettings({ theme }).theme, "system");
   }
 
-  const settings = FrontFilter.applyStorageChanges(
+  const settings = FrontFilter.coerceSettings(FrontFilter.applyStorageChanges(
     { theme: "dark" },
     { theme: { oldValue: "dark" } },
-  );
+  ));
   assert.equal(settings.theme, "system");
 });
 
