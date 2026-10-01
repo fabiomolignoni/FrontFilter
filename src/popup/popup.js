@@ -260,17 +260,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  function applyTheme(theme) {
-    const normalizedTheme = FrontFilter.normalizeTheme(theme);
-    document.documentElement.setAttribute("data-theme", normalizedTheme);
-    try {
-      globalThis.localStorage?.setItem("frontfilter-theme", normalizedTheme);
-    } catch {
-      // The theme still works for this page if local storage is unavailable.
-    }
-    return normalizedTheme;
-  }
-
   function queueSave(keys) {
     const saveId = ++latestSaveId;
     const snapshot = getSettingsSnapshot();
@@ -612,7 +601,7 @@ document.addEventListener("DOMContentLoaded", () => {
     scrollLimit.value = String(result.scrollLimit);
     lastScrollLimit = result.scrollLimit;
     scrollMode.value = result.scrollMode;
-    colorTheme.value = applyTheme(result.theme);
+    colorTheme.value = FrontFilter.applyTheme(result.theme);
     Object.entries(checkboxes).forEach(([key, checkbox]) => {
       checkbox.checked = result[key];
     });
@@ -709,7 +698,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   scrollMode.addEventListener("change", () => scheduleAutoSave(["scrollMode"], true));
   colorTheme.addEventListener("change", () => {
-    colorTheme.value = applyTheme(colorTheme.value);
+    colorTheme.value = FrontFilter.applyTheme(colorTheme.value);
     scheduleAutoSave(["theme"], true);
   });
 

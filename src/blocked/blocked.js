@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (Object.prototype.hasOwnProperty.call(changes, "theme")) {
-      applyTheme(changes.theme?.newValue);
+      FrontFilter.applyTheme(changes.theme?.newValue);
     }
     void restoreIfUnblocked(returnUrl);
   });
@@ -136,22 +136,12 @@ function getStandaloneSettingsUrl(currentSubreddit = "") {
   return settingsUrl.href;
 }
 
-function applyTheme(theme) {
-  const normalizedTheme = FrontFilter.normalizeTheme(theme);
-  document.documentElement.setAttribute("data-theme", normalizedTheme);
-  try {
-    globalThis.localStorage?.setItem("frontfilter-theme", normalizedTheme);
-  } catch {
-    // The theme still works for this page if local storage is unavailable.
-  }
-}
-
 async function loadTheme() {
   try {
     const { theme } = await chrome.storage.local.get(["theme"]);
-    applyTheme(theme);
+    FrontFilter.applyTheme(theme);
   } catch (error) {
-    applyTheme(FrontFilter.DEFAULT_SETTINGS.theme);
+    FrontFilter.applyTheme(FrontFilter.DEFAULT_SETTINGS.theme);
     console.error("Could not load FrontFilter theme:", error);
   }
 }
