@@ -13,10 +13,6 @@ const firefoxOverrides = JSON.parse(
 const firefoxManifest = structuredClone(manifest);
 delete firefoxManifest.minimum_chrome_version;
 Object.assign(firefoxManifest, firefoxOverrides);
-const edgeOverrides = JSON.parse(
-  readFileSync(join(root, "manifests/edge.json"), "utf8"),
-);
-const edgeManifest = { ...structuredClone(manifest), ...edgeOverrides };
 const packageJson = JSON.parse(
   readFileSync(join(root, "package.json"), "utf8"),
 );
@@ -70,12 +66,9 @@ const allowedFirefoxOverrides = new Set([
   "background",
   "browser_specific_settings",
 ]);
-// Firefox and Edge Add-ons reject longer names; Chrome allows 75 characters.
+// Firefox Add-ons rejects longer names; Chrome allows 75 characters.
 if (firefoxManifest.name.length > 45) {
   throw new Error("The Firefox manifest name must not exceed 45 characters");
-}
-if (edgeManifest.name.length > 45) {
-  throw new Error("The Edge manifest name must not exceed 45 characters");
 }
 if (manifest.name.length > 75) {
   throw new Error("The manifest name must not exceed 75 characters");
@@ -86,10 +79,6 @@ if (
   throw new Error(
     "Firefox overrides must contain browser-specific fields only",
   );
-}
-// The Edge package is Chrome's, renamed within the Edge Add-ons limit.
-if (Object.keys(edgeOverrides).some((key) => key !== "name")) {
-  throw new Error("Edge overrides may only change the extension name");
 }
 if (
   manifest.browser_action ||
@@ -233,5 +222,5 @@ for (const { script, file: html } of htmlPages) {
 }
 
 console.log(
-  `Validated ${scripts.size} scripts, 4 JSON files, and ${manifestFiles.size} manifest resources.`,
+  `Validated ${scripts.size} scripts, 3 JSON files, and ${manifestFiles.size} manifest resources.`,
 );

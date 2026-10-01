@@ -11,7 +11,6 @@ SOURCE = ROOT / "src"
 DIST = ROOT / "dist"
 CHROME_MANIFEST = json.loads((SOURCE / "manifest.json").read_text())
 FIREFOX_OVERRIDES = json.loads((ROOT / "manifests/firefox.json").read_text())
-EDGE_OVERRIDES = json.loads((ROOT / "manifests/edge.json").read_text())
 VERSION = CHROME_MANIFEST["version"]
 
 
@@ -25,15 +24,12 @@ def source_files():
 
 
 def browser_manifest(browser):
-    """The source manifest, with the browser's overrides for Firefox and Edge."""
+    """The source manifest, with Firefox's overrides for Firefox. Edge runs Chrome's."""
     manifest = deepcopy(CHROME_MANIFEST)
     if browser == "firefox":
         manifest.pop("minimum_chrome_version")
         manifest.update(deepcopy(FIREFOX_OVERRIDES))
-    elif browser == "edge":
-        # Edge versions follow Chromium's, so minimum_chrome_version applies.
-        manifest.update(deepcopy(EDGE_OVERRIDES))
-    elif browser != "chrome":
+    elif browser not in ("chrome", "edge"):
         raise ValueError(f"Unsupported browser: {browser}")
     return manifest
 
