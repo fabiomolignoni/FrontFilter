@@ -63,17 +63,22 @@ test("matches exact names and wildcard patterns", () => {
 });
 
 test("normalizes, migrates and deduplicates blocked entries", () => {
+  // One rule per subreddit, in its first position; ALL wins over HOME.
   assert.deepEqual(
     JSON.parse(JSON.stringify(FrontFilter.normalizeBlockedSubreddits([
       "Firefox",
       { name: "firefox", mode: "home" },
       { name: "javascript", mode: "all" },
       { name: "javascript", mode: "invalid" },
+      { name: "news", mode: "home" },
+      { name: "pics", mode: "all" },
+      { name: "r/News", mode: "all" },
     ]))),
     [
       { name: "firefox", mode: "home" },
       { name: "javascript", mode: "all" },
-      { name: "javascript", mode: "home" },
+      { name: "news", mode: "all" },
+      { name: "pics", mode: "all" },
     ],
   );
 });
@@ -480,23 +485,33 @@ test("validates and coerces blocked flairs", () => {
   assert.deepEqual(plain(settings.blockedFlairs), ["Meme"]);
 });
 
-test("one-click blocks add an ALL rule and undo removes only that rule", () => {
-  const home = [{ name: "news", mode: "home" }];
-  const blocked = FrontFilter.addBlockedSubreddit(home, "r/News");
-  assert.equal(blocked.added, true);
-  assert.deepEqual(plain(blocked.entries), [
-    { name: "news", mode: "home" },
+test("one-click blocks add an ALL rule, or upgrade a HOME rule, and undo restores the rules", () => {
+  const rules = [{ name: "pics", mode: "home" }, { name: "news", mode: "home" }];
+  const upgraded = FrontFilter.addBlockedSubreddit(rules, "r/News");
+  assert.equal(upgraded.added, true);
+  assert.equal(upgraded.previousMode, "home");
+  assert.deepEqual(plain(upgraded.entries), [
+    { name: "pics", mode: "home" },
     { name: "news", mode: "all" },
   ]);
-  const again = FrontFilter.addBlockedSubreddit(blocked.entries, "news");
+  assert.deepEqual(
+    plain(FrontFilter.undoBlockedSubreddit(upgraded.entries, "NEWS", upgraded.previousMode)),
+    rules,
+  );
+
+  const added = FrontFilter.addBlockedSubreddit(rules, "gaming");
+  assert.equal(added.added, true);
+  assert.equal(added.previousMode, null);
+  assert.deepEqual(plain(added.entries), [...rules, { name: "gaming", mode: "all" }]);
+  assert.deepEqual(plain(FrontFilter.undoBlockedSubreddit(added.entries, "gaming", null)), rules);
+
+  const again = FrontFilter.addBlockedSubreddit(upgraded.entries, "news");
   assert.equal(again.added, false);
-  assert.equal(again.entries.length, 2);
+  assert.deepEqual(plain(again.entries), plain(upgraded.entries));
   assert.equal(FrontFilter.addBlockedSubreddit([], "*news*").added, false);
   assert.equal(FrontFilter.addBlockedSubreddit([], "").added, false);
-  assert.deepEqual(
-    plain(FrontFilter.removeBlockedSubreddit(blocked.entries, "NEWS")),
-    [{ name: "news", mode: "home" }],
-  );
+  // Undo never touches a HOME rule.
+  assert.deepEqual(plain(FrontFilter.undoBlockedSubreddit(rules, "news", null)), rules);
 });
 
 test("accepts only HTTP(S) Reddit URLs", () => {

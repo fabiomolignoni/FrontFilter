@@ -108,7 +108,8 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
 
   async function block(name) {
     try {
-      const { entries, added } = FrontFilter.addBlockedSubreddit(await readBlockedSubreddits(), name);
+      const { entries, added, previousMode } =
+        FrontFilter.addBlockedSubreddit(await readBlockedSubreddits(), name);
       const pageSubreddit = FrontFilter.getSubredditPath(window.location.pathname)?.name;
       const redirects = added && pageSubreddit === name;
       const token = redirects ? createToken() : "";
@@ -119,29 +120,34 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
           blockedSubreddits: entries,
           ...(redirects && {
             [FrontFilter.QUICK_BLOCK_UNDO_KEY]: {
-              subreddit: name, token, expires: Date.now() + UNDO_WINDOW,
+              subreddit: name, previousMode, token, expires: Date.now() + UNDO_WINDOW,
             },
           }),
         });
       }
-      showToast(added ? `r/${name} blocked` : `r/${name} is already blocked`, added ? name : "");
+      showToast(
+        added ? `r/${name} blocked` : `r/${name} is already blocked`,
+        added ? () => void undo(name, previousMode) : null,
+      );
     } catch (error) {
       pendingUndo = null;
       showToast(`Could not block r/${name}: ${error.message}`);
     }
   }
 
-  async function undo(name) {
+  async function undo(name, previousMode) {
     try {
-      const entries = FrontFilter.removeBlockedSubreddit(await readBlockedSubreddits(), name);
+      const entries = FrontFilter.undoBlockedSubreddit(
+        await readBlockedSubreddits(), name, previousMode,
+      );
       await chrome.storage.local.set({ blockedSubreddits: entries });
-      showToast(`r/${name} unblocked`);
+      showToast(previousMode === "home" ? `r/${name} is back to HOME` : `r/${name} unblocked`);
     } catch (error) {
       showToast(`Could not unblock r/${name}: ${error.message}`);
     }
   }
 
-  function showToast(message, undoName = "") {
+  function showToast(message, onUndo = null) {
     clearTimeout(toastTimer);
     toast?.remove();
     toast = document.createElement("div");
@@ -150,11 +156,11 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
     const text = document.createElement("span");
     text.textContent = message;
     toast.append(text);
-    if (undoName) {
+    if (onUndo) {
       const undoButton = document.createElement("button");
       undoButton.type = "button";
       undoButton.textContent = "Undo";
-      undoButton.addEventListener("click", () => void undo(undoName));
+      undoButton.addEventListener("click", onUndo);
       toast.append(undoButton);
     }
     (document.body || document.documentElement).append(toast);

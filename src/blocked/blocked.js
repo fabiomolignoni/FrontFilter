@@ -102,14 +102,14 @@ async function offerUndo(subreddit, token) {
     await chrome.storage.local.remove(key);
     if (subreddit && pending?.subreddit === subreddit && pending.token === token
       && Date.now() < pending.expires) {
-      setUpUndo(subreddit);
+      setUpUndo(subreddit, pending.previousMode);
     }
   } catch (error) {
     console.error("Could not check the undo offer:", error);
   }
 }
 
-function setUpUndo(subreddit) {
+function setUpUndo(subreddit, previousMode) {
   const button = document.getElementById("undo-block");
   button.hidden = false;
   button.addEventListener("click", async () => {
@@ -118,7 +118,9 @@ function setUpUndo(subreddit) {
       const { blockedSubreddits } = await chrome.storage.local.get("blockedSubreddits");
       // The storage listener returns to the page once it is unblocked.
       await chrome.storage.local.set({
-        blockedSubreddits: FrontFilter.removeBlockedSubreddit(blockedSubreddits, subreddit),
+        blockedSubreddits: FrontFilter.undoBlockedSubreddit(
+          blockedSubreddits, subreddit, previousMode,
+        ),
       });
     } catch (error) {
       button.disabled = false;
