@@ -1,0 +1,66 @@
+name: Reddit canary
+
+# Checks the published extension on reddit.com itself, to catch changes in
+# Reddit's markup. It depends on Reddit rather than on the code, so it runs
+# weekly instead of on every push. See CONTRIBUTING.md.
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    name: Extension on reddit.com
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Selenium
+        run: python -m pip install -r tests/browser/requirements.txt
+
+      - name: Run the canary
+        run: python tests/reddit/canary.py --snapshots reddit-snapshots -v
+
+      # Redacted copies of the pages, for updating the fixtures. Manual runs
+      # always keep them.
+      - name: Upload page snapshots
+        if: failure() || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reddit-snapshots
+          path: reddit-snapshots
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Report the failure in an issue
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Reddit canary failed"
+          issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "Failed again: $RUN_URL"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$(printf '%s\n\n%s' \
+              "The weekly check of the extension on reddit.com failed: $RUN_URL" \
+              "Reddit may have changed markup the extension relies on, or refused the runner; the log says which. The run's reddit-snapshots artifact holds redacted copies of the pages. CONTRIBUTING.md explains how to update the fixtures and the extension.")"
+          fi

@@ -258,186 +258,123 @@ test("blocking rules apply to translated pages", async () => {
   assert.equal(new URL(blocked.redirects[0]).searchParams.get("page"), "popular");
 });
 
-test("loads right-sidebar filtering without reading page text or blocking navigation", async () => {
-  const content = await loadContent({
-    settings: { hideRelatedPosts: true },
-    startUrl: "https://www.reddit.com/r/firefox/comments/abc/post",
-    querySelectorAll() { throw new Error("This filter must not scan page text"); },
-  });
-  const styleText = content.injectedStyles[0].textContent;
+// Settings implemented as page rules, with the shadow-root hosts they may
+// look up. CSS also covers elements Reddit adds later, so these settings
+// need no page scans or wider mutation observation. Which elements each one
+// hides is tested in real browsers (tests/browser and tests/reddit).
+const PAGE_RULE_SETTINGS = {
+  hideNavbar: [],
+  hideNavbarMenu: [],
+  hideNavbarSearch: [],
+  hideNavbarChat: [],
+  hideNavbarNotifications: [],
+  hideNavbarProfile: [],
+  hideNavbarOthers: [],
+  hideLeftSidebar: [],
+  hideLeftSidebarGames: [],
+  hideLeftSidebarCustomFeeds: [],
+  hideLeftSidebarRecent: [],
+  hideLeftSidebarCommunities: [],
+  hideLeftSidebarResources: [],
+  hideRelatedPosts: [],
+  hideSuggestedCommunities: [],
+  hideSuggestedPosts: [],
+  hideAds: [],
+  hideKarma: [],
+  hideAvatars: [],
+  hideUsernames: [],
+  hideCommentReplies: [],
+  hideComments: ["shreddit-post"],
+  hideVotes: ["shreddit-post", "shreddit-comment-action-row"],
+  hideAwards: ["shreddit-post", "shreddit-comment-action-row"],
+  blockHomepage: ["left-nav-top-section"],
+  blockPopular: ["left-nav-top-section"],
+  blockExplore: ["left-nav-top-section"],
+  blockNews: ["left-nav-top-section"],
+};
+// No page rule setting redirects a post page.
+const POST_PAGE = "https://www.reddit.com/r/firefox/comments/abc/post";
+// Parent switches imply their sections, and the settings page saves both.
+const IMPLIED_SETTINGS = {
+  hideComments: ["hideCommentReplies"],
+  hideNavbar: Object.keys(PAGE_RULE_SETTINGS).filter((key) => key.startsWith("hideNavbar")),
+  hideLeftSidebar: Object.keys(PAGE_RULE_SETTINGS).filter((key) => key.startsWith("hideLeftSidebar")),
+};
 
-  assert.match(styleText, /pdp-right-rail/);
-  assert.match(styleText, /#right-sidebar-container/);
-  assert.match(styleText, /\.right-sidebar/);
-  assert.match(styleText, /\.side,/);
-  assert.doesNotMatch(styleText, /listing-below|shreddit-related-posts|#related-posts|aria-label|:lang\(|:has-text\(|shreddit-comment|reddit-header|#left-sidebar/);
-  assert.deepEqual(content.redirects, []);
+test("page rule settings never scan the page, widen the observer or redirect", async () => {
+  for (const [setting, shadowHosts] of Object.entries(PAGE_RULE_SETTINGS)) {
+    const content = await loadContent({ settings: { [setting]: true }, startUrl: POST_PAGE });
+    assert.deepEqual(content.queriedSelectors, shadowHosts, setting);
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(content.observerOptions.at(-1))),
+      { childList: true, subtree: true },
+      setting,
+    );
+    assert.deepEqual(content.redirects, [], setting);
+  }
 });
 
-test("restores the right sidebar without changing active comment, navbar or post filters", async () => {
-  const post = createPost({ subreddit: "firefox" });
+test("page rules toggle live without disturbing each other or active filters", async () => {
+  const post = createPost({ subreddit: "javascript" });
   const content = await loadContent({
     querySelectorAll: (selector) => isPostCollectionSelector(selector) ? [post] : [],
-    settings: {
-      hideComments: true,
-      hideNavbar: true,
-      blockedSubreddits: [{ name: "firefox", mode: "all" }],
-    },
-    startUrl: "https://www.reddit.com/",
+    settings: { blockedSubreddits: [{ name: "javascript", mode: "all" }] },
+    startUrl: POST_PAGE,
   });
   const style = content.injectedStyles[0];
-  const originalRules = style.textContent;
-
-  for (const enabled of [true, false, true]) {
-    content.storageListeners[0]({ hideRelatedPosts: { newValue: enabled } }, "local");
+  const settings = Object.keys(PAGE_RULE_SETTINGS);
+  async function change(enabled, keys) {
+    const saved = keys.flatMap((key) => [key, ...(IMPLIED_SETTINGS[key] || [])]);
+    content.storageListeners[0](
+      Object.fromEntries(saved.map((key) => [key, { newValue: enabled }])),
+      "local",
+    );
     await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(style.textContent.includes("#right-sidebar-container"), enabled);
-    assert.ok(style.textContent.startsWith(originalRules));
-    assert.equal(post.dataset.frontfilterPostHidden, "true");
-    assert.equal(content.injectedStyles.length, 1);
-    assert.deepEqual(content.redirects, []);
   }
 
-  content.storageListeners[0]({ hideRelatedPosts: { oldValue: true } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(style.textContent, originalRules);
-});
-
-test("loads navbar hiding as a persistent CSS rule without scanning or redirecting", async () => {
-  const content = await loadContent({
-    settings: { hideNavbar: true },
-    startUrl: "https://www.reddit.com/r/firefox/comments/abc/post",
-  });
-  const navbarRule = content.injectedStyles[0].textContent.split("\n")[1];
-
-  for (const selector of [
-    "#header", "#shreddit-header", "reddit-header-large", "reddit-header-small",
-    "shreddit-app > header", 'header[role="banner"]',
-  ]) {
-    assert.ok(navbarRule.includes(selector));
+  const withoutRules = style.textContent;
+  for (const setting of settings) {
+    await change(true, [setting]);
+    assert.notEqual(style.textContent, withoutRules, setting);
+    await change(false, [setting]);
+    assert.equal(style.textContent, withoutRules, setting);
   }
-  assert.match(navbarRule, /\{ display: none !important; \}/);
-  assert.doesNotMatch(content.injectedStyles[0].textContent, /shreddit-comment/);
+
+  // Each setting can be switched off and back on while the others stay.
+  await change(true, settings);
+  const allRules = style.textContent;
+  for (const setting of settings) {
+    await change(false, [setting]);
+    await change(true, [setting]);
+    assert.equal(style.textContent, allRules, setting);
+  }
+  await change(false, settings);
+  assert.equal(style.textContent, withoutRules);
+
+  assert.equal(post.dataset.frontfilterPostHidden, "true");
+  assert.equal(content.injectedStyles.length, 1);
   assert.deepEqual(content.redirects, []);
-  assert.deepEqual(content.queriedSelectors, []);
 });
 
-test("hides each navbar section without hiding the Reddit logo", async () => {
-  const cases = [
-    ["hideNavbarMenu", "#navbar-menu-button"],
-    ["hideNavbarSearch", "search-dynamic-id-cache-controller"],
-    ["hideNavbarChat", '[data-part="chat"]'],
-    ["hideNavbarNotifications", '[data-part="inbox"]'],
-    ["hideNavbarProfile", "#expand-user-drawer-button"],
-  ];
-
-  for (const [setting, selector] of cases) {
-    const content = await loadContent({
-      settings: { [setting]: true },
-      startUrl: "https://www.reddit.com/",
-    });
-    const styleText = content.injectedStyles[0].textContent;
-    assert.ok(styleText.includes(selector), setting);
-    if (setting === "hideNavbarMenu") assert.doesNotMatch(styleText, /expand-user-drawer-button/);
-    assert.doesNotMatch(styleText, /#reddit-logo/);
-    assert.doesNotMatch(styleText, /#shreddit-header, reddit-header-large/);
-    assert.deepEqual(content.queriedSelectors, []);
-  }
-});
-
-test("hide-navbar Others targets logged-in and logged-out residual actions", async () => {
+test("page rules match structure, never translated text", async () => {
   const content = await loadContent({
-    settings: { hideNavbarOthers: true },
-    startUrl: "https://www.reddit.com/",
+    settings: Object.fromEntries(Object.keys(PAGE_RULE_SETTINGS).map((key) => [key, true])),
+    startUrl: POST_PAGE,
   });
-  const styleText = content.injectedStyles[0].textContent;
+  const rules = Array.from(
+    content.injectedStyles[0].textContent.matchAll(/([^{}]+)\{([^{}]*)\}/g),
+    ([, selector, declarations]) => ({ selector: selector.trim(), declarations: declarations.trim() }),
+  );
 
-  assert.match(styleText, /\[data-part\]:not/);
-  assert.match(styleText, /data-part="chat"/);
-  assert.match(styleText, /data-part="inbox"/);
-  assert.match(styleText, /:not\(:has\(#reddit-logo\)\)/);
-  for (const selector of [
-    "#reddit-logo",
-    "#navbar-menu-button",
-    "reddit-search-large",
-    "#expand-user-drawer-button",
-  ]) {
-    assert.equal(styleText.includes(` ${selector},`), false, selector);
+  assert.ok(rules.length > Object.keys(PAGE_RULE_SETTINGS).length);
+  for (const { selector, declarations } of rules) {
+    assert.doesNotMatch(selector, /aria-label|:lang\(|:has-text\(|:contains\(|\[(title|alt|placeholder)\b/i, selector);
+    assert.match(
+      declarations,
+      /^(display: none !important;|--shreddit-header-height: 0px !important; --header-height: 0px !important;)$/,
+      selector,
+    );
   }
-  assert.doesNotMatch(styleText, /\[data-part="primary"\](?:,| \{)/);
-  assert.doesNotMatch(styleText, /\[data-part="secondary"\](?:,| \{)/);
-});
-
-test("toggles navbar sections live without collapsing the whole header", async () => {
-  const content = await loadContent({
-    settings: {},
-    startUrl: "https://www.reddit.com/",
-  });
-  const style = content.injectedStyles[0];
-  const baseRules = style.textContent;
-
-  content.storageListeners[0]({
-    hideNavbarSearch: { newValue: true },
-    hideNavbarNotifications: { newValue: true },
-  }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.match(style.textContent, /search-dynamic-id-cache-controller/);
-  assert.match(style.textContent, /data-part="inbox"/);
-  assert.doesNotMatch(style.textContent, /--shreddit-header-height: 0px/);
-
-  content.storageListeners[0]({
-    hideNavbarSearch: { oldValue: true },
-    hideNavbarNotifications: { oldValue: true },
-  }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(style.textContent, baseRules);
-});
-
-test("hides each left-sidebar section with locale-independent structural rules", async () => {
-  const cases = [
-    ["hideLeftSidebarGames", "LeftNavGamesSection_", 'noun="games_drawer"'],
-    ["hideLeftSidebarCustomFeeds", "LeftNavMultiredditsSection_", 'aria-controls="multireddits_section"'],
-    ["hideLeftSidebarRecent", "LeftNavRecentSection_", "#recent-communities-section"],
-    ["hideLeftSidebarCommunities", "LeftNavCommunitiesSection_", 'aria-controls="communities_section"'],
-    ["hideLeftSidebarResources", "LeftNavResourcesSection_", 'noun="resources_menu"'],
-  ];
-
-  for (const [setting, loader, section] of cases) {
-    const content = await loadContent({
-      settings: { [setting]: true },
-      startUrl: "https://www.reddit.com/",
-    });
-    const styleText = content.injectedStyles[0].textContent;
-    assert.ok(styleText.includes(loader), setting);
-    assert.ok(styleText.includes(section), setting);
-    assert.doesNotMatch(styleText, /#left-sidebar-container, #left-sidebar \{/);
-    assert.deepEqual(content.queriedSelectors, []);
-  }
-});
-
-test("toggles left-sidebar sections live without hiding the whole sidebar", async () => {
-  const content = await loadContent({
-    settings: {},
-    startUrl: "https://www.reddit.com/",
-  });
-  const style = content.injectedStyles[0];
-  const baseRules = style.textContent;
-
-  content.storageListeners[0]({
-    hideLeftSidebarGames: { newValue: true },
-    hideLeftSidebarResources: { newValue: true },
-  }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.match(style.textContent, /LeftNavGamesSection_/);
-  assert.match(style.textContent, /LeftNavResourcesSection_/);
-  assert.doesNotMatch(style.textContent, /#left-sidebar-container, #left-sidebar \{/);
-
-  content.storageListeners[0]({
-    hideLeftSidebarGames: { oldValue: true },
-    hideLeftSidebarResources: { oldValue: true },
-  }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(style.textContent, baseRules);
 });
 
 test("hides links to blocked main pages from the top left-navigation section", async () => {
@@ -485,266 +422,6 @@ test("hides global feed-sort links and the navbar logo when the homepage is bloc
   assert.doesNotMatch(style.textContent, /#reddit-logo/);
 });
 
-test("updates blocked main-page links inside the top navigation shadow root", async () => {
-  const styles = [];
-  const shadowRoot = {
-    appendChild(style) {
-      styles.push(style);
-    },
-    querySelector(selector) {
-      return styles.find((style) => `#${style.id}` === selector) || null;
-    },
-  };
-  const section = { shadowRoot };
-  const content = await loadContent({
-    querySelectorAll: (selector) => selector === "left-nav-top-section"
-      ? [section]
-      : [],
-    settings: { blockNews: true },
-    startUrl: "https://www.reddit.com/r/firefox/",
-  });
-
-  assert.equal(styles.length, 1);
-  assert.equal(styles[0].id, "frontfilter-main-page-links-style");
-  assert.match(styles[0].textContent, /a\[href="\/news" i\]/);
-  assert.doesNotMatch(styles[0].textContent, /#left-sidebar/);
-
-  content.storageListeners[0]({ blockNews: { oldValue: true } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(styles[0].textContent, "");
-});
-
-test("toggles navbar and comments independently while retaining feed filters", async () => {
-  const post = createPost({ subreddit: "firefox" });
-  const content = await loadContent({
-    querySelectorAll: (selector) => isPostCollectionSelector(selector) ? [post] : [],
-    settings: { blockedSubreddits: [{ name: "firefox", mode: "all" }] },
-    startUrl: "https://www.reddit.com/",
-  });
-  const style = content.injectedStyles[0];
-  const originalRules = style.textContent;
-  const navbarSectionKeys = [
-    "hideNavbarMenu",
-    "hideNavbarSearch",
-    "hideNavbarChat",
-    "hideNavbarNotifications",
-    "hideNavbarProfile",
-    "hideNavbarOthers",
-  ];
-
-  for (const [hideNavbar, hideComments] of [
-    [true, false], [true, true], [false, true], [true, true], [true, false],
-  ]) {
-    content.storageListeners[0]({
-      hideNavbar: { newValue: hideNavbar },
-      ...Object.fromEntries(navbarSectionKeys.map((key) => [
-        key,
-        { newValue: hideNavbar },
-      ])),
-      hideComments: { newValue: hideComments },
-      hideCommentReplies: { newValue: hideComments },
-    }, "local");
-    await new Promise((resolve) => setImmediate(resolve));
-
-    assert.equal(style.textContent.includes("reddit-header-large"), hideNavbar);
-    assert.equal(style.textContent.includes("shreddit-comment"), hideComments);
-    assert.ok(style.textContent.startsWith(originalRules));
-    assert.equal(post.dataset.frontfilterPostHidden, "true");
-    assert.equal(content.injectedStyles.length, 1);
-    assert.deepEqual(content.redirects, []);
-  }
-
-  content.storageListeners[0]({
-    hideNavbar: { oldValue: true },
-    ...Object.fromEntries(navbarSectionKeys.map((key) => [
-      key,
-      { oldValue: true },
-    ])),
-  }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(style.textContent, originalRules);
-});
-
-test("hides comment layouts and light-DOM feed actions without blocking the post", async () => {
-  const content = await loadContent({
-    settings: { hideComments: true },
-    startUrl: "https://www.reddit.com/r/firefox/comments/abc/post",
-  });
-
-  const style = content.injectedStyles[0];
-  const commentRule = style.textContent.split("\n")[1];
-  for (const selector of [
-    "shreddit-comment", "shreddit-comment-tree",
-    '[data-testid="comment"]', '[data-testid="comment-tree"]',
-    ".Comment", ".comment",
-    '[data-action-bar-action="comments"]',
-    '[data-post-click-location="comments-button"]',
-    '[name="comments-action-button"]',
-    '[data-click-id="comments"]', "a.comments",
-  ]) {
-    assert.ok(commentRule.includes(selector));
-  }
-  assert.match(commentRule, /\{ display: none !important; \}/);
-  assert.deepEqual(content.redirects, []);
-  assert.deepEqual(content.queriedSelectors, ["shreddit-post"]);
-});
-
-test("hides only nested comment replies while keeping top-level comments and actions", async () => {
-  const content = await loadContent({
-    settings: { hideCommentReplies: true },
-    startUrl: "https://www.reddit.com/r/firefox/comments/abc/post",
-  });
-
-  const replyRule = content.injectedStyles[0].textContent.split("\n")[1];
-  for (const selector of [
-    'shreddit-comment[depth]:not([depth="0"])',
-    'shreddit-comment[parent-id^="t1_"]',
-    'shreddit-comment [slot="children"]',
-    '[data-testid="comment"] [data-testid="comment"]',
-    ".Comment .Comment",
-    ".comment .comment",
-    ".comment > .child",
-  ]) {
-    assert.ok(replyRule.includes(selector));
-  }
-  assert.doesNotMatch(replyRule, /data-action-bar-action|a\.comments/);
-  assert.deepEqual(content.queriedSelectors, []);
-});
-
-test("switches live between all comments, top-level comments and every comment", async () => {
-  const content = await loadContent({
-    settings: {},
-    startUrl: "https://www.reddit.com/r/firefox/comments/abc/post",
-  });
-  const style = content.injectedStyles[0];
-  const baseRules = style.textContent;
-
-  content.storageListeners[0]({ hideCommentReplies: { newValue: true } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.match(style.textContent, /comment > \.child/);
-  assert.doesNotMatch(style.textContent, /data-action-bar-action/);
-
-  content.storageListeners[0]({ hideComments: { newValue: true } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.match(style.textContent, /data-action-bar-action/);
-  assert.match(style.textContent, /shreddit-comment-tree/);
-
-  content.storageListeners[0]({ hideComments: { newValue: false } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.match(style.textContent, /comment > \.child/);
-  assert.doesNotMatch(style.textContent, /data-action-bar-action/);
-
-  content.storageListeners[0]({ hideCommentReplies: { newValue: false } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(style.textContent, baseRules);
-});
-
-test("toggles suggested communities with persistent CSS and no DOM scans", async () => {
-  const content = await loadContent({
-    settings: { hideSuggestedCommunities: true },
-    startUrl: "https://www.reddit.com/",
-  });
-  const style = content.injectedStyles[0];
-
-  assert.match(
-    style.textContent,
-    /in-feed-community-recommendations \{ display: none !important; \}/,
-  );
-  assert.deepEqual(content.queriedSelectors, []);
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(content.observerOptions.at(-1))),
-    { childList: true, subtree: true },
-  );
-
-  content.storageListeners[0]({
-    hideSuggestedCommunities: { oldValue: true, newValue: false },
-  }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.doesNotMatch(style.textContent, /in-feed-community-recommendations/);
-  assert.deepEqual(content.queriedSelectors, []);
-
-  content.storageListeners[0]({
-    hideSuggestedCommunities: { oldValue: false, newValue: true },
-  }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.match(style.textContent, /in-feed-community-recommendations/);
-  assert.equal(content.injectedStyles.length, 1);
-});
-
-test("toggles ad and promoted post rules with persistent CSS and no DOM scans", async () => {
-  const content = await loadContent({ startUrl: "https://www.reddit.com/" });
-  const style = content.injectedStyles[0];
-  const baseRules = style.textContent;
-
-  content.storageListeners[0]({ hideAds: { oldValue: false, newValue: true } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  const adRules = style.textContent.slice(baseRules.length).split("\n").filter(Boolean);
-  assert.ok(style.textContent.startsWith(baseRules));
-  // One rule per selector group: a selector the browser rejects cannot
-  // invalidate the rest.
-  assert.equal(adRules.length, 9);
-  for (const rule of adRules) {
-    assert.match(rule, /^[^{}]+ \{ display: none !important; \}$/);
-  }
-  for (const selector of [
-    "shreddit-ad-post",
-    'shreddit-post[is-promoted]:not([is-promoted="false" i]):not([is-promoted="0"])',
-    "article:has(> :is(shreddit-ad-post",
-    "shreddit-feed :is(shreddit-ad-post",
-    "shreddit-comments-page-ad",
-    "shreddit-comment-tree-ad",
-    'shreddit-async-loader[bundlename="sidebar_ad"]',
-    '.promotedlink:not([style^="height: 1px;"])',
-    `[data-faceplate-tracking-context*='"promoted":true']`,
-    'div[data-before-content="advertisement"]',
-  ]) {
-    assert.ok(style.textContent.includes(selector), selector);
-  }
-  assert.match(adRules[2], /\) \+ hr \{/);
-  assert.deepEqual(content.queriedSelectors, []);
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(content.observerOptions.at(-1))),
-    { childList: true, subtree: true },
-  );
-
-  content.storageListeners[0]({ hideAds: { oldValue: true, newValue: false } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(style.textContent, baseRules);
-  assert.equal(content.injectedStyles.length, 1);
-});
-
-test("hides modern feed comment actions inside shreddit-post shadow roots", async () => {
-  const styles = [];
-  const shadowRoot = {
-    appendChild(style) {
-      styles.push(style);
-    },
-    querySelector(selector) {
-      return styles.find((style) => `#${style.id}` === selector) || null;
-    },
-  };
-  const post = { shadowRoot };
-  const content = await loadContent({
-    querySelectorAll: (selector) => selector === "shreddit-post" ? [post] : [],
-    settings: { hideComments: true },
-    startUrl: "https://www.reddit.com/",
-  });
-
-  assert.equal(styles.length, 1);
-  assert.equal(styles[0].id, "frontfilter-comment-actions-style");
-  assert.match(styles[0].textContent, /data-action-bar-action="comments"/);
-  assert.match(styles[0].textContent, /data-post-click-location="comments-button"/);
-
-  content.storageListeners[0]({ hideComments: { newValue: false } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(styles[0].textContent, "");
-
-  content.storageListeners[0]({ hideComments: { newValue: true } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(styles.length, 1);
-  assert.match(styles[0].textContent, /display: none !important/);
-});
-
 function createShadowHost() {
   const host = { styles: [], writes: 0 };
   host.shadowRoot = {
@@ -766,7 +443,7 @@ function createShadowHost() {
   return host;
 }
 
-test("hides votes, karma, awards, avatars and usernames with page and shadow rules", async () => {
+test("writes shadow-root rules once and empties them when signals show again", async () => {
   const post = createShadowHost();
   const actionRow = createShadowHost();
   const content = await loadContent({
@@ -774,59 +451,26 @@ test("hides votes, karma, awards, avatars and usernames with page and shadow rul
       "shreddit-post": [post],
       "shreddit-comment-action-row": [actionRow],
     })[selector] || [],
-    settings: {
-      hideVotes: true,
-      hideKarma: true,
-      hideAwards: true,
-      hideAvatars: true,
-      hideUsernames: true,
-    },
+    settings: { hideVotes: true, hideAwards: true },
     startUrl: "https://www.reddit.com/r/test/comments/abc/title/",
   });
-  const pageRules = () => content.injectedStyles[0].textContent.split("\n");
-  const rule = (selector) => `${selector} { display: none !important; }`;
 
-  for (const selector of [
-    ".thing div.midcol",
-    ".comment p.tagline span.score",
-    'div:has(> p > [data-testid="karma-number"])',
-    '[noun="karma_help"]',
-    "award-button",
-    'shreddit-comment [noun="comment_author_avatar"]',
-    '[noun="user_profile"] [avatar]',
-    'shreddit-post [slot="authorName"]',
-    'shreddit-comment [noun="comment_author"]',
-  ]) {
-    assert.ok(pageRules().includes(rule(selector)), selector);
-  }
   for (const host of [post, actionRow]) {
     assert.equal(host.styles.length, 1);
     assert.equal(host.styles[0].id, "frontfilter-social-signals-style");
-    assert.deepEqual(host.styles[0].textContent.split("\n"), [
-      rule(':has(> button[upvote]):not(:has(slot, award-button, [data-post-click-location="comments-button"], [name="comments-action-button"]))'),
-      rule(".rpl-vote-button-group"),
-      rule("button[upvote]"),
-      rule("button[downvote]"),
-      rule("button[upvote] ~ span:has(faceplate-number)"),
-      rule("award-button"),
-    ]);
   }
-
   // Unchanged shadow stylesheets are not rewritten on later mutations.
   content.processFilteredContent();
   assert.deepEqual([post.writes, actionRow.writes], [1, 1]);
 
-  content.storageListeners[0]({ hideAwards: { newValue: false } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.ok(!pageRules().includes(rule("award-button")));
-  assert.ok(!post.styles[0].textContent.split("\n").includes(rule("award-button")));
-  assert.match(post.styles[0].textContent, /button\[downvote\]/);
-
-  content.storageListeners[0]({ hideVotes: { newValue: false } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(post.styles[0].textContent, "");
-  assert.equal(actionRow.styles[0].textContent, "");
-  assert.ok(pageRules().includes(rule('shreddit-post [slot="authorName"]')));
+  for (const setting of ["hideAwards", "hideVotes"]) {
+    content.storageListeners[0]({ [setting]: { newValue: false } }, "local");
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  for (const host of [post, actionRow]) {
+    assert.equal(host.styles.length, 1);
+    assert.equal(host.styles[0].textContent, "");
+  }
 });
 
 test("hides suggested posts only in the Home feed, in CSS and in the feed limiter", async () => {
@@ -834,21 +478,11 @@ test("hides suggested posts only in the Home feed, in CSS and in the feed limite
     settings: { hideSuggestedPosts: true },
     startUrl: "https://www.reddit.com/",
   });
-  const rules = () => content.injectedStyles[0].textContent.split("\n");
-  const scope = "html[data-frontfilter-home-feed] shreddit-feed";
-  const post = 'shreddit-post[recommendation-source]:not([recommendation-source=""])';
   const suggested = { subreddit: "safe", title: "", bodyTexts: [], recommended: true };
   const joined = { ...suggested, recommended: false };
 
+  // The page rules apply under this marker only.
   assert.ok(content.rootAttributes.has("data-frontfilter-home-feed"));
-  for (const selector of [
-    `${scope} ${post}`,
-    `${scope} article:has(> ${post})`,
-    `${scope} :is(${post}, article:has(> ${post})) + hr`,
-  ]) {
-    assert.ok(rules().includes(`${selector} { display: none !important; }`), selector);
-  }
-  assert.deepEqual(content.queriedSelectors, []);
   assert.equal(content.isFeedRecordBlocked(suggested), true);
   assert.equal(content.isFeedRecordBlocked(joined), false);
 
@@ -866,50 +500,7 @@ test("hides suggested posts only in the Home feed, in CSS and in the feed limite
 
   content.storageListeners[0]({ hideSuggestedPosts: { newValue: false } }, "local");
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(rules().some((rule) => rule.includes("recommendation-source")), false);
   assert.equal(content.isFeedRecordBlocked(suggested), false);
-});
-
-test("hides user info without scanning the DOM when no shadow rules are needed", async () => {
-  const content = await loadContent({
-    settings: { hideKarma: true, hideAvatars: true, hideUsernames: true },
-    startUrl: "https://www.reddit.com/",
-  });
-
-  assert.match(content.injectedStyles[0].textContent, /karma-number/);
-  assert.deepEqual(content.queriedSelectors, []);
-});
-
-test("toggles comment visibility live while preserving post and community filters", async () => {
-  const post = createPost({ subreddit: "firefox" });
-  const content = await loadContent({
-    querySelectorAll: (selector) => isPostCollectionSelector(selector) ? [post] : [],
-    settings: { blockedSubreddits: [{ name: "firefox", mode: "all" }] },
-    startUrl: "https://www.reddit.com/",
-  });
-  const style = content.injectedStyles[0];
-  const originalRules = style.textContent;
-
-  for (const enabled of [true, false, true]) {
-    content.storageListeners[0]({
-      hideComments: { newValue: enabled },
-      hideCommentReplies: { newValue: enabled },
-    }, "local");
-    await new Promise((resolve) => setImmediate(resolve));
-
-    assert.equal(style.textContent.includes("shreddit-comment"), enabled);
-    assert.ok(style.textContent.startsWith(originalRules));
-    assert.equal(post.dataset.frontfilterPostHidden, "true");
-    assert.equal(content.injectedStyles.length, 1);
-    assert.deepEqual(content.redirects, []);
-  }
-
-  content.storageListeners[0]({
-    hideComments: { oldValue: true },
-    hideCommentReplies: { oldValue: true },
-  }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(style.textContent, originalRules);
 });
 
 test("disables video autoplay while preserving manual playback and restores it live", async () => {

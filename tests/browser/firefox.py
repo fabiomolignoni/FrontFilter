@@ -1,943 +1,281 @@
-"""Optional real Firefox integration tests. Requires Selenium and Firefox.
+"""Firefox tests on the local fixture pages. Requires Selenium and Firefox.
 
-Run: python3 tests/browser/firefox.py --firefox /path/to/firefox
-Uses a temporary profile/add-on and a local HTTP fixture; never visits Reddit.
+Run: python3 tests/browser/firefox.py [--firefox PATH] [--screenshots DIR] [unittest options]
+Uses a temporary profile and add-on and a local HTTP fixture; never visits Reddit.
 """
 import argparse
-import json
 from pathlib import Path
+import sys
 import tempfile
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from zipfile import ZipFile
+import unittest
 
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
 
-ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "src"
+import harness
+from harness import ExtensionTestCase
+from page_tests import PageTests
 
-
-class FixtureHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.end_headers()
-        self.wfile.write((ROOT / "tests/fixtures/infinite-feed.html").read_bytes())
-
-    def log_message(self, *args):
-        pass
+OPTIONS = argparse.Namespace(firefox=None, screenshots=None)
 
 
-def verify_toolbar_popup(driver, wait, addon_id, screenshot):
-    """Exercise Firefox's initial popup sizing, which a normal tab cannot test."""
-    driver.set_window_size(1366, 900)
-    driver.set_context("chrome")
-    popup_selector = 'panel[panelopen="true"] browser.webextension-popup-browser'
+def setUpModule():
+    server = harness.FixtureServer()
+    driver = harness.start_firefox(OPTIONS.firefox)
+    # Firefox reads a temporary add-on from its file for the whole session.
+    temp = tempfile.TemporaryDirectory(prefix="frontfilter-firefox-")
     try:
-        widget_id = addon_id.lower().replace("{", "_").replace("}", "_") + "-browser-action"
-        driver.execute_script(
-            "CustomizableUI.addWidgetToArea(arguments[0], CustomizableUI.AREA_NAVBAR)",
-            widget_id,
+        addon = harness.build_extension(Path(temp.name) / "frontfilter-test.xpi", "firefox", server.port)
+        addon_id = driver.install_addon(str(addon), temporary=True)
+    except Exception:
+        driver.quit()
+        server.close()
+        temp.cleanup()
+        raise
+    ExtensionTestCase.session = harness.Session(
+        driver, f"moz-extension://{harness.FIREFOX_UUID}", server, OPTIONS.screenshots, temp, addon_id,
+    )
+
+
+def tearDownModule():
+    ExtensionTestCase.session.quit()
+
+
+class FirefoxPageTests(PageTests, ExtensionTestCase):
+    pass
+
+
+class FirefoxSettingsTests(ExtensionTestCase):
+    def selected(self, name):
+        tab = self.driver.find_element("css selector", "[role=tab][aria-selected=true]")
+        self.assertEqual(tab.get_dom_attribute("id"), f"tab-{name}")
+        panels = [
+            panel.get_dom_attribute("id")
+            for panel in self.driver.find_elements("css selector", "[role=tabpanel]")
+            if panel.rect["height"] > 0
+        ]
+        self.assertEqual(panels, [f"panel-{name}"])
+
+    def toggle_group(self, parent_id, expander_id, child_ids):
+        """Checks a parent switch that implies and locks its child switches."""
+        find = lambda element_id: self.driver.find_element("id", element_id)
+        parent = find(parent_id)
+        children = [find(child_id) for child_id in child_ids]
+        self.assertTrue(all(not child.is_selected() and child.is_enabled() for child in children))
+        self.assertFalse(any(child.is_displayed() for child in children))
+        find(expander_id).click()
+        self.wait_until(lambda: all(child.is_displayed() for child in children))
+        parent.click()
+        self.wait_until(lambda: all(child.is_selected() and not child.is_enabled() for child in children))
+        parent.click()
+        self.wait_until(lambda: all(not child.is_selected() and child.is_enabled() for child in children))
+        return children
+
+    def set_theme(self, theme):
+        self.js(
+            "arguments[0].value = arguments[1];"
+            " arguments[0].dispatchEvent(new Event('change', {bubbles: true}))",
+            self.driver.find_element("id", "color-theme"), theme,
         )
-        button = driver.find_element("css selector", f"#{widget_id} .unified-extensions-item-action-button")
-        for attempt in range(2):
-            button.click()
-            wait.until(lambda _: driver.execute_script("""
-                const popup = document.querySelector(arguments[0]);
-                if (!popup || popup.closest('panel').state !== 'open') return false;
-                const rect = popup.getBoundingClientRect();
-                return rect.width === 460 && rect.height === 600;
-            """, popup_selector))
-            if screenshot and attempt == 0:
-                driver.save_screenshot(str(Path(screenshot).with_name("toolbar-popup.png")))
+        self.wait_until(lambda: self.driver.find_element("tag name", "html").get_attribute("data-theme") == theme)
+
+    def background(self):
+        return self.js("return getComputedStyle(document.querySelector('.container')).backgroundColor")
+
+    def test_native_toolbar_popup_opens_and_reopens_at_full_size(self):
+        """Firefox's initial popup sizing, which a normal tab cannot test."""
+        driver = self.driver
+        popup_selector = 'panel[panelopen="true"] browser.webextension-popup-browser'
+        driver.set_context("chrome")
+        try:
+            widget_id = self.session.addon_id.lower().replace("{", "_").replace("}", "_") + "-browser-action"
             driver.execute_script(
-                "document.querySelector(arguments[0]).closest('panel').hidePopup()",
-                popup_selector,
+                "CustomizableUI.addWidgetToArea(arguments[0], CustomizableUI.AREA_NAVBAR)", widget_id,
             )
-            wait.until(lambda _: not driver.execute_script(
-                "return !!document.querySelector(arguments[0])", popup_selector,
-            ))
-        print("PASS native toolbar popup opens and reopens at 460x600", flush=True)
-    finally:
-        driver.set_context("content")
+            button = driver.find_element("css selector", f"#{widget_id} .unified-extensions-item-action-button")
+            for attempt in range(2):
+                button.click()
+                self.wait_until(lambda: driver.execute_script("""
+                    const popup = document.querySelector(arguments[0]);
+                    if (!popup || popup.closest('panel').state !== 'open') return false;
+                    const rect = popup.getBoundingClientRect();
+                    return rect.width === 460 && rect.height === 600;
+                """, popup_selector))
+                if attempt == 0:
+                    self.save_screenshot("toolbar-popup.png")
+                driver.execute_script(
+                    "document.querySelector(arguments[0]).closest('panel').hidePopup()", popup_selector,
+                )
+                self.wait_until(lambda: not driver.execute_script(
+                    "return !!document.querySelector(arguments[0])", popup_selector,
+                ))
+        finally:
+            driver.set_context("content")
 
+    def test_settings_page_opened_from_a_page_saves_edits(self):
+        self.configure(limitInfiniteScroll=True, scrollLimit=3, scrollMode="button")
+        driver = self.driver
+        fixture_window = driver.current_window_handle
 
-def verify_settings_tabs(driver, wait, screenshot):
-    def selected(name):
-        assert driver.find_element("css selector", '[role=tab][aria-selected=true]').get_dom_attribute("id") == f"tab-{name}"
-        assert [p.get_dom_attribute("id") for p in driver.find_elements("css selector", '[role=tabpanel]') if p.rect["height"] > 0] == [f"panel-{name}"]
+        def open_settings():
+            handles = set(driver.window_handles)
+            self.js("window.dispatchEvent(new Event('frontfilter-test-open-popup'))")
+            self.wait_until(lambda: len(driver.window_handles) == len(handles) + 1)
+            driver.switch_to.window(next(iter(set(driver.window_handles) - handles)))
+            field = driver.find_element("id", "scroll-limit")
+            self.wait_until(lambda: field.is_enabled())
+            return field
 
-    selected("controls")
-    assert driver.find_element("id", "block-explore").is_enabled()
-    assert driver.find_element("id", "block-news").is_enabled()
-    all_comments = driver.find_element("id", "hide-comments")
-    comment_replies = driver.find_element("id", "hide-comment-replies")
-    assert not all_comments.is_selected()
-    assert not comment_replies.is_selected() and comment_replies.is_enabled()
-    assert not comment_replies.is_displayed()
-    driver.find_element("id", "comments-toggle").click()
-    wait.until(lambda _: comment_replies.is_displayed())
-    all_comments.click()
-    wait.until(lambda _: comment_replies.is_selected() and not comment_replies.is_enabled())
-    all_comments.click()
-    wait.until(lambda _: comment_replies.is_selected() and comment_replies.is_enabled())
-    comment_replies.click()
-    wait.until(lambda _: not comment_replies.is_selected())
-    suggested_communities = driver.find_element("id", "hide-suggested-communities")
-    assert not suggested_communities.is_selected()
-    suggested_communities.click()
-    wait.until(lambda _: suggested_communities.is_selected())
-    all_navbar = driver.find_element("id", "hide-navbar")
-    navbar_sections = [driver.find_element("id", element_id) for element_id in [
-        "hide-navbar-menu",
-        "hide-navbar-search",
-        "hide-navbar-chat",
-        "hide-navbar-notifications",
-        "hide-navbar-profile",
-        "hide-navbar-others",
-    ]]
-    assert all(not toggle.is_selected() and toggle.is_enabled() for toggle in navbar_sections)
-    assert not any(toggle.is_displayed() for toggle in navbar_sections)
-    driver.find_element("id", "navbar-toggle").click()
-    wait.until(lambda _: all(toggle.is_displayed() for toggle in navbar_sections))
-    all_navbar.click()
-    wait.until(lambda _: all(
-        toggle.is_selected() and not toggle.is_enabled()
-        for toggle in navbar_sections
-    ))
-    all_navbar.click()
-    wait.until(lambda _: all(
-        not toggle.is_selected() and toggle.is_enabled()
-        for toggle in navbar_sections
-    ))
-    navbar_sections[1].click()
-    wait.until(lambda _: navbar_sections[1].is_selected())
-    navbar_sections[1].click()
-    wait.until(lambda _: all(not toggle.is_selected() for toggle in navbar_sections))
-    all_left_sidebar = driver.find_element("id", "hide-left-sidebar")
-    left_sidebar_sections = [driver.find_element("id", element_id) for element_id in [
-        "hide-left-sidebar-games",
-        "hide-left-sidebar-custom-feeds",
-        "hide-left-sidebar-recent",
-        "hide-left-sidebar-communities",
-        "hide-left-sidebar-resources",
-    ]]
-    assert all(not toggle.is_selected() and toggle.is_enabled() for toggle in left_sidebar_sections)
-    assert not any(toggle.is_displayed() for toggle in left_sidebar_sections)
-    driver.find_element("id", "left-sidebar-toggle").click()
-    wait.until(lambda _: all(toggle.is_displayed() for toggle in left_sidebar_sections))
-    all_left_sidebar.click()
-    wait.until(lambda _: all(
-        toggle.is_selected() and not toggle.is_enabled()
-        for toggle in left_sidebar_sections
-    ))
-    all_left_sidebar.click()
-    wait.until(lambda _: all(
-        not toggle.is_selected() and toggle.is_enabled()
-        for toggle in left_sidebar_sections
-    ))
-    left_sidebar_sections[0].click()
-    wait.until(lambda _: left_sidebar_sections[0].is_selected())
-    left_sidebar_sections[0].click()
-    wait.until(lambda _: all(not toggle.is_selected() for toggle in left_sidebar_sections))
-    all_social = driver.find_element("id", "hide-social-signals")
-    social_signals = [driver.find_element("id", element_id) for element_id in [
-        "hide-votes",
-        "hide-karma",
-        "hide-awards",
-        "hide-avatars",
-        "hide-usernames",
-    ]]
-    assert all(not toggle.is_selected() and toggle.is_enabled() for toggle in social_signals)
-    assert not any(toggle.is_displayed() for toggle in social_signals)
-    driver.find_element("id", "social-toggle").click()
-    wait.until(lambda _: all(toggle.is_displayed() for toggle in social_signals))
-    all_social.click()
-    wait.until(lambda _: all(
-        toggle.is_selected() and not toggle.is_enabled()
-        for toggle in social_signals
-    ))
-    all_social.click()
-    wait.until(lambda _: all(
-        not toggle.is_selected() and toggle.is_enabled()
-        for toggle in social_signals
-    ))
-    driver.find_element("id", "tab-controls").send_keys(Keys.ARROW_RIGHT)
-    selected("filters")
-    assert driver.switch_to.active_element.get_dom_attribute("id") == "tab-filters"
-    driver.find_element("id", "add-subreddit").click()
-    draft = driver.find_element("css selector", ".blocked-item input")
-    draft.send_keys("firefox")
-    driver.find_element("id", "add-allowed-subreddit").click()
-    allowed_draft = driver.find_element("css selector", ".allowed-item input")
-    allowed_draft.send_keys("ItalyPersonalFinance")
-    driver.find_element("id", "add-title-keyword").click()
-    keyword_draft = driver.find_element("css selector", ".keyword-item input")
-    keyword_draft.send_keys("Trump")
-    driver.find_element("id", "tab-settings").click()
-    selected("settings")
-    theme = driver.find_element("id", "color-theme")
-    assert theme.get_property("value") == "system"
-    driver.execute_script("arguments[0].value = 'dark'; arguments[0].dispatchEvent(new Event('change', {bubbles:true}))", theme)
-    wait.until(lambda _: driver.find_element("tag name", "html").get_attribute("data-theme") == "dark")
-    assert driver.execute_script("return getComputedStyle(document.querySelector('.container')).backgroundColor") == "rgb(26, 26, 27)"
-    driver.execute_script("arguments[0].value = 'light'; arguments[0].dispatchEvent(new Event('change', {bubbles:true}))", theme)
-    wait.until(lambda _: driver.find_element("tag name", "html").get_attribute("data-theme") == "light")
-    assert driver.execute_script("return localStorage.getItem('frontfilter-theme')") == "light"
-    assert driver.execute_script("return getComputedStyle(document.querySelector('.container')).backgroundColor") == "rgb(255, 255, 255)"
-    driver.find_element("id", "tab-settings").send_keys(Keys.ARROW_RIGHT)
-    selected("controls")
-    driver.find_element("id", "tab-controls").send_keys(Keys.END)
-    selected("settings")
-    driver.find_element("id", "tab-settings").send_keys(Keys.HOME, Keys.ARROW_RIGHT)
-    selected("filters")
-    assert draft.get_property("value") == "firefox"
-    assert allowed_draft.get_property("value") == "italypersonalfinance"
-    assert keyword_draft.get_property("value") == "Trump"
-    wait.until(lambda _: driver.find_element("id", "save-indicator").get_property("textContent") == "Saved")
-    driver.refresh()
-    wait.until(lambda _: driver.find_element("id", "add-subreddit").is_enabled())
-    assert driver.find_element("id", "hide-suggested-communities").is_selected()
-    assert driver.find_element("tag name", "html").get_attribute("data-theme") == "light"
-    assert driver.execute_script("return localStorage.getItem('frontfilter-theme')") == "light"
-    assert driver.find_element("id", "color-theme").get_property("value") == "light"
-    driver.find_element("id", "tab-filters").click()
-    assert "firefox" in [i.get_property("value") for i in driver.find_elements("css selector", ".blocked-item input")]
-    assert "italypersonalfinance" in [i.get_property("value") for i in driver.find_elements("css selector", ".allowed-item input")]
-    assert "Trump" in [i.get_property("value") for i in driver.find_elements("css selector", ".keyword-item input")]
-    print("PASS accessible tabs, color themes, filter drafts, exceptions and persistence", flush=True)
+        field = open_settings()
+        self.assertEqual(field.get_property("value"), "3")
+        field.click()
+        field.send_keys(Keys.END, Keys.BACKSPACE, "7", Keys.TAB)
+        self.assertEqual(field.get_property("value"), "7")
+        self.wait_until(lambda: driver.find_element("id", "save-indicator").text == "Saved")
+        driver.switch_to.window(fixture_window)
+        field = open_settings()
+        self.wait_until(lambda: field.get_property("value") == "7")
+        driver.set_window_size(560, 1100)
+        self.save_screenshot("settings.png")
 
-    # Exercise a long list with the real add-on storage and rendering code.
-    settings_handle = driver.current_window_handle
-    driver.switch_to.window(driver.window_handles[0])
-    driver.execute_script("document.documentElement.removeAttribute('data-test-settings-applied'); configure({blockedSubreddits: Array.from({length:60}, (_,i) => ({name: 'community' + i, mode: 'home'}))})")
-    wait.until(lambda _: driver.find_element("tag name", "html").get_attribute("data-test-settings-applied"))
-    driver.switch_to.window(settings_handle)
-    driver.refresh()
-    wait.until(lambda _: driver.find_element("id", "blocked-count").get_property("textContent") == "60 rules")
-    for width in (560, 320):
-        driver.set_window_size(width, 750)
+    def test_settings_tabs_themes_drafts_and_persistence(self):
+        driver = self.driver
+        driver.set_window_size(560, 1100)
+        self.session.open_settings_page()
+        find = lambda element_id: driver.find_element("id", element_id)
+
+        self.selected("controls")
+        self.assertTrue(find("block-explore").is_enabled())
+        self.assertTrue(find("block-news").is_enabled())
+        all_comments = find("hide-comments")
+        comment_replies = find("hide-comment-replies")
+        self.assertFalse(all_comments.is_selected())
+        self.assertTrue(not comment_replies.is_selected() and comment_replies.is_enabled())
+        self.assertFalse(comment_replies.is_displayed())
+        find("comments-toggle").click()
+        self.wait_until(lambda: comment_replies.is_displayed())
+        all_comments.click()
+        self.wait_until(lambda: comment_replies.is_selected() and not comment_replies.is_enabled())
+        all_comments.click()
+        self.wait_until(lambda: comment_replies.is_selected() and comment_replies.is_enabled())
+        comment_replies.click()
+        self.wait_until(lambda: not comment_replies.is_selected())
+        suggested_communities = find("hide-suggested-communities")
+        self.assertFalse(suggested_communities.is_selected())
+        suggested_communities.click()
+        self.wait_until(lambda: suggested_communities.is_selected())
+
+        navbar_sections = self.toggle_group("hide-navbar", "navbar-toggle", [
+            "hide-navbar-menu", "hide-navbar-search", "hide-navbar-chat",
+            "hide-navbar-notifications", "hide-navbar-profile", "hide-navbar-others",
+        ])
+        navbar_sections[1].click()
+        self.wait_until(lambda: navbar_sections[1].is_selected())
+        navbar_sections[1].click()
+        self.wait_until(lambda: all(not toggle.is_selected() for toggle in navbar_sections))
+        sidebar_sections = self.toggle_group("hide-left-sidebar", "left-sidebar-toggle", [
+            "hide-left-sidebar-games", "hide-left-sidebar-custom-feeds", "hide-left-sidebar-recent",
+            "hide-left-sidebar-communities", "hide-left-sidebar-resources",
+        ])
+        sidebar_sections[0].click()
+        self.wait_until(lambda: sidebar_sections[0].is_selected())
+        sidebar_sections[0].click()
+        self.wait_until(lambda: all(not toggle.is_selected() for toggle in sidebar_sections))
+        self.toggle_group("hide-social-signals", "social-toggle", [
+            "hide-votes", "hide-karma", "hide-awards", "hide-avatars", "hide-usernames",
+        ])
+
+        find("tab-controls").send_keys(Keys.ARROW_RIGHT)
+        self.selected("filters")
+        self.assertEqual(driver.switch_to.active_element.get_dom_attribute("id"), "tab-filters")
+        find("add-subreddit").click()
+        draft = driver.find_element("css selector", ".blocked-item input")
+        draft.send_keys("firefox")
+        find("add-allowed-subreddit").click()
+        allowed_draft = driver.find_element("css selector", ".allowed-item input")
+        allowed_draft.send_keys("ItalyPersonalFinance")
+        find("add-title-keyword").click()
+        keyword_draft = driver.find_element("css selector", ".keyword-item input")
+        keyword_draft.send_keys("Trump")
+
+        find("tab-settings").click()
+        self.selected("settings")
+        self.assertEqual(find("color-theme").get_property("value"), "system")
+        self.set_theme("dark")
+        self.assertEqual(self.background(), "rgb(26, 26, 27)")
+        self.set_theme("light")
+        self.assertEqual(self.js("return localStorage.getItem('frontfilter-theme')"), "light")
+        self.assertEqual(self.background(), "rgb(255, 255, 255)")
+
+        find("tab-settings").send_keys(Keys.ARROW_RIGHT)
+        self.selected("controls")
+        find("tab-controls").send_keys(Keys.END)
+        self.selected("settings")
+        find("tab-settings").send_keys(Keys.HOME, Keys.ARROW_RIGHT)
+        self.selected("filters")
+        # Drafts survive tab changes, and subreddit names are normalized.
+        self.assertEqual(draft.get_property("value"), "firefox")
+        self.assertEqual(allowed_draft.get_property("value"), "italypersonalfinance")
+        self.assertEqual(keyword_draft.get_property("value"), "Trump")
+        self.wait_until(lambda: find("save-indicator").get_property("textContent") == "Saved")
+
+        driver.refresh()
+        self.wait_until(lambda: find("add-subreddit").is_enabled())
+        self.assertTrue(find("hide-suggested-communities").is_selected())
+        self.assertEqual(driver.find_element("tag name", "html").get_attribute("data-theme"), "light")
+        self.assertEqual(self.js("return localStorage.getItem('frontfilter-theme')"), "light")
+        self.assertEqual(find("color-theme").get_property("value"), "light")
+        find("tab-filters").click()
+        values = lambda selector: [
+            field.get_property("value") for field in driver.find_elements("css selector", selector)
+        ]
+        self.assertIn("firefox", values(".blocked-item input"))
+        self.assertIn("italypersonalfinance", values(".allowed-item input"))
+        self.assertIn("Trump", values(".keyword-item input"))
+
+    def test_long_lists_independent_scroll_and_narrow_layout(self):
+        driver = self.driver
+        self.session.store(blockedSubreddits=[
+            {"name": f"community{index}", "mode": "home"} for index in range(60)
+        ])
+        self.session.open_settings_page()
+        self.wait_until(lambda: driver.find_element("id", "blocked-count").get_property("textContent") == "60 rules")
+        for width in (560, 320):
+            driver.set_window_size(width, 750)
+            for name in ("controls", "filters", "settings"):
+                with self.subTest(width=width, tab=name):
+                    driver.find_element("id", f"tab-{name}").click()
+                    self.selected(name)
+                    root = driver.find_element("tag name", "html")
+                    panel = driver.find_element("id", f"panel-{name}")
+                    self.assertLessEqual(root.get_property("scrollWidth"), root.get_property("clientWidth"))
+                    self.assertLessEqual(panel.get_property("scrollWidth"), panel.get_property("clientWidth"))
+                    top = driver.find_element("css selector", "[role=tablist]").rect["y"]
+                    if name == "filters":
+                        driver.find_elements("css selector", ".blocked-item input")[-1].click()
+                    elif name == "controls":
+                        driver.find_element("id", "scroll-limit").click()
+                    self.assertEqual(driver.find_element("css selector", "[role=tablist]").rect["y"], top)
+            driver.find_element("id", "tab-filters").click()
+            self.assertGreater(driver.find_element("id", "panel-filters").get_property("scrollTop"), 0)
+
+    def test_popup_dimensions_stay_stable_across_tabs(self):
+        driver = self.driver
+        driver.set_window_size(560, 800)
+        self.session.open_settings_page(query="")
         for name in ("controls", "filters", "settings"):
-            driver.find_element("id", f"tab-{name}").click()
-            selected(name)
-            root = driver.find_element("tag name", "html")
-            panel = driver.find_element("id", f"panel-{name}")
-            assert root.get_property("scrollWidth") <= root.get_property("clientWidth")
-            assert panel.get_property("scrollWidth") <= panel.get_property("clientWidth")
-            top = driver.find_element("css selector", '[role=tablist]').rect["y"]
-            if name == "filters":
-                driver.find_elements("css selector", ".blocked-item input")[-1].click()
-            elif name == "controls":
-                driver.find_element("id", "scroll-limit").click()
-            assert driver.find_element("css selector", '[role=tablist]').rect["y"] == top
-        driver.find_element("id", "tab-filters").click()
-        assert driver.find_element("id", "panel-filters").get_property("scrollTop") > 0
-    print("PASS long lists, independent scroll positions and narrow standalone layout", flush=True)
-
-    # Render the exact popup document at its compact dimensions as well.
-    driver.get(driver.current_url.split("?")[0])
-    driver.set_window_size(560, 800)
-    wait.until(lambda _: driver.find_element("id", "add-subreddit").is_enabled())
-    for name in ("controls", "filters", "settings"):
-        driver.find_element("id", f"tab-{name}").click()
-        assert driver.find_element("css selector", ".container").rect["height"] == 600
-        assert driver.find_element("tag name", "body").rect["width"] == 460
-        if screenshot:
-            driver.save_screenshot(str(Path(screenshot).with_name(f"popup-{name}.png")))
-    print("PASS stable popup dimensions across tabs", flush=True)
+            with self.subTest(tab=name):
+                driver.find_element("id", f"tab-{name}").click()
+                self.assertEqual(driver.find_element("css selector", ".container").rect["height"], 600)
+                self.assertEqual(driver.find_element("tag name", "body").rect["width"], 460)
+                self.save_screenshot(f"popup-{name}.png")
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--firefox")
-    parser.add_argument("--screenshot", help="Optional path for a settings screenshot")
-    args = parser.parse_args()
-    options = Options()
-    options.add_argument("-headless")
-    if args.firefox:
-        options.binary_location = args.firefox
-    server = ThreadingHTTPServer(("127.0.0.1", 0), FixtureHandler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    # The temporary test profile must allow WebDriver to reload extension pages.
-    driver = webdriver.Firefox(options=options, service=Service(service_args=["--allow-system-access"]))
-    wait = WebDriverWait(driver, 15)
-    try:
-        with tempfile.TemporaryDirectory(prefix="frontfilter-firefox-") as temp:
-            manifest = json.loads((SOURCE / "manifest.json").read_text())
-            manifest.pop("minimum_chrome_version")
-            manifest.update(json.loads((ROOT / "manifests/firefox.json").read_text()))
-            fixture_origin = "http://127.0.0.1/*"
-            dnr_origin = "http://localhost/*"
-            for content_script in manifest["content_scripts"]:
-                content_script["matches"] = [fixture_origin]
-            isolated_script = next(
-                script for script in manifest["content_scripts"]
-                if script.get("world", "ISOLATED") == "ISOLATED"
-            )
-            isolated_script["js"].insert(0, "fixture-bridge.js")
-            manifest["host_permissions"].extend([fixture_origin, dnr_origin])
-            manifest["web_accessible_resources"][0]["matches"].extend([fixture_origin, dnr_origin])
-            addon = Path(temp) / "frontfilter-test.xpi"
-            with ZipFile(addon, "w") as archive:
-                for path in SOURCE.rglob("*"):
-                    if not path.is_file():
-                        continue
-                    relative = path.relative_to(SOURCE).as_posix()
-                    if relative == "manifest.json":
-                        continue
-                    if relative == "background/navigation-rules.js":
-                        archive.writestr(
-                            relative,
-                            path.read_text().replace(r"reddit\\.com", "localhost"),
-                        )
-                    else:
-                        archive.write(path, relative)
-                archive.writestr("manifest.json", json.dumps(manifest))
-                archive.writestr("fixture-bridge.js", '''
-document.documentElement.setAttribute("data-test-extension-id", chrome.runtime.id);
-window.addEventListener("frontfilter-test-settings", async (event) => {
-  await chrome.storage.local.set(JSON.parse(event.detail));
-  document.documentElement.setAttribute("data-test-settings-applied", event.detail);
-});
-window.addEventListener("frontfilter-test-open-popup", () => chrome.runtime.sendMessage({ action: "openSettings" }));
-window.addEventListener("frontfilter-test-sync-rules", async () => {
-  const response = await chrome.runtime.sendMessage({ action: "syncNavigationRules" });
-  document.documentElement.setAttribute("data-test-rules-synced", JSON.stringify(response));
-});
-''')
-            addon_id = driver.install_addon(str(addon), temporary=True)
-            driver.get(f"http://127.0.0.1:{server.server_port}/r/test/")
-            verify_toolbar_popup(driver, wait, addon_id, args.screenshot)
-
-            def js(script, *values):
-                return driver.execute_script(script, *values)
-
-            def configure(**settings):
-                wait.until(lambda _: js(
-                    "return document.documentElement.hasAttribute('data-test-extension-id')"
-                ))
-                js("document.documentElement.removeAttribute('data-test-settings-applied'); configure(arguments[0]);", settings)
-                wait.until(lambda _: js("return document.documentElement.hasAttribute('data-test-settings-applied')"))
-
-            def expect(ids):
-                try:
-                    wait.until(lambda _: js("return shown()") == [f"t3_{i}" for i in ids])
-                except Exception:
-                    print(js("return {shown:shown(), calls:loadCalls, log:loadLog, plans, controls:document.querySelector('.frontfilter-feed-controls')?.textContent}"), flush=True)
-                    raise
-
-            def click():
-                wait.until(lambda _: js("return !!document.querySelector('.frontfilter-feed-controls button:not([hidden]):not(:disabled)')"))
-                js("document.querySelector('.frontfilter-feed-controls button:not([hidden]):not(:disabled)').click()")
-
-            configure(hideComments=True)
-            js("resetFeed([post('comments')])")
-            comment_display = """
-              return getComputedStyle(document.querySelector('main shreddit-post')
-                .shadowRoot.querySelector('[data-action-bar-action="comments"]')).display
-            """
-            wait.until(lambda _: js(comment_display) == "none")
-            configure(hideComments=False)
-            wait.until(lambda _: js(comment_display) != "none")
-            print("PASS feed comment action shadow DOM visibility", flush=True)
-
-            js("resetComments()")
-            configure(hideComments=False, hideCommentReplies=True)
-            wait.until(lambda _: js("return visibleComments()") == [
-                "comment-top-a", "comment-top-b",
-            ])
-            assert js(comment_display) != "none"
-            configure(hideComments=True, hideCommentReplies=True)
-            wait.until(lambda _: js("return visibleComments()") == [])
-            wait.until(lambda _: js(comment_display) == "none")
-            configure(hideComments=False, hideCommentReplies=False)
-            wait.until(lambda _: js("return visibleComments()") == [
-                "comment-top-a", "comment-reply", "comment-deep-reply", "comment-top-b",
-            ])
-            print("PASS top-level-only comment visibility and parent-toggle implication", flush=True)
-
-            configure(hideSuggestedCommunities=False)
-            wait.until(lambda _: js("return suggestedCommunitiesVisible()"))
-            configure(hideSuggestedCommunities=True)
-            wait.until(lambda _: not js("return suggestedCommunitiesVisible()"))
-            configure(hideSuggestedCommunities=False)
-            wait.until(lambda _: js("return suggestedCommunitiesVisible()"))
-            print("PASS suggested communities visibility", flush=True)
-
-            js("resetFeed([post('a'), post('b', 'safe', {ad: true}), post('c', 'safe', {adPost: true}), post('d', 'safe', {adPost: true, unwrapped: true}), post('e')])")
-            ad_placements = ["comments-page-ad", "comment-tree-ad", "sidebar-ad", "tracked-promoted",
-                             "tracked-organic", "legacy-ad", "old-promoted", "old-placeholder"]
-            ads_shown = {
-                "feed": {f"t3_{post_id}": [True, True] for post_id in "abcde"},
-                "placements": {placement: True for placement in ad_placements},
-            }
-            # Organic posts, their dividers, non-promoted trackers and Old Reddit's
-            # 1px placeholders stay visible.
-            ads_hidden = {
-                "feed": {f"t3_{post_id}": [post_id in "ae"] * 2 for post_id in "abcde"},
-                "placements": {
-                    placement: placement in ("tracked-organic", "old-placeholder")
-                    for placement in ad_placements
-                },
-            }
-            configure(hideAds=False)
-            wait.until(lambda _: js("return adVisibility()") == ads_shown)
-            configure(hideAds=True)
-            wait.until(lambda _: js("return adVisibility()") == ads_hidden)
-            configure(hideAds=False)
-            wait.until(lambda _: js("return adVisibility()") == ads_shown)
-            print("PASS ads and promoted posts visibility", flush=True)
-
-            signal_keys = ["hideVotes", "hideKarma", "hideAwards", "hideAvatars", "hideUsernames"]
-            signals_shown = {
-                "post-author": True, "post-author-avatar": True, "community-icon": True,
-                "comment-avatar": True, "comment-author": True, "comment-time": True,
-                "comment-award": True, "card-avatar": True, "card-karma": True,
-                "karma-help": True, "card-follow": True, "profile-karma": True,
-                "post-score": True, "post-award": True, "post-upvote": True, "post-downvote": True,
-                "comment-score": True, "comment-upvote": True, "post-comments": True,
-            }
-            # Avatars hide on their own: names and subreddit icons stay visible.
-            avatars_hidden = {
-                **signals_shown,
-                "post-author-avatar": False, "comment-avatar": False, "card-avatar": False,
-            }
-            # Timestamps, subreddit icons, other post actions and hover-card actions stay.
-            signals_hidden = {
-                **{key: False for key in signals_shown},
-                "community-icon": True, "comment-time": True, "card-follow": True,
-                "post-comments": True,
-            }
-            configure(hideSocialSignals=False, **{key: False for key in signal_keys})
-            wait.until(lambda _: js("return socialVisibility()") == signals_shown)
-            configure(hideAvatars=True)
-            wait.until(lambda _: js("return socialVisibility()") == avatars_hidden)
-            configure(hideSocialSignals=True, **{key: True for key in signal_keys})
-            wait.until(lambda _: js("return socialVisibility()") == signals_hidden)
-            configure(hideSocialSignals=False, **{key: False for key in signal_keys})
-            wait.until(lambda _: js("return socialVisibility()") == signals_shown)
-            print("PASS votes, karma, awards, avatars and usernames visibility", flush=True)
-
-            all_navbar_sections = {
-                "hideNavbarMenu": True,
-                "hideNavbarSearch": True,
-                "hideNavbarChat": True,
-                "hideNavbarNotifications": True,
-                "hideNavbarProfile": True,
-                "hideNavbarOthers": True,
-            }
-            visible_navbar = {
-                "navbar": True, "menu": True, "logo": True,
-                "search": True, "chat": True, "notifications": True,
-                "profile": True, "campaign": True, "translate": True,
-                "advertise": True, "create": True,
-                "signup": True, "login": True,
-            }
-            configure(hideNavbar=False, **all_navbar_sections)
-            wait.until(lambda _: js("return navbarVisibility()") == {
-                **visible_navbar,
-                "menu": False, "search": False, "chat": False,
-                "notifications": False, "profile": False,
-                "campaign": False, "translate": False,
-                "advertise": False, "create": False,
-                "signup": False, "login": False,
-            })
-            configure(hideNavbar=True)
-            wait.until(lambda _: not js("return navbarVisibility().navbar"))
-            configure(hideNavbar=False, **{
-                key: False for key in all_navbar_sections
-            })
-            wait.until(lambda _: js("return navbarVisibility()") == visible_navbar)
-            configure(hideNavbarMenu=True)
-            wait.until(lambda _: js("return navbarVisibility()") == {
-                **visible_navbar,
-                "menu": False,
-            })
-            configure(hideNavbarMenu=False)
-            wait.until(lambda _: js("return navbarVisibility()") == visible_navbar)
-            configure(hideNavbarOthers=True)
-            wait.until(lambda _: js("return navbarVisibility()") == {
-                **visible_navbar,
-                "campaign": False, "translate": False,
-                "advertise": False, "create": False,
-                "signup": False, "login": False,
-            })
-            configure(hideNavbarOthers=False)
-            print("PASS navbar section filters, logo exception and parent control", flush=True)
-
-            all_sidebar_sections = {
-                "hideLeftSidebarGames": True,
-                "hideLeftSidebarCustomFeeds": True,
-                "hideLeftSidebarRecent": True,
-                "hideLeftSidebarCommunities": True,
-                "hideLeftSidebarResources": True,
-            }
-            visible_sidebar = {
-                "sidebar": True, "top": True, "games": True,
-                "customFeeds": True, "recent": True,
-                "communities": True, "resources": True,
-            }
-            configure(hideLeftSidebar=False, **all_sidebar_sections)
-            wait.until(lambda _: js("return sidebarVisibility()") == {
-                **visible_sidebar,
-                "games": False, "customFeeds": False, "recent": False,
-                "communities": False, "resources": False,
-            })
-            configure(hideLeftSidebar=True)
-            wait.until(lambda _: not js("return sidebarVisibility().sidebar"))
-            configure(hideLeftSidebar=False, **{
-                key: False for key in all_sidebar_sections
-            })
-            wait.until(lambda _: js("return sidebarVisibility()") == visible_sidebar)
-            print("PASS left-sidebar section filters and parent control", flush=True)
-
-            visible_main_page_links = {
-                "homepage": True, "popular": True,
-                "explore": True, "news": True,
-            }
-            configure(blockNews=True)
-            wait.until(lambda _: js("return mainPageLinkVisibility()") == {
-                **visible_main_page_links, "news": False,
-            })
-            configure(
-                blockHomepage=True,
-                blockPopular=True,
-                blockExplore=True,
-                blockNews=False,
-            )
-            wait.until(lambda _: js("return mainPageLinkVisibility()") == {
-                "homepage": False, "popular": False,
-                "explore": False, "news": True,
-            })
-            wait.until(lambda _: not js("return navbarVisibility().logo"))
-            configure(
-                blockHomepage=False,
-                blockPopular=False,
-                blockExplore=False,
-                blockNews=False,
-            )
-            wait.until(lambda _: js("return mainPageLinkVisibility()") == visible_main_page_links)
-            wait.until(lambda _: js("return navbarVisibility().logo"))
-            print("PASS blocked main-page links hidden from navigation", flush=True)
-
-            configure(disableAutoplay=True)
-            js("addAutoplayPlayer()")
-            wait.until(lambda _: js("return autoplayState()") == {
-                "player": [False, False, False],
-                "playerManaged": True,
-                "videoAutoplay": False,
-                "videoManaged": True,
-            })
-            configure(disableAutoplay=False)
-            wait.until(lambda _: js("return autoplayState()") == {
-                "player": [True, True, True],
-                "playerManaged": False,
-                "videoAutoplay": True,
-                "videoManaged": False,
-            })
-            print("PASS video autoplay disabled and restored inside shadow DOM", flush=True)
-
-            configure(blockHomepage=True, blockExplore=True, blockNews=True)
-            js("document.documentElement.removeAttribute('data-test-rules-synced'); window.dispatchEvent(new Event('frontfilter-test-sync-rules'))")
-            wait.until(lambda _: js("return document.documentElement.getAttribute('data-test-rules-synced')") == '{"success":true}')
-            for path, message in [
-                ("/", "Reddit Homepage is blocked"),
-                ("/explore/", "Explore page is blocked"),
-                ("/news/?feed=home", "News page is blocked"),
-            ]:
-                original_url = f"http://localhost:{server.server_port}{path}"
-                driver.get(original_url)
-                wait.until(lambda _: (
-                    driver.current_url.startswith("moz-extension://")
-                    and driver.find_element("id", "block-message").text == message
-                ))
-                assert driver.current_url.split("#", 1)[1] == original_url
-                actual_message = driver.find_element("id", "block-message").text
-                assert actual_message == message, (path, driver.current_url, actual_message)
-            print("PASS Firefox declarative redirects for Homepage, Explore and News", flush=True)
-            response = driver.execute_async_script('''
-const done = arguments[0];
-chrome.storage.local.set({
-  blockHomepage: false,
-  blockExplore: false,
-  blockNews: false,
-  blockSubHome: true,
-  blockedSubreddits: [{name: "*italy*", mode: "all"}],
-  allowedSubreddits: ["italypersonalfinance"]
-}).then(() => chrome.runtime.sendMessage({action: "syncNavigationRules"})).then(done);
-''')
-            assert response == {"success": True}
-            allowed_url = (
-                f"http://localhost:{server.server_port}"
-                "/r/italypersonalfinance/comments/abc/post"
-            )
-            driver.get(allowed_url)
-            assert driver.current_url == allowed_url
-            blocked_url = (
-                f"http://localhost:{server.server_port}"
-                "/r/italytravel/comments/abc/post"
-            )
-            driver.get(blocked_url)
-            wait.until(lambda _: driver.current_url.startswith("moz-extension://"))
-            assert "?target=subreddit&filter=*italy*#" in driver.current_url
-            assert driver.current_url.split("#", 1)[1] == blocked_url
-            print("PASS Firefox subreddit exception precedence in declarative rules", flush=True)
-            response = driver.execute_async_script('''
-const done = arguments[0];
-chrome.storage.local.set({
-  blockSubHome: false,
-  allowedSubreddits: [],
-  limitInfiniteScroll: true,
-  scrollLimit: 3,
-  scrollMode: "fixed",
-  blockedSubreddits: [{name: "blocked", mode: "all"}]
-}).then(() => chrome.runtime.sendMessage({action: "syncNavigationRules"})).then(done);
-''')
-            assert response == {"success": True}
-            driver.get(f"http://127.0.0.1:{server.server_port}/r/test/?after=whitelist")
-            wait.until(lambda _: js(
-                "return document.documentElement.hasAttribute('data-test-extension-id')"
-            ))
-            js("resetFeed([post('a'),post('ad','safe',{ad:true}),post('b','blocked'),post('c'),post('d'),post('e'),post('f')])")
-            expect(["a", "c", "d"])
-            assert js("return document.querySelector('aside shreddit-post').getClientRects().length > 0")
-            assert js("return document.querySelector('.frontfilter-feed-controls button').hidden")
-            assert js("return !document.querySelector('.frontfilter-feed-next')")
-            print("PASS fixed quota, ads, ALL filtering and sidebar isolation", flush=True)
-
-            js("appendRows(document.querySelector('#t3_a'),[post('nested')]); appendRows(document.querySelector('shreddit-feed'),[post('a')])")
-            expect(["a", "c", "d"])
-            assert js("return document.querySelector('#t3_nested').getClientRects().length > 0")
-            print("PASS duplicate cards and nested crosspost content", flush=True)
-
-            configure(blockedSubreddits=[], blockedTitleKeywords=["Trump"])
-            js("resetFeed([post('a','safe',{title:'Trump update'}),post('b'),post('c','safe',{body:'A TRUMP preview'}),post('d'),post('e')])")
-            expect(["b", "d", "e"])
-            configure(blockedTitleKeywords=[])
-            print("PASS case-insensitive title/preview filtering and fixed feed quota", flush=True)
-
-            configure(
-                limitInfiniteScroll=False,
-                blockedSubreddits=[{"name": "*italy*", "mode": "all"}],
-                allowedSubreddits=["italypersonalfinance"],
-            )
-            js("resetFeed([post('allowed','ItalyPersonalFinance'),post('blocked','italytravel')])")
-            expect(["allowed"])
-            print("PASS Firefox subreddit exception precedence in feeds", flush=True)
-
-            configure(limitInfiniteScroll=True, scrollMode="button", allowedSubreddits=[],
-                      blockedSubreddits=[{"name": "blocked", "mode": "all"}])
-            js("resetFeed([post('a'),post('b')], [{rows:[post('ad','safe',{ad:true}),post('x','blocked')],next:'2'}, {rows:[post('c'),post('d'),post('e'),post('f'),post('g')],next:'3'}], true)")
-            expect(["a", "b", "c"])
-            assert js("return loadCalls") == 2
-            click()
-            expect(["a", "b", "c", "d", "e", "f"])
-            assert js("return loadCalls") == 2
-            print("PASS filling filtered batches and buffering excess results", flush=True)
-
-            js("window.plans=[{rows:[post('h'),post('i'),post('j'),post('k')],next:'4',delay:500}]")
-            click()
-            assert js("return shown()") == [f"t3_{i}" for i in "abcdefg"]
-            js("document.querySelector('.frontfilter-feed-controls button').click()")
-            expect(list("abcdefghi"))
-            assert js("return loadCalls") == 3
-            assert js("return document.querySelector('.frontfilter-feed-controls').textContent.includes('9 posts shown')")
-            print("PASS progressive groups and double-click protection", flush=True)
-
-            # Native calls must be suppressed while at the boundary.
-            js("document.querySelector('faceplate-partial').loadContent()")
-            assert js("return loadCalls") == 3
-            js("window.plans=[{rows:[post('l')]}]")
-            configure(limitInfiniteScroll=False)
-            expect(list("abcdefghijkl"))
-            assert js("return !document.querySelector('.frontfilter-feed-controls')")
-            print("PASS native load guard and restoring infinite scroll", flush=True)
-
-            configure(limitInfiniteScroll=True, scrollMode="button", scrollLimit=3)
-            js("resetFeed([post('a'),post('b'),post('c')],[{error:true},{rows:[post('d'),post('e')]}],true)")
-            expect(list("abc"))
-            click()
-            wait.until(lambda _: js("return !document.querySelector('.frontfilter-feed-retry').hidden"))
-            expect(list("abc"))
-            click()
-            expect(list("abcde"))
-            wait.until(lambda _: js("return document.querySelector('.frontfilter-feed-controls').textContent.includes('End of feed')"))
-            print("PASS error retry and explicit partial final group", flush=True)
-
-            # Route changes and replacement feeds cannot inherit a larger quota.
-            js("history.pushState({}, '', '/r/second/top/?t=week'); resetFeed([post('m'),post('n'),post('o'),post('p')])")
-            expect(list("mno"))
-            configure(blockedSubreddits=[{"name": "safe", "mode": "home"}])
-            expect(list("mno"))
-            print("PASS SPA reset and HOME entries not filtering feed posts", flush=True)
-
-            configure(blockedSubreddits=[], scrollMode="fixed")
-            js("resetFeed([post('a'),post('b'),post('c'),post('d'),post('e')])")
-            expect(list("abc"))
-            js("document.querySelector('#t3_c').setAttribute('is-promoted','')")
-            expect(list("abd"))
-            configure(limitInfiniteScroll=False)
-            expect(list("abde"))
-            print("PASS late ad classification and independent filter visibility", flush=True)
-
-            configure(limitInfiniteScroll=True, scrollMode="button")
-            js("resetFeed([post('a'),post('b'),post('c')],[{rows:[post('d'),post('e'),post('f')],next:'2',delay:600}],true)")
-            expect(list("abc"))
-            click()
-            js("history.pushState({}, '', '/r/third/'); resetFeed([post('m'),post('n'),post('o'),post('p')])")
-            expect(list("mno"))
-            # Waiting beyond the old response verifies it cannot mutate the new group.
-            js("window.oldResponseSettled = false; setTimeout(() => window.oldResponseSettled = true, 750)")
-            wait.until(lambda _: js("return window.oldResponseSettled"))
-            expect(list("mno"))
-            print("PASS stale responses after navigation", flush=True)
-
-            # Feed updates can reuse the container, after the URL changes first.
-            js("history.pushState({}, '', '/r/fourth/')")
-            wait.until(lambda _: js("return shown().length === 0"))
-            js("const feed=document.querySelector('shreddit-feed'); feed.replaceChildren(); appendRows(feed,[post('u'),post('v'),post('w'),post('z')])")
-            expect(list("uvw"))
-            print("PASS delayed SPA container reuse", flush=True)
-
-            # A page response that repeats its cursor must stop, not loop forever.
-            js("resetFeed([post('a')],[{rows:[post('b')],next:'1'}],true)")
-            wait.until(lambda _: js("return document.querySelector('.frontfilter-feed-controls').textContent.includes('did not advance')"))
-            assert js("return loadCalls") == 1
-            assert js("return shown()") == ["t3_a", "t3_b"]
-            print("PASS repeated-cursor protection", flush=True)
-
-            # Other faceplate partials (such as comments) must still work.
-            js("window.plans=[{rows:[]}]; const p=document.createElement('faceplate-partial'); document.querySelector('shreddit-feed').append(p); p.loadContent().catch(()=>{})")
-            assert js("return loadCalls") == 2
-            print("PASS unrelated native loaders remain callable", flush=True)
-
-            # Incomplete cards must not lose their position to fully hydrated ones.
-            js("resetFeed([post('a'),post('b'),post('c'),post('d')]); document.querySelector('#t3_a').removeAttribute('subreddit-name'); document.querySelector('#t3_a').removeAttribute('permalink'); document.querySelector('#t3_a a').removeAttribute('href')")
-            wait.until(lambda _: js("return shown().length === 0"))
-            js("document.querySelector('#t3_a').setAttribute('subreddit-name','safe')")
-            expect(list("abc"))
-            print("PASS incomplete-card ordering", flush=True)
-
-            # n=100 must not fetch the entire quota before the reader needs it.
-            js("const s=document.createElement('style'); s.textContent='main > shreddit-feed > article { min-height: 350px; } button { display: block; line-height: 80px; padding-block: 20px; }'; document.head.append(s)")
-            for mode in ["fixed", "button"]:
-                configure(scrollLimit=100, scrollMode=mode, blockedSubreddits=[])
-                js("window.scrollTo(0,0); const rows=(start,n)=>Array.from({length:n},(_,i)=>post(String(start+i))); resetFeed(rows(0,20),[{rows:rows(20,20),next:'2'},{rows:rows(40,20),next:'3'},{rows:rows(60,20),next:'4'},{rows:rows(80,40),next:'5'}],true)")
-                expect([str(i) for i in range(20)])
-                driver.execute_async_script("setTimeout(arguments[0], 350)")
-                assert js("return loadCalls") == 0
-                assert js("return !document.querySelector('.frontfilter-feed-next:not([hidden])')")
-                assert js("return Array.from(document.querySelectorAll('.frontfilter-feed-controls button[hidden]')).every(b=>getComputedStyle(b).display==='none')")
-                for count in [40, 60, 80, 100]:
-                    js("document.querySelector('.frontfilter-feed-controls').scrollIntoView({block:'end'})")
-                    expect([str(i) for i in range(count)])
-                    driver.execute_async_script("setTimeout(arguments[0], 200)")
-                    assert js("return loadCalls") == (count - 20) // 20
-                js("document.querySelector('.frontfilter-feed-controls').scrollIntoView({block:'end'})")
-                driver.execute_async_script("setTimeout(arguments[0], 250)")
-                assert js("return loadCalls") == 4
-                if mode == "fixed":
-                    assert js("return !document.querySelector('.frontfilter-feed-next')")
-                else:
-                    assert js("const b=document.querySelector('.frontfilter-feed-next'); const s=getComputedStyle(b); return !b.hidden && s.alignItems==='center' && s.justifyContent==='center' && b.getBoundingClientRect().height===40")
-                    if args.screenshot:
-                        driver.save_screenshot(str(Path(args.screenshot).with_name("feed-button.png")))
-                    click()
-                    expect([str(i) for i in range(120)])
-                    driver.execute_async_script("setTimeout(arguments[0], 250)")
-                    assert js("return loadCalls") == 4
-                    js("window.plans=[{rows:Array.from({length:110},(_,i)=>post(String(i+120))),next:'6'}]; document.querySelector('.frontfilter-feed-controls').scrollIntoView({block:'end'})")
-                    expect([str(i) for i in range(200)])
-                    assert js("return loadCalls") == 5
-                print(f"PASS n=100 lazy loading, exact quota and button visibility ({mode})", flush=True)
-
-            # Repeated filtered pages have a small budget even near the boundary.
-            configure(scrollLimit=100, scrollMode="fixed", blockedSubreddits=[{"name":"blocked","mode":"all"}])
-            js("window.scrollTo(0,0); resetFeed([], Array.from({length:5},(_,i)=>({rows:[post(String(i),'blocked')],next:String(i+2)})), true)")
-            wait.until(lambda _: js("return !document.querySelector('.frontfilter-feed-retry').hidden"))
-            assert js("return loadCalls") == 3
-            assert js("return !document.querySelector('.frontfilter-feed-next')")
-            print("PASS bounded loading when all posts are filtered", flush=True)
-
-            # Suggested posts go from the Home feed whatever the page language;
-            # an empty recommendation source means a joined community.
-            configure(limitInfiniteScroll=False, blockedSubreddits=[], hideSuggestedPosts=True)
-            js("history.pushState({}, '', '/'); window.scrollTo(0,0)")
-            js("resetFeed([post('joined'), post('suggested','safe',{recommended:'user_to_post'}), post('unranked','safe',{recommended:''})])")
-            expect(["joined", "unranked"])
-            wait.until(lambda _: js("return adVisibility().feed") == {
-                "t3_joined": [True, True], "t3_suggested": [False, False], "t3_unranked": [True, True],
-            })
-            js("history.pushState({}, '', '/r/popular/')")
-            js("resetFeed([post('joined'), post('suggested','safe',{recommended:'popular'})])")
-            expect(["joined", "suggested"])
-            print("PASS suggested posts hidden only in the Home feed", flush=True)
-
-            # Native infinite scroll would otherwise fetch hidden pages forever.
-            pause_controls = "document.querySelector('.frontfilter-feed-paused')"
-            js("history.pushState({}, '', '/'); window.scrollTo(0,0)")
-            js("resetFeed([post('j1')], Array.from({length:8},(_,i)=>({rows:[post('s'+i,'safe',{recommended:'geo_popular'})],next:String(i+2),delay:150})), true); enableNativeLoading()")
-            wait.until(lambda _: js(f"return !!{pause_controls}"))
-            paused_calls = js("return loadCalls")
-            assert 3 <= paused_calls <= 4, paused_calls
-            driver.execute_async_script("setTimeout(arguments[0], 800)")
-            assert js("return loadCalls") == paused_calls
-            assert js("return shown()") == ["t3_j1"]
-            js(f"{pause_controls}.querySelector('button').click()")
-            wait.until(lambda _: js("return loadCalls") > paused_calls)
-            wait.until(lambda _: js(f"return !!{pause_controls}"))
-            # Revealing hidden posts resumes loading on its own.
-            configure(hideSuggestedPosts=False)
-            wait.until(lambda _: js(f"return !{pause_controls}"))
-            js("disableNativeLoading(); history.pushState({}, '', '/r/test/')")
-            configure(limitInfiniteScroll=True, blockedSubreddits=[{"name": "blocked", "mode": "all"}])
-            print("PASS native infinite scroll pauses after fully filtered pages", flush=True)
-
-            # Flair-filtered posts take their wrapper and divider and never count
-            # toward the scroll limit.
-            filter_rows = ("resetFeed([post('a'), post('b','safe',{flair:'US Politics'}), "
-                           "post('c','safe',{flair:'MEME'}), post('d','safe',{flair:'Question'}), "
-                           "post('e'), post('f')])")
-            configure(limitInfiniteScroll=False, blockedSubreddits=[], blockedFlairs=["*politic*", "meme"])
-            js(filter_rows)
-            expect(["a", "d", "e", "f"])
-            wait.until(lambda _: js("return adVisibility().feed") == {
-                **{f"t3_{i}": [True, True] for i in "adef"},
-                **{f"t3_{i}": [False, False] for i in "bc"},
-            })
-            configure(limitInfiniteScroll=True, scrollLimit=3, scrollMode="fixed")
-            js(filter_rows)
-            expect(["a", "d", "e"])
-            print("PASS flair filters in feeds and the scroll limit", flush=True)
-
-            configure(limitInfiniteScroll=False, blockedTitleKeywords=["trump"])
-            js("resetFilterComments()")
-            wait.until(lambda _: js("return visibleComments()") == [
-                "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
-                "comment-deleted",
-            ])
-            configure(blockedTitleKeywords=[])
-            wait.until(lambda _: js("return visibleComments()") == [
-                "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
-                "comment-politics", "comment-politics-reply", "comment-deleted",
-                "comment-deleted-reply",
-            ])
-            configure(limitInfiniteScroll=True, blockedFlairs=[],
-                      blockedSubreddits=[{"name": "blocked", "mode": "all"}])
-            print("PASS keyword filters hide comments with their replies", flush=True)
-
-            # One-click Block buttons are off by default. The page is r/test, so
-            # its own posts get none, and allowed subreddits get none either.
-            block_buttons = "return Array.from(document.querySelectorAll('.frontfilter-block-subreddit'), (b) => b.dataset.subreddit)"
-            block_rows = ("resetFeed([post('one','alpha',{credit:true}), post('two','beta',{credit:true}), "
-                          "post('own','test',{credit:true})])")
-            configure(limitInfiniteScroll=False, blockedSubreddits=[])
-            js(block_rows)
-            expect(["one", "two", "own"])
-            driver.execute_async_script("setTimeout(arguments[0], 300)")
-            assert js(block_buttons) == []
-            configure(showBlockSubredditButton=True)
-            wait.until(lambda _: js(block_buttons) == ["alpha", "beta"])
-            # The button sits in the actions group, before Join.
-            assert js("return document.querySelector('.frontfilter-block-subreddit').nextElementSibling.textContent") == "Join"
-            configure(allowedSubreddits=["beta"])
-            wait.until(lambda _: js(block_buttons) == ["alpha"])
-            js("document.querySelector('.frontfilter-block-subreddit').click()")
-            # An ALL rule hides the subreddit's posts; the page does not navigate.
-            expect(["two", "own"])
-            wait.until(lambda _: js("return document.querySelector('.frontfilter-block-toast')?.textContent") == "r/alpha blockedUndo")
-            assert js("return location.pathname") == "/r/test/"
-            js("document.querySelector('.frontfilter-block-toast button').click()")
-            expect(["one", "two", "own"])
-            wait.until(lambda _: js("return document.querySelector('.frontfilter-block-toast')?.textContent") == "r/alpha unblocked")
-            configure(showBlockSubredditButton=False, allowedSubreddits=[])
-            wait.until(lambda _: js(block_buttons) == [])
-            print("PASS one-click Block button, undo and visibility rules", flush=True)
-
-            # On a subreddit's own page the button sits beside Create Post; the
-            # block sends the page to the block page, which offers the undo.
-            header_button = "document.querySelector('.frontfilter-block-subreddit--header')"
-            js("setSubredditHeader('test')")
-            driver.execute_async_script("setTimeout(arguments[0], 300)")
-            assert js(f"return !{header_button}")
-            configure(showBlockSubredditButton=True)
-            wait.until(lambda _: js(f"return {header_button}?.dataset.subreddit") == "test")
-            assert js(f"return {header_button}.previousElementSibling.querySelector('[data-testid=create-post]') !== null")
-            assert js(f"return {header_button}.nextElementSibling.localName") == "shreddit-subreddit-header-buttons"
-            fixture_url = f"http://127.0.0.1:{server.server_port}/r/test/"
-            stored_rules = "chrome.storage.local.get('blockedSubreddits').then((r) => arguments[0](r.blockedSubreddits))"
-
-            def block_from_header():
-                wait.until(lambda _: js(f"return {header_button}?.dataset.subreddit") == "test")
-                js(f"{header_button}.click()")
-                wait.until(lambda _: "blocked/index.html" in driver.current_url)
-                wait.until(lambda _: driver.find_element("id", "block-message").text == "r/test is blocked")
-
-            def undo_offered():
-                # Let the one-time token check finish before reading the button.
-                driver.execute_async_script("setTimeout(arguments[0], 300)")
-                return driver.find_element("id", "undo-block").is_displayed()
-
-            block_from_header()
-            assert undo_offered()
-            assert "undo" not in driver.current_url
-            # Not on a reload of the block page...
-            driver.refresh()
-            wait.until(lambda _: driver.find_element("id", "block-message").text == "r/test is blocked")
-            assert not undo_offered()
-            # ...nor when visiting the already blocked subreddit again.
-            driver.get(fixture_url)
-            wait.until(lambda _: "blocked/index.html" in driver.current_url)
-            wait.until(lambda _: driver.find_element("id", "block-message").text == "r/test is blocked")
-            assert not undo_offered()
-            assert driver.execute_async_script(stored_rules) == [{"name": "test", "mode": "all"}]
-
-            # A new one-click block offers it again, and undo removes the rule.
-            driver.execute_async_script("chrome.storage.local.set({blockedSubreddits: []}).then(arguments[0])")
-            driver.get(fixture_url)
-            wait.until(lambda _: js("return document.documentElement.hasAttribute('data-test-extension-id')"))
-            js("setSubredditHeader('test')")
-            block_from_header()
-            assert undo_offered()
-            driver.find_element("id", "undo-block").click()
-            wait.until(lambda _: driver.execute_async_script(stored_rules) == [])
-            driver.get(fixture_url)
-            wait.until(lambda _: js("return document.documentElement.hasAttribute('data-test-extension-id')"))
-            configure(showBlockSubredditButton=False, limitInfiniteScroll=True,
-                      blockedSubreddits=[{"name": "blocked", "mode": "all"}])
-            print("PASS subreddit header Block button and one-time block-page undo", flush=True)
-            configure(scrollLimit=3, scrollMode="button")
-
-            # Verify the actual settings UI as well as the unit-test mock.
-            handles = set(driver.window_handles)
-            js("window.dispatchEvent(new Event('frontfilter-test-open-popup'))")
-            wait.until(lambda _: len(driver.window_handles) == 2)
-            driver.switch_to.window(next(iter(set(driver.window_handles) - handles)))
-            wait.until(lambda _: driver.find_element("id", "scroll-limit").is_enabled())
-            assert driver.find_element("id", "scroll-limit").get_property("value") == "3"
-            field = driver.find_element("id", "scroll-limit")
-            field.click()
-            field.send_keys(Keys.END, Keys.BACKSPACE, "7", Keys.TAB)
-            assert field.get_property("value") == "7", field.get_property("value")
-            wait.until(lambda _: driver.find_element("id", "save-indicator").text == "Saved")
-            driver.switch_to.window(driver.window_handles[0])
-            handles = set(driver.window_handles)
-            js("window.dispatchEvent(new Event('frontfilter-test-open-popup'))")
-            wait.until(lambda _: len(driver.window_handles) == 3)
-            driver.switch_to.window(next(iter(set(driver.window_handles) - handles)))
-            wait.until(lambda _: driver.find_element("id", "scroll-limit").get_property("value") == "7")
-            driver.set_window_size(560, 1100)
-            if args.screenshot:
-                driver.save_screenshot(args.screenshot)
-            print("PASS real popup persistence", flush=True)
-            verify_settings_tabs(driver, wait, args.screenshot)
-    finally:
-        driver.quit()
-        server.shutdown()
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--firefox", help="Path to the Firefox binary")
+    parser.add_argument("--screenshots", help="Directory for screenshots of the settings pages")
+    _, unittest_args = parser.parse_known_args(namespace=OPTIONS)
+    unittest.main(argv=[sys.argv[0], *unittest_args])
 
 
 if __name__ == "__main__":

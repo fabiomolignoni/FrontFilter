@@ -80,16 +80,25 @@ To try a local copy:
   `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**,
   and select `dist/frontfilter-firefox-<version>.xpi`.
 
-Optional browser tests drive a local test page with Selenium
-(`pip install selenium`) and never visit Reddit:
+Browser tests load the extension in Firefox and Chrome with Selenium and
+check what it hides on local copies of Reddit's markup. They never visit
+Reddit, and CI runs them on every push. To run them, install Selenium with
+`pip install -r tests/browser/requirements.txt`:
 
 ```bash
 python3 tests/browser/firefox.py [--firefox /path/to/firefox]
-python3 tests/browser/chrome.py --chrome /path/to/chromium [--driver /path/to/chromedriver]
+python3 tests/browser/chrome.py --chrome /path/to/chrome [--driver /path/to/chromedriver]
 ```
 
 Chrome 137 and later ignore the `--load-extension` switch these tests rely
-on, so run the Chrome suite with Chromium or Chrome for Testing.
+on, so run the Chrome suite with Chromium or Chrome for Testing, which
+`npx @puppeteer/browsers install chrome@stable` downloads (and
+`chromedriver@stable` its driver). Both suites accept unittest options, such
+as `-k navbar` to run only matching tests.
+
+A weekly canary, `tests/reddit/canary.py`, checks the extension on
+reddit.com itself to catch changes in Reddit's markup; see
+[CONTRIBUTING.md](CONTRIBUTING.md#when-reddit-changes).
 
 ## Contributing
 

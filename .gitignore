@@ -3,6 +3,7 @@
 /.venv/
 /.web-ext-artifacts/
 /coverage/
+/reddit-snapshots/
 __pycache__/
 *.py[cod]
 *.log

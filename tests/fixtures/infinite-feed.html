@@ -1,8 +1,15 @@
 <!doctype html>
+<!--
+  Reddit markup for the browser tests. The structure follows reddit.com as
+  captured logged out in October 2026; CONTRIBUTING.md explains how to
+  capture it again. Logged-in parts, such as the left navigation, chat and
+  notifications, follow the last markup checked while logged in.
+-->
 <html lang="en">
 <head><meta charset="utf-8"><title>FrontFilter feed fixture</title>
 <style>
 body { font: 16px sans-serif; }
+reddit-header-large, reddit-header-action-items,
 shreddit-feed, shreddit-post, shreddit-comment, reddit-sidebar-nav,
 shreddit-ad-post, shreddit-comments-page-ad, shreddit-comment-tree-ad,
 shreddit-async-loader, faceplate-hovercard, shreddit-comment-action-row,
@@ -14,11 +21,19 @@ article { padding: 10px; }
 </style>
 </head>
 <body>
-<header id="shreddit-header" role="banner">
+<reddit-header-large>
+<reddit-header-action-items>
+<header>
   <nav class="h-header-large">
     <div>
-      <button id="navbar-menu-button">Menu</button>
-      <a id="reddit-logo" href="/">Reddit</a>
+      <rpl-tooltip id="hamburger-button-tooltip">
+        <faceplate-tracker noun="hamburger_menu">
+          <button id="navbar-menu-button">Menu</button>
+        </faceplate-tracker>
+      </rpl-tooltip>
+      <faceplate-tracker noun="reddit_logo">
+        <rpl-tooltip><a id="reddit-logo" href="/">Reddit</a></rpl-tooltip>
+      </faceplate-tracker>
     </div>
     <div>
       <search-dynamic-id-cache-controller>
@@ -38,13 +53,15 @@ article { padding: 10px; }
       <span data-part="secondary"><a id="signup-button"
         href="/register">Sign up</a></span>
       <span data-part="primary"><a id="login-button" href="/login">Log in</a></span>
-      <div id="navbar-profile-wrapper"><rpl-dropdown>
-        <button id="expand-user-drawer-button" class="min-w-[40px]"
+      <div id="navbar-profile-wrapper"><rpl-dropdown><rpl-tooltip>
+        <button id="expand-user-drawer-button" slot="trigger" class="min-w-[40px]"
           aria-label="Open settings">Settings</button>
-      </rpl-dropdown></div>
+      </rpl-tooltip></rpl-dropdown></div>
     </div>
   </nav>
 </header>
+</reddit-header-action-items>
+</reddit-header-large>
 <reddit-sidebar-nav id="left-sidebar">
   <nav>
     <left-nav-top-section id="sidebar-top"></left-nav-top-section>
@@ -183,7 +200,9 @@ article { padding: 10px; }
     downvote.setAttribute("downvote", "");
     downvote.textContent = "Downvote";
     group.append(upvote, score, downvote);
-    return group;
+    const animations = document.createElement("shreddit-vote-animations");
+    animations.append(group);
+    return animations;
   };
   customElements.define("shreddit-comment-action-row", class extends HTMLElement {
     constructor() {
@@ -248,17 +267,23 @@ article { padding: 10px; }
       card.setAttribute("permalink", `/r/${row.subreddit}/comments/${row.id}/title`);
       card.setAttribute("post-title", row.title || `Post ${row.id}`);
       if (row.ad) card.setAttribute("is-promoted", "");
+      // Reddit adds ad cards straight to the feed, as unwrapped rows do.
+      if (row.adPost) card.setAttribute("promoted", "");
       // The credit bar as Reddit renders it: subreddit and time on the left,
       // Join and the overflow menu on the right.
       if (row.credit) {
         const creditBar = document.createElement("span");
         creditBar.slot = "credit-bar";
         const source = document.createElement("span");
+        source.id = `feed-post-credit-bar-t3_${row.id}`;
         source.textContent = `r/${row.subreddit}`;
         const actions = document.createElement("span");
-        const join = document.createElement("button");
+        const join = document.createElement("shreddit-join-button");
+        join.setAttribute("name", row.subreddit);
         join.textContent = "Join";
-        actions.append(join);
+        const overflow = document.createElement("span");
+        overflow.textContent = "…";
+        actions.append(join, overflow);
         creditBar.append(source, actions);
         card.append(creditBar);
       }
@@ -357,74 +382,72 @@ article { padding: 10px; }
     if (more) addLoader(feed);
     document.querySelector("shreddit-feed").replaceWith(feed);
   };
-  window.resetComments = () => {
-    const createComment = (id, depth, text) => {
-      const comment = document.createElement("shreddit-comment");
-      comment.id = id;
-      comment.setAttribute("depth", String(depth));
-      comment.setAttribute("parent-id", depth === 0 ? "t3_fixture" : "t1_parent");
-      comment.append(document.createTextNode(text));
-      return comment;
-    };
-    const first = createComment("comment-top-a", 0, "First top-level comment");
-    const children = document.createElement("div");
-    children.setAttribute("slot", "children");
-    const reply = createComment("comment-reply", 1, "Reply to first comment");
-    const nestedChildren = document.createElement("div");
-    nestedChildren.setAttribute("slot", "children");
-    nestedChildren.append(createComment("comment-deep-reply", 2, "Nested reply"));
-    reply.append(nestedChildren);
-    children.append(reply);
-    first.append(children);
-    const second = createComment("comment-top-b", 0, "Second top-level comment");
-    document.querySelector("#comments").replaceChildren(first, second);
-  };
   // Current Reddit nests each comment in <details>: meta in the summary, then
-  // the body and the replies. Older markup made them direct slot children.
-  window.resetFilterComments = () => {
-    const createComment = (id, author, text, replies = [], { legacy = false } = {}) => {
-      const comment = document.createElement("shreddit-comment");
-      comment.id = id;
-      comment.setAttribute("author", author);
-      const meta = document.createElement("div");
-      meta.slot = "commentMeta";
-      meta.textContent = author;
-      const body = document.createElement("div");
-      body.slot = "comment";
-      body.innerHTML = "<p></p>";
-      body.firstChild.textContent = text;
-      const children = document.createElement("div");
+  // the body and #comment-children, whose replies each take a slot named
+  // after their parent. Older markup made them direct slot children, with
+  // the replies in one "children" slot. Deleted comments have no body.
+  const createComment = (id, { author = "alice", depth = 0, text = "", replies = [], legacy = false } = {}) => {
+    const comment = document.createElement("shreddit-comment");
+    comment.id = id;
+    comment.setAttribute("thingid", `t1_${id}`);
+    comment.setAttribute("author", author);
+    comment.setAttribute("depth", String(depth));
+    const meta = document.createElement("div");
+    meta.slot = "commentMeta";
+    meta.textContent = author;
+    const body = document.createElement("div");
+    body.slot = "comment";
+    body.innerHTML = "<p></p>";
+    body.firstChild.textContent = text;
+    const children = document.createElement("div");
+    if (legacy) {
       children.slot = "children";
       children.append(...replies);
-      if (legacy) {
-        comment.append(meta, body, children);
-        return comment;
-      }
-      const details = document.createElement("details");
-      details.open = true;
-      const summary = document.createElement("summary");
-      summary.append(meta);
-      const content = document.createElement("div");
-      if (text !== null) content.append(body);
-      content.append(children);
-      details.append(summary, content);
-      comment.append(details);
+      comment.append(meta, body, children);
       return comment;
-    };
+    }
+    children.id = "comment-children";
+    replies.forEach((reply, index) => {
+      reply.slot = `children-t1_${id}-${index}`;
+      reply.setAttribute("parentid", `t1_${id}`);
+      children.append(reply);
+    });
+    const details = document.createElement("details");
+    details.open = true;
+    const summary = document.createElement("summary");
+    summary.append(meta);
+    const content = document.createElement("div");
+    if (text !== null) content.append(body);
+    content.append(children);
+    details.append(summary, content);
+    comment.append(details);
+    return comment;
+  };
+  window.resetComments = () => {
     document.querySelector("#comments").replaceChildren(
-      createComment("comment-photo", "alice", "Nice photo", [
-        createComment("comment-thanks", "bob", "Thanks!"),
-      ]),
-      createComment("comment-spam", "Spammer", "Buy now", [
-        createComment("comment-spam-reply", "alice", "No thanks", [], { legacy: true }),
-      ], { legacy: true }),
-      createComment("comment-politics", "carol", "Did you see the TRUMP rally?", [
-        createComment("comment-politics-reply", "dave", "Yes"),
-      ]),
+      createComment("comment-top-a", { text: "First top-level comment", replies: [
+        createComment("comment-reply", { depth: 1, text: "Reply to first comment", replies: [
+          createComment("comment-deep-reply", { depth: 2, text: "Nested reply" }),
+        ] }),
+      ] }),
+      createComment("comment-top-b", { text: "Second top-level comment" }),
+    );
+  };
+  window.resetFilterComments = () => {
+    document.querySelector("#comments").replaceChildren(
+      createComment("comment-photo", { text: "Nice photo", replies: [
+        createComment("comment-thanks", { author: "bob", depth: 1, text: "Thanks!" }),
+      ] }),
+      createComment("comment-spam", { author: "Spammer", text: "Buy now", legacy: true, replies: [
+        createComment("comment-spam-reply", { depth: 1, text: "No thanks", legacy: true }),
+      ] }),
+      createComment("comment-politics", { author: "carol", text: "Did you see the TRUMP rally?", replies: [
+        createComment("comment-politics-reply", { author: "dave", depth: 1, text: "Yes" }),
+      ] }),
       // A deleted comment has no body; its reply's text is not its own.
-      createComment("comment-deleted", "[deleted]", null, [
-        createComment("comment-deleted-reply", "erin", "trump again"),
-      ]),
+      createComment("comment-deleted", { author: "[deleted]", text: null, replies: [
+        createComment("comment-deleted-reply", { author: "erin", depth: 1, text: "trump again" }),
+      ] }),
     );
   };
   // A subreddit header as Reddit renders it: Create Post, then the element
@@ -448,9 +471,6 @@ article { padding: 10px; }
     header.append(create, buttons);
     document.querySelector("main").prepend(header);
   };
-  window.configure = (settings) => window.dispatchEvent(new CustomEvent("frontfilter-test-settings", {
-    detail: JSON.stringify(settings),
-  }));
   window.shown = () => Array.from(document.querySelectorAll("main shreddit-post"))
     .filter((el) => !el.parentElement.closest("shreddit-post")
       && !el.hasAttribute("is-promoted") && el.getClientRects().length
@@ -506,7 +526,7 @@ article { padding: 10px; }
     const visible = (element) => Boolean(element?.getClientRects().length)
       && getComputedStyle(element).display !== "none";
     return Object.fromEntries([
-      ["navbar", document.querySelector("#shreddit-header")],
+      ["navbar", document.querySelector("reddit-header-large")],
       ["menu", document.querySelector("#navbar-menu-button")],
       ["logo", document.querySelector("#reddit-logo")],
       ["search", document.querySelector("#navbar-search")],
