@@ -3,9 +3,12 @@
  * sorting, credentials and personalized feed cursors stay owned by Reddit.
  */
 FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
-  const FEED = "shreddit-feed";
-  const LOADER = 'faceplate-partial[slot="load-after"]';
-  const CARD = 'shreddit-post, shreddit-ad-post, [data-testid="ad-container"]';
+  const SELECTORS = FrontFilter.SELECTORS;
+  const POSTS = FrontFilter.posts;
+  const FEED = SELECTORS.feed.feed;
+  const MAIN_FEED = SELECTORS.feed.mainFeed;
+  const LOADER = SELECTORS.feed.loader;
+  const CARD = SELECTORS.feed.cards;
   const BRIDGE_ATTRIBUTE = "data-frontfilter-feed-bridge";
   const REQUEST_ATTRIBUTE = "data-frontfilter-load-request";
   const ERROR_ATTRIBUTE = "data-frontfilter-load-error";
@@ -13,12 +16,14 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   const REQUEST_EVENT = "frontfilter-feed-load-request";
   const ERROR_EVENT = "frontfilter-feed-load-error";
   const RELEASE_EVENT = "frontfilter-feed-load-release";
+  // Changes to these attributes can alter a card's classification.
   const ATTRIBUTES = [
-    "id", "post-id", "subreddit-name", "subreddit-prefixed-name", "permalink",
-    "data-subreddit", "data-subreddit-prefixed", "is-promoted", "promoted",
-    "data-promoted", "data-shreddit-promoted",
-    "src", "loading", "class", "href", "data-testid", "post-title", "data-title",
-    "post-body", "data-post-body", "recommendation-source",
+    "id", "post-id", "permalink", "src", "loading", "class", "href", "data-testid",
+    ...SELECTORS.post.subredditAttributes,
+    ...SELECTORS.post.promotedAttributes,
+    ...SELECTORS.post.titleAttributes,
+    ...SELECTORS.post.bodyAttributes,
+    SELECTORS.post.recommendationAttribute,
   ];
   const PAUSE_ATTRIBUTE = "data-frontfilter-feed-paused";
   // Reddit loads the next page whenever its loader is within two screens of
@@ -65,50 +70,25 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     return `${url.origin}${url.pathname.replace(/\/$/, "")}?${params}`;
   }
 
-  function flag(post, names) {
-    return names.some((name) => post.hasAttribute(name)
-      && !["false", "0"].includes(post.getAttribute(name).toLowerCase()));
-  }
-
+  // Reads a card as the page filters do (posts.js), plus its identity.
   function readCard(post) {
     const permalink = post.getAttribute("permalink")
-      || post.querySelector('a[href*="/comments/"]')?.getAttribute("href");
+      || post.querySelector(SELECTORS.post.permalink)?.getAttribute("href");
     const url = FrontFilter.getRedditUrl(permalink, window.location.origin);
     const path = url && FrontFilter.getSubredditPath(url.pathname);
     const permalinkId = path?.rest.match(/^comments\/([a-z0-9]+)/i)?.[1];
     const id = [post.getAttribute("id"), post.getAttribute("post-id")]
       .find((value) => /^t3_[a-z0-9]+$/i.test(value || ""))?.toLowerCase()
       || (permalinkId ? `t3_${permalinkId.toLowerCase()}` : "");
-    const subreddit = FrontFilter.normalizeSubredditName(
-      post.getAttribute("subreddit-name") || post.getAttribute("subreddit-prefixed-name")
-      || post.getAttribute("data-subreddit") || post.getAttribute("data-subreddit-prefixed")
-      || path?.name,
-    );
-    const ad = post.matches('shreddit-ad-post, [data-testid="ad-container"]')
-      || flag(post, ["is-promoted", "promoted", "data-promoted", "data-shreddit-promoted"])
-      || !!post.querySelector('shreddit-ad-post, [data-testid="promoted-label"]');
-    const title = post.getAttribute("post-title")?.trim()
-      || post.getAttribute("data-title")?.trim()
-      || post.querySelector(FrontFilter.POST_SELECTORS.title)?.textContent?.trim()
-      || "";
-    const bodyTexts = new Set();
-    for (const attributeName of ["post-body", "data-post-body"]) {
-      const text = post.getAttribute(attributeName)?.trim();
-      if (text) bodyTexts.add(text);
-    }
-    for (const bodyElement of post.querySelectorAll(FrontFilter.POST_SELECTORS.body)) {
-      const nestedPost = bodyElement.closest?.(CARD);
-      if (nestedPost && nestedPost !== post) continue;
-      const text = bodyElement.textContent?.trim();
-      if (text) bodyTexts.add(text);
-    }
-    // An empty value means Reddit did not recommend the post.
-    const recommended = Boolean(post.getAttribute("recommendation-source"));
-    const flair = FrontFilter.normalizeFlairText(
-      post.querySelector("shreddit-post-flair")?.textContent,
-    );
+    const [subreddit = path?.name || ""] = POSTS.subreddits(post);
     return {
-      id, subreddit, title, bodyTexts: Array.from(bodyTexts), ad, recommended, flair,
+      id,
+      subreddit,
+      title: POSTS.title(post),
+      bodyTexts: POSTS.bodyTexts(post),
+      ad: POSTS.isAd(post),
+      recommended: POSTS.isRecommended(post),
+      flair: POSTS.flair(post),
     };
   }
 
@@ -420,7 +400,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
 
   function guardNativeFeed() {
     const feed = FrontFilter.isFeedPath(window.location.pathname)
-      ? document.querySelector(`main ${FEED}`) || document.querySelector(FEED)
+      ? document.querySelector(MAIN_FEED) || document.querySelector(FEED)
       : null;
     if (guard && (guard.feed !== feed || guard.key !== key())) stopGuard();
     if (!feed) return;
@@ -455,7 +435,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       return;
     }
     stopGuard();
-    const feed = document.querySelector(`main ${FEED}`) || document.querySelector(FEED);
+    const feed = document.querySelector(MAIN_FEED) || document.querySelector(FEED);
     const config = getSettings();
     if (session && session.key !== key() && session.feed === feed) {
       // The URL can change before React replaces/repopulates the old feed.

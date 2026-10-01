@@ -22,11 +22,21 @@ test("keeps the source manifest directly loadable by Chrome MV3", () => {
   assert.deepEqual(pageBridge.js, ["content/feed-bridge.js"]);
   assert.equal(existsSync(join(sourceRoot, pageBridge.js[0])), true);
   const isolatedScripts = chromeManifest.content_scripts.find(({ world }) => world !== "MAIN").js;
-  assert.ok(
-    isolatedScripts.indexOf("content/post-elements.js")
-      < isolatedScripts.indexOf("content/feed-limit.js"),
-  );
   assert.ok(isolatedScripts.every((file) => existsSync(join(sourceRoot, file))));
+  // Modules read the shared ones as they load; main.js starts everything.
+  const position = (file) => {
+    const index = isolatedScripts.indexOf(file);
+    assert.notEqual(index, -1, file);
+    return index;
+  };
+  assert.equal(position("shared/core.js"), 0);
+  assert.equal(position("content/main.js"), isolatedScripts.length - 1);
+  for (const file of ["content/posts.js", "content/page-style.js", "content/autoplay.js"]) {
+    assert.ok(position("content/selectors.js") < position(file), file);
+  }
+  for (const file of ["content/feed-window.js", "content/posts.js"]) {
+    assert.ok(position(file) < position("content/feed-limit.js"), file);
+  }
 });
 
 test("builds the Firefox manifest from browser-specific overrides", () => {

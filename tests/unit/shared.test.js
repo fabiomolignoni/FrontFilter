@@ -108,15 +108,13 @@ test("normalizes post keywords and matches literal text case-insensitively", () 
     ]))),
     ["Trump", "climate change"],
   );
-  assert.equal(
-    FrontFilter.textMatchesKeywords("Latest\n  TRUMP headline", ["Trump headline"]),
-    true,
-  );
-  assert.equal(
-    FrontFilter.textMatchesKeywords("Save [50%] today", ["[50%]"]),
-    true,
-  );
-  assert.equal(FrontFilter.textMatchesKeywords("Other news", ["Trump"]), false);
+  const matches = FrontFilter.createKeywordMatcher(["Trump headline", "[50%]", " "]);
+  assert.equal(matches("Latest\n  TRUMP headline"), true);
+  assert.equal(matches("Save [50%] today"), true);
+  assert.equal(matches("Other news"), false);
+  assert.equal(matches(""), false);
+  assert.equal(matches(null), false);
+  assert.equal(FrontFilter.createKeywordMatcher([])("Anything"), false);
 });
 
 test("coerces settings without retaining unknown keys", () => {
