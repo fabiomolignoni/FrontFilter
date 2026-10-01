@@ -210,7 +210,8 @@ FrontFilter.SELECTORS = (() => {
         'faceplate-hovercard[data-id="user-hover-card"] [slot="content"] [avatar]',
       ]),
       hideUsernames: Object.freeze([
-        'shreddit-post [slot="authorName"]',
+        // Feed posts show the author's avatar beside the name, in its slot.
+        'shreddit-post [slot="authorName"] [data-testid="nameplate"]',
         'shreddit-comment [noun="comment_author"]',
         ".entry .tagline .author",
       ]),

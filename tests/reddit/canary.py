@@ -464,15 +464,18 @@ class SubredditTests(RedditTestCase):
 
     def test_usernames_hide_from_posts(self):
         # The post's own author; crossposts also show the original author,
-        # and post text can mention users.
-        authors = """
-            return feedPosts().flatMap((post) => Array.from(post.querySelectorAll('a[href*="/user/"]'))
-              .filter((link) => ["authorName", "credit-bar"].includes(link.closest("shreddit-post > [slot]")?.slot)))
-              .filter(visible).length;
+        # and post text can mention users. Subreddit feeds show the author's
+        # avatar beside the name, which stays.
+        in_author_slots = """
+            return feedPosts().flatMap((post) => Array.from(post.querySelectorAll(
+              `[slot="authorName"] ${arguments[0]}`))).filter(visible).length;
         """
-        self.assertGreater(self.js(authors), 0, "no author links in posts")
+        self.assertGreater(self.js(in_author_slots, '[data-testid="nameplate"]'), 0, "no author names in posts")
+        avatars = self.js(in_author_slots, "[avatar]")
         self.configure(hideUsernames=True)
-        self.expect(authors, 0, "author names stayed visible")
+        self.expect(in_author_slots, 0, "author names stayed visible", '[data-testid="nameplate"]')
+        # The feed may grow meanwhile, never lose avatars.
+        self.assertGreaterEqual(self.js(in_author_slots, "[avatar]"), avatars, "author avatars hid with the names")
 
 
 class CommentsTests(RedditTestCase):
