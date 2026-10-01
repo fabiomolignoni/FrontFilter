@@ -151,9 +151,10 @@ test("loads the saved theme and reacts to color-mode changes", async () => {
   assert.equal(page.themeCache.get("frontfilter-theme"), "system");
 });
 
-test("renders the blocked target and applied filter from the query string", async () => {
+test("renders the blocked subreddit and the applied filter", async () => {
   const { elements } = await loadBlockPage({
-    search: "?subreddit=firefox&filter=fire*",
+    hash: "#https://www.reddit.com/r/other/",
+    search: "?target=subreddit&subreddit=firefox&filter=fire*",
   });
 
   assert.equal(elements["block-message"].textContent, "r/firefox is blocked");
@@ -162,7 +163,7 @@ test("renders the blocked target and applied filter from the query string", asyn
   assert.equal(elements["block-reason"].children[1].textContent, "fire*");
 });
 
-test("renders a DNR-blocked subreddit using the original URL fragment", async () => {
+test("reads the subreddit from the blocked URL when navigation rules redirect", async () => {
   const { elements } = await loadBlockPage({
     hash: "#https://www.reddit.com/r/firefox/comments/abc/title?tl=it",
     search: "?target=subreddit&filter=fire*",
@@ -254,7 +255,8 @@ test("uses standalone settings when the no-history fallback homepage is blocked"
 test("restores the original Reddit URL after a local setting unblocks it", async () => {
   const returnUrl = "https://www.reddit.com/news";
   const page = await loadBlockPage({
-    search: `?page=news&returnUrl=${encodeURIComponent(returnUrl)}`,
+    hash: `#${returnUrl}`,
+    search: "?page=news",
     storedSettings: {},
   });
 
@@ -270,7 +272,8 @@ test("restores the original Reddit URL after a local setting unblocks it", async
 test("does not restore a URL that remains blocked by route settings", async () => {
   const returnUrl = "https://www.reddit.com/r/firefox";
   const routeBlocked = await loadBlockPage({
-    search: `?subreddit=firefox&returnUrl=${encodeURIComponent(returnUrl)}`,
+    hash: `#${returnUrl}`,
+    search: "?target=subreddit",
     storedSettings: {
       blockedSubreddits: [{ name: "firefox", mode: "home" }],
     },
@@ -281,15 +284,17 @@ test("does not restore a URL that remains blocked by route settings", async () =
 });
 
 const returnUrl = "https://www.reddit.com/r/news/";
-const undoSearch = (token) =>
-  `?subreddit=news&returnUrl=${encodeURIComponent(returnUrl)}&filter=news&undo=${token}`;
+const undoPage = (token) => ({
+  hash: `#${returnUrl}`,
+  search: `?target=subreddit&filter=news&undo=${token}`,
+});
 const undoMarker = (overrides = {}) => ({
   quickBlockUndo: { subreddit: "news", token: "abc123", expires: Date.now() + 10000, ...overrides },
 });
 
 test("offers to undo a one-click block once and returns to the subreddit", async () => {
   const page = await loadBlockPage({
-    search: undoSearch("abc123"),
+    ...undoPage("abc123"),
     storedSettings: {
       blockedSubreddits: [{ name: "news", mode: "all" }, { name: "pics", mode: "all" }],
       ...undoMarker(),
@@ -302,9 +307,7 @@ test("offers to undo a one-click block once and returns to the subreddit", async
   // reload or a later visit cannot offer the undo again.
   assert.deepEqual(page.removals, ["quickBlockUndo"]);
   assert.equal("quickBlockUndo" in page.storedSettings, false);
-  assert.deepEqual(page.replacedUrls, [
-    `?subreddit=news&returnUrl=${encodeURIComponent(returnUrl)}&filter=news`,
-  ]);
+  assert.deepEqual(page.replacedUrls, [`?target=subreddit&filter=news#${returnUrl}`]);
 
   await undo.click();
   assert.deepEqual(page.writes, [{ blockedSubreddits: [{ name: "pics", mode: "all" }] }]);
@@ -320,7 +323,7 @@ test("does not offer an undo when the token is wrong, spent, expired or for anot
     ["expired marker", "abc123", undoMarker({ expires: Date.now() - 1 })],
     ["other subreddit", "abc123", undoMarker({ subreddit: "pics" })],
   ]) {
-    const page = await loadBlockPage({ search: undoSearch(token), storedSettings });
+    const page = await loadBlockPage({ ...undoPage(token), storedSettings });
     assert.equal(page.elements["undo-block"].hidden, true, label);
     assert.equal("quickBlockUndo" in page.storedSettings, false, label);
   }
@@ -328,7 +331,8 @@ test("does not offer an undo when the token is wrong, spent, expired or for anot
 
 test("does not offer an undo when visiting an already blocked subreddit", async () => {
   const page = await loadBlockPage({
-    search: `?subreddit=news&returnUrl=${encodeURIComponent(returnUrl)}`,
+    hash: `#${returnUrl}`,
+    search: "?target=subreddit&filter=news",
     storedSettings: undoMarker(),
   });
   assert.equal(page.elements["undo-block"].hidden, true);

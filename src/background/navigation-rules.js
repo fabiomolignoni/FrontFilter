@@ -44,30 +44,18 @@ FrontFilter.createNavigationRules = function (settings, blockPageUrl) {
   }
 
   function addRedirect(regexFilter, route, priority) {
-    const params = new URLSearchParams();
-    if (route.type === "page") params.set("page", route.page);
-    if (route.type === "subreddit") params.set("target", "subreddit");
-    if (route.filter) params.set("filter", route.filter);
-
     return addRule(regexFilter, {
       type: "redirect",
       redirect: {
         // The original request is kept in the fragment. It remains local to
         // the extension page and can contain its own query string safely.
-        regexSubstitution: `${blockPageUrl}?${params.toString()}#\\0`,
+        regexSubstitution: `${blockPageUrl}${FrontFilter.blockPageQuery(route)}#\\0`,
       },
     }, priority);
   }
 
-  const listingSorts = `(${FrontFilter.LISTING_SORTS.join("|")})`;
-  const pageRules = [
-    ["blockHomepage", "homepage", "Homepage", `${reddit}(/${listingSorts})?/?${query}`],
-    ["blockPopular", "popular", "r/popular", `${reddit}/r/popular(/.*)?${query}`],
-    ["blockExplore", "explore", "Explore", `${reddit}/explore(/.*)?${query}`],
-    ["blockNews", "news", "News", `${reddit}/news(/.*)?${query}`],
-  ];
-  for (const [key, page, filter, regexFilter] of pageRules) {
-    if (config[key]) addRedirect(regexFilter, { type: "page", page, filter }, 30);
+  for (const route of FrontFilter.PAGE_ROUTES) {
+    if (config[route.key]) addRedirect(`${reddit}${route.path}${query}`, route, 30);
   }
 
   // Global page blocks outrank exceptions. Exceptions apply only to the global
@@ -85,13 +73,9 @@ FrontFilter.createNavigationRules = function (settings, blockPageUrl) {
     );
   }
 
-  const frontSuffix = `(/${listingSorts}(/.*)?)?/*${query}`;
+  const frontSuffix = `(/(${FrontFilter.LISTING_SORTS.join("|")})(/.*)?)?/*${query}`;
   if (config.blockSubHome) {
-    addRedirect(
-      `${reddit}/r/[a-z0-9_]+${frontSuffix}`,
-      { type: "page", page: "subhome", filter: "All Sub Fronts" },
-      20,
-    );
+    addRedirect(`${reddit}/r/[a-z0-9_]+${frontSuffix}`, FrontFilter.SUBREDDIT_FRONTS_ROUTE, 20);
   }
 
   for (const entry of config.blockedSubreddits) {

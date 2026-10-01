@@ -106,13 +106,14 @@ async function checkCurrentPage({ force = false } = {}) {
   if (route) redirectToBlock(route, currentUrl);
 }
 
+// The same block page URL as navigation rules use, the blocked URL last.
 function redirectToBlock(route, returnUrl) {
   // Only the redirect caused by a one-click block of this subreddit carries
   // its undo token; the block page checks it against storage.
   const undoToken = route.type === "subreddit" ? quickBlock.takeUndo(route.subreddit) : "";
   window.location.replace(
-    chrome.runtime.getURL("blocked/index.html") + FrontFilter.blockedRouteToQuery(route, returnUrl)
-    + (undoToken ? `&undo=${encodeURIComponent(undoToken)}` : "")
+    chrome.runtime.getURL("blocked/index.html") + FrontFilter.blockPageQuery(route)
+    + (undoToken ? `&undo=${encodeURIComponent(undoToken)}` : "") + `#${returnUrl}`
   );
 }
 
