@@ -92,6 +92,17 @@ Reddit, which now requires an account, need checking by hand. Keep it light:
 it should load a handful of pages, and run on demand only when needed.
 Never commit snapshots.
 
+## Releasing
+
+1. Set the new version in `src/manifest.json` and `package.json`, and
+   describe user-facing changes in `CHANGELOG.md`.
+2. On `main`, once CI passes, tag the release (`git tag v<version>`) and run
+   `SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) npm run build`, which writes
+   both packages to `dist/`.
+3. Upload `dist/frontfilter-firefox-<version>.xpi` to Firefox Add-ons and
+   `dist/frontfilter-chrome-<version>.zip` to the Chrome Web Store, with the
+   changelog entry as release notes.
+
 ## Pull requests
 
 Describe the problem and how you solved it, link related issues, and point
