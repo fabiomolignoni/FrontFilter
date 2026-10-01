@@ -1,4 +1,4 @@
-"""Build deterministic Firefox and Chrome release archives."""
+"""Build deterministic Firefox, Chrome and Edge release archives."""
 from copy import deepcopy
 from datetime import datetime, timezone
 import json
@@ -11,6 +11,7 @@ SOURCE = ROOT / "src"
 DIST = ROOT / "dist"
 CHROME_MANIFEST = json.loads((SOURCE / "manifest.json").read_text())
 FIREFOX_OVERRIDES = json.loads((ROOT / "manifests/firefox.json").read_text())
+EDGE_OVERRIDES = json.loads((ROOT / "manifests/edge.json").read_text())
 VERSION = CHROME_MANIFEST["version"]
 
 
@@ -24,11 +25,14 @@ def source_files():
 
 
 def browser_manifest(browser):
-    """The source manifest, with Firefox's overrides for Firefox."""
+    """The source manifest, with the browser's overrides for Firefox and Edge."""
     manifest = deepcopy(CHROME_MANIFEST)
     if browser == "firefox":
         manifest.pop("minimum_chrome_version")
         manifest.update(deepcopy(FIREFOX_OVERRIDES))
+    elif browser == "edge":
+        # Edge versions follow Chromium's, so minimum_chrome_version applies.
+        manifest.update(deepcopy(EDGE_OVERRIDES))
     elif browser != "chrome":
         raise ValueError(f"Unsupported browser: {browser}")
     return manifest
@@ -57,6 +61,7 @@ def main():
     DIST.mkdir(exist_ok=True)
     build(f"frontfilter-firefox-{VERSION}.xpi", "firefox")
     build(f"frontfilter-chrome-{VERSION}.zip", "chrome")
+    build(f"frontfilter-edge-{VERSION}.zip", "edge")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,13 @@
 
 Notable changes to FrontFilter, newest first.
 
+## 2.3.0 - 2026-10-01
+
+### Added
+
+- FrontFilter is available for Microsoft Edge 121 or later, from Microsoft
+  Edge Add-ons.
+
 ## 2.2.0 - 2026-10-01
 
 ### Added

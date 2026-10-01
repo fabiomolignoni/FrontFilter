@@ -1,4 +1,4 @@
-"""Extension behavior on the fixture pages, shared by the Firefox and Chrome runs.
+"""Extension behavior on the fixture pages, shared by the Firefox, Chrome and Edge runs.
 
 Each test starts from default settings on a freshly loaded fixture page, so
 tests can run alone and in any order.
