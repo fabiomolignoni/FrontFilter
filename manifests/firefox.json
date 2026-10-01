@@ -1,4 +1,5 @@
 {
+  "name": "FrontFilter",
   "background": {
     "scripts": [
       "shared/core.js",
