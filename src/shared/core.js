@@ -260,12 +260,15 @@ var FrontFilter = (() => {
     return getWildcardPattern(pattern).test(flair);
   }
 
-  function textMatchesKeywords(text, keywords = []) {
-    if (typeof text !== "string" || !text) return false;
-    const normalizedText = text.trim().replace(/\s+/g, " ").toLowerCase();
-    return normalizeTitleKeywords(keywords).some((keyword) =>
-      normalizedText.includes(keyword.toLowerCase())
-    );
+  // Filters test many texts against the same keywords: normalize them once.
+  function createKeywordMatcher(keywords = []) {
+    const normalizedKeywords = normalizeTitleKeywords(keywords)
+      .map((keyword) => keyword.toLowerCase());
+    return (text) => {
+      if (typeof text !== "string" || !text || normalizedKeywords.length === 0) return false;
+      const normalizedText = text.trim().replace(/\s+/g, " ").toLowerCase();
+      return normalizedKeywords.some((keyword) => normalizedText.includes(keyword));
+    };
   }
 
   function isValidSettingValue(key, value) {
@@ -534,7 +537,7 @@ var FrontFilter = (() => {
     normalizeFlairText,
     matchesFlairPattern,
     normalizeTheme,
-    textMatchesKeywords,
+    createKeywordMatcher,
     blockedRouteToQuery,
     isFeedPath,
     isHomeFeedPath,

@@ -44,7 +44,10 @@
       ],
       "js": [
         "shared/core.js",
-        "content/post-elements.js",
+        "content/selectors.js",
+        "content/posts.js",
+        "content/page-style.js",
+        "content/autoplay.js",
         "content/feed-window.js",
         "content/feed-limit.js",
         "content/quick-block.js",

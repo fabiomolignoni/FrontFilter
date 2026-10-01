@@ -5,11 +5,9 @@
  * written to storage; the usual listeners apply them.
  */
 FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
+  const { feed: FEED } = FrontFilter.SELECTORS;
   const BUTTON_CLASS = "frontfilter-block-subreddit";
   const HEADER_BUTTON_CLASS = "frontfilter-block-subreddit--header";
-  // Join, notifications and the overflow menu; it names the subreddit and
-  // follows Create Post. The navbar's own Create button has no such sibling.
-  const HEADER_BUTTONS = "shreddit-subreddit-header-buttons[name]";
   const TOAST_CLASS = "frontfilter-block-toast";
   const TOAST_DURATION = 6000;
   // Blocking the subreddit on screen sends the page straight to the block
@@ -22,9 +20,8 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
   let toastTimer = null;
 
   function getPostSubreddit(post) {
-    return FrontFilter.normalizeSubredditName(
-      post.getAttribute("subreddit-name") || post.getAttribute("subreddit-prefixed-name"),
-    );
+    const [name = ""] = FrontFilter.posts.subreddits(post);
+    return name;
   }
 
   // A subreddit's own feed only holds its posts, profile posts have no
@@ -54,8 +51,8 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
     const enabled = getSettings().showBlockSubredditButton;
     if (!enabled && !buttonsShown) return;
     const pageSubreddit = FrontFilter.getSubredditPath(window.location.pathname)?.name || "";
-    for (const post of document.querySelectorAll("shreddit-feed shreddit-post")) {
-      const creditBar = post.querySelector(':scope > [slot="credit-bar"]');
+    for (const post of document.querySelectorAll(FEED.posts)) {
+      const creditBar = post.querySelector(FEED.creditBar);
       const existing = creditBar?.querySelector(`.${BUTTON_CLASS}`);
       const name = getPostSubreddit(post);
       if (!enabled || !creditBar || !isBlockable(name, pageSubreddit)) {
@@ -74,7 +71,7 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
   }
 
   function updateHeaders(enabled) {
-    for (const headerButtons of document.querySelectorAll(HEADER_BUTTONS)) {
+    for (const headerButtons of document.querySelectorAll(FEED.subredditHeaderButtons)) {
       const name = FrontFilter.normalizeSubredditName(headerButtons.getAttribute("name"));
       const previous = headerButtons.previousElementSibling;
       const existing = previous?.classList.contains(BUTTON_CLASS) ? previous : null;

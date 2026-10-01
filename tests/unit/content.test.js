@@ -99,7 +99,8 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
   `, context);
 
   for (const file of [
-    "shared/core.js", "content/post-elements.js", "content/quick-block.js", "content/main.js",
+    "shared/core.js", "content/selectors.js", "content/posts.js", "content/page-style.js",
+    "content/autoplay.js", "content/quick-block.js", "content/main.js",
   ]) {
     const source = readFileSync(join(__dirname, "..", "..", "src", file), "utf8");
     vm.runInContext(source, context, { filename: file });

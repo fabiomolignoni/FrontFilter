@@ -596,6 +596,21 @@ class PageTests:
         self.wait_until(lambda: self.js(f"return !{pause_controls}"))
         self.js("disableNativeLoading()")
 
+    def test_scroll_limit_reads_posts_like_the_page_filters(self):
+        # A crosspost embeds the original post, whose flair and text are not
+        # the crosspost's own: they match filters for that post only.
+        self.configure(
+            limitInfiniteScroll=True, scrollLimit=3, scrollMode="fixed",
+            blockedFlairs=["meme"], blockedTitleKeywords=["embedded"],
+        )
+        self.js(
+            "resetFeed([post('a'), post('b'), post('c'), post('d')]);"
+            " appendRows(document.querySelector('#t3_a'),"
+            " [post('nested', 'safe', {flair: 'MEME', body: 'Embedded text'})])"
+        )
+        self.expect("abc")
+        self.assertFalse(self.js("return document.querySelector('#t3_nested').getClientRects().length > 0"))
+
     def test_flair_filters_in_feeds_and_the_scroll_limit(self):
         # Flair-filtered posts take their wrapper and divider and never count
         # toward the scroll limit.

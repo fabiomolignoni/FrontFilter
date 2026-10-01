@@ -84,7 +84,8 @@ To fix a failure:
    slots and test IDs. Text and user details are redacted.
 2. Update `tests/fixtures/` to the new markup, so that the browser tests fail
    the way the canary did.
-3. Fix the extension until both pass.
+3. Fix the extension until both pass. Reddit's markup is described in one
+   place, `src/content/selectors.js`, so most fixes are made there.
 
 The canary cannot sign in, so features shown only to signed-in users and Old
 Reddit, which now requires an account, need checking by hand. Keep it light:

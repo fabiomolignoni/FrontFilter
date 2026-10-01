@@ -191,7 +191,7 @@ for (const script of scripts) {
 
 for (const file of [
   "shared/core.js",
-  "content/post-elements.js",
+  "content/posts.js",
   "content/main.js",
   "content/feed-limit.js",
   "content/quick-block.js",
