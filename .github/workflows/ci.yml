@@ -36,6 +36,12 @@ jobs:
       - name: Validate and package extensions
         run: npm run build
 
+      # The checks Firefox Add-ons runs when a version is uploaded.
+      - name: Lint the Firefox package
+        run: |
+          unzip -q dist/frontfilter-firefox-*.xpi -d "$RUNNER_TEMP/firefox"
+          npx --yes web-ext@10.7.0 lint --source-dir "$RUNNER_TEMP/firefox"
+
       - name: Check whitespace
         run: git diff --check
 
