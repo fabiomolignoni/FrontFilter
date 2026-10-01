@@ -97,7 +97,7 @@ own terms:
   block page. Nothing is sent there unless you open a link.
 
 FrontFilter is an independent project, not affiliated with Reddit, Google,
-Microsoft, Mozilla, or GitHub.
+Mozilla, or GitHub.
 
 ## Permissions
 

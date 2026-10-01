@@ -68,7 +68,7 @@ FrontFilter has no runtime or npm dependencies. Development requires Node.js
 ```bash
 npm test        # unit tests
 npm run check   # validate sources and manifests
-npm run build   # write Chrome, Edge, and Firefox packages to dist/
+npm run build   # write Chrome and Firefox packages to dist/
 ```
 
 `SOURCE_DATE_EPOCH` sets the archive timestamps for reproducible builds.
@@ -77,30 +77,25 @@ To try a local copy:
 
 - **Chrome:** open `chrome://extensions`, turn on **Developer mode**, choose
   **Load unpacked**, and select the `src/` folder.
-- **Edge:** open `edge://extensions`, turn on **Developer mode**, choose
-  **Load unpacked**, and select the `src/` folder.
 - **Firefox:** run `npm run build`, open
   `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**,
   and select `dist/frontfilter-firefox-<version>.xpi`.
 
-Browser tests load the extension in Firefox, Chrome, and Edge with Selenium
-and check what it hides on local copies of Reddit's markup. They never visit
+Browser tests load the extension in Firefox and Chrome with Selenium and
+check what it hides on local copies of Reddit's markup. They never visit
 Reddit, and CI runs them on every push. To run them, install Selenium with
 `pip install -r tests/browser/requirements.txt`:
 
 ```bash
 python3 tests/browser/firefox.py [--firefox /path/to/firefox]
 python3 tests/browser/chrome.py --chrome /path/to/chrome [--driver /path/to/chromedriver]
-python3 tests/browser/edge.py [--edge /path/to/msedge] [--driver /path/to/msedgedriver]
 ```
 
 Chrome 137 and later ignore the `--load-extension` switch these tests rely
 on, so run the Chrome suite with Chromium or Chrome for Testing, which
 `npx @puppeteer/browsers install chrome@stable` downloads (and
-`chromedriver@stable` its driver). Edge ignores that switch too, so the Edge
-suite installs the extension over WebDriver BiDi and runs in Microsoft Edge
-itself, with a matching msedgedriver. Every suite accepts unittest options,
-such as `-k navbar` to run only matching tests.
+`chromedriver@stable` its driver). Both suites accept unittest options, such
+as `-k navbar` to run only matching tests.
 
 A weekly canary, `tests/reddit/canary.py`, checks the extension on
 reddit.com itself to catch changes in Reddit's markup; see
