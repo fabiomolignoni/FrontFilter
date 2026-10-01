@@ -620,14 +620,25 @@ class PageTests:
         self.js("resetFilterComments()")
         self.wait_until(lambda: self.js("return visibleComments()") == [
             "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
-            "comment-deleted",
+            "comment-mention", "comment-deleted",
         ])
         self.configure(blockedTitleKeywords=[])
         self.wait_until(lambda: self.js("return visibleComments()") == [
             "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
-            "comment-politics", "comment-politics-reply", "comment-deleted",
+            "comment-mention", "comment-politics", "comment-politics-reply", "comment-deleted",
             "comment-deleted-reply",
         ])
+
+    def test_comments_linking_to_a_blocked_subreddit_stay_visible(self):
+        # Comments are not posts: an ALL rule hides a subreddit's posts, not
+        # the comments that mention it.
+        self.js("resetFeed([post('a'), post('b', 'blocked')]); resetFilterComments()")
+        self.configure(blockedSubreddits=[{"name": "blocked", "mode": "all"}])
+        self.expect("a")
+        self.pause(300)
+        self.assertTrue(self.js(
+            "return document.querySelector('#comment-mention [slot=\"comment\"]').getClientRects().length > 0"
+        ))
 
     # One-click Block buttons
 

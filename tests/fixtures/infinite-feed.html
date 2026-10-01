@@ -386,7 +386,9 @@ article { padding: 10px; }
   // the body and #comment-children, whose replies each take a slot named
   // after their parent. Older markup made them direct slot children, with
   // the replies in one "children" slot. Deleted comments have no body.
-  const createComment = (id, { author = "alice", depth = 0, text = "", replies = [], legacy = false } = {}) => {
+  const createComment = (id, {
+    author = "alice", depth = 0, text = "", link = null, replies = [], legacy = false,
+  } = {}) => {
     const comment = document.createElement("shreddit-comment");
     comment.id = id;
     comment.setAttribute("thingid", `t1_${id}`);
@@ -399,6 +401,13 @@ article { padding: 10px; }
     body.slot = "comment";
     body.innerHTML = "<p></p>";
     body.firstChild.textContent = text;
+    // Comment text links to subreddits with absolute URLs.
+    if (link) {
+      const anchor = document.createElement("a");
+      anchor.href = `https://www.reddit.com/r/${link}/`;
+      anchor.textContent = `r/${link}`;
+      body.firstChild.append(" ", anchor);
+    }
     const children = document.createElement("div");
     if (legacy) {
       children.slot = "children";
@@ -413,6 +422,7 @@ article { padding: 10px; }
       children.append(reply);
     });
     const details = document.createElement("details");
+    details.setAttribute("role", "article");
     details.open = true;
     const summary = document.createElement("summary");
     summary.append(meta);
@@ -441,6 +451,7 @@ article { padding: 10px; }
       createComment("comment-spam", { author: "Spammer", text: "Buy now", legacy: true, replies: [
         createComment("comment-spam-reply", { depth: 1, text: "No thanks", legacy: true }),
       ] }),
+      createComment("comment-mention", { author: "frank", text: "Ask in", link: "blocked" }),
       createComment("comment-politics", { author: "carol", text: "Did you see the TRUMP rally?", replies: [
         createComment("comment-politics-reply", { author: "dave", depth: 1, text: "Yes" }),
       ] }),

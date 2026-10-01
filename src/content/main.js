@@ -97,6 +97,10 @@ const COMMENT_LAYOUT_SELECTOR = [
 // comment: exclude them in the selector engine instead of parsing each URL.
 const POST_LINK_OUTSIDE_COMMENTS_SELECTOR =
   `${POST_PERMALINK_SELECTOR}:not(:is(${COMMENT_LAYOUT_SELECTOR}) *)`;
+// Comments share some post markers, such as role="article" on their
+// <details> and Old Reddit's .thing; comment filters handle them instead.
+const POST_CANDIDATE_SELECTOR = `:is(${POST_SELECTOR})`
+  + `:not(:is(${COMMENT_LAYOUT_SELECTOR}), :is(${COMMENT_LAYOUT_SELECTOR}) *)`;
 const COMMENT_ACTION_SELECTOR = [
   '[data-action-bar-action="comments"]',
   '[data-post-click-location="comments-button"]',
@@ -618,7 +622,7 @@ function getLinkedPostContainer(link) {
 function collectPostCandidates() {
   const candidates = new Map();
 
-  document.querySelectorAll(POST_SELECTOR).forEach((post) => {
+  document.querySelectorAll(POST_CANDIDATE_SELECTOR).forEach((post) => {
     candidates.set(post, getPostSubredditNames(post));
   });
 
