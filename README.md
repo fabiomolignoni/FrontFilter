@@ -10,7 +10,8 @@ subreddits, filter posts and comments, and limit endless scrolling.
 - [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/frontfilter/)
   (Firefox 140 or later, Firefox for Android 142 or later)
 
-To install from source, see [Development](#development).
+To install from source, see [Development](#development). The
+[changelog](CHANGELOG.md) lists what changed in each version.
 
 ## Features
 
