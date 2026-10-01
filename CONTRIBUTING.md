@@ -15,8 +15,10 @@ and search it first. For a bug, include:
 Issues are public: remove usernames, cookies, tokens, private filter lists,
 and exported configurations from reports and screenshots.
 
-To report a security problem, do not describe it in a public issue. Open an
-issue asking for a private contact instead, without details.
+To report a security problem, do not open a public issue. Use GitHub's
+[private vulnerability reporting](https://github.com/fabiomolignoni/FrontFilter/security/advisories/new)
+instead (**Security** tab, **Report a vulnerability**): only you and the
+project's maintainers can see the report.
 
 ## Proposing changes
 
