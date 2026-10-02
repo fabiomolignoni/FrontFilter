@@ -59,6 +59,8 @@
   --header-shadow: 0 2px 12px rgba(31, 35, 40, 0.24);
 }
 
+/* The light palette again, for the system mode. light-dark() would avoid
+   the copy, but needs Chrome 123 and FrontFilter supports Chrome 121. */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]),
   :root[data-theme="system"] {

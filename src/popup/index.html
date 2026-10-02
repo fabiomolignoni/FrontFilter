@@ -11,9 +11,8 @@
   </head>
   <body>
     <div class="container">
-
       <header class="header">
-        <img src="../icons/icon-48.png" alt="FrontFilter" />
+        <img src="../icons/icon-48.png" alt="" />
         <div class="header-text">
           <h1>FrontFilter</h1>
           <p>Settings</p>
@@ -25,207 +24,240 @@
 
       <div class="tabs" role="tablist" aria-label="Settings sections">
         <button type="button" class="tab" id="tab-controls" role="tab"
-          aria-selected="true" aria-controls="panel-controls"
-          tabindex="0">Controls</button>
+          aria-selected="true" aria-controls="panel-controls" tabindex="0">Controls</button>
         <button type="button" class="tab" id="tab-filters" role="tab"
-          aria-selected="false" aria-controls="panel-filters"
-          tabindex="-1">Filters</button>
+          aria-selected="false" aria-controls="panel-filters" tabindex="-1">Filters</button>
         <button type="button" class="tab" id="tab-settings" role="tab"
-          aria-selected="false" aria-controls="panel-settings"
-          tabindex="-1">Settings</button>
+          aria-selected="false" aria-controls="panel-settings" tabindex="-1">Settings</button>
       </div>
 
+      <!-- Each switch's name is the setting it stores. -->
       <main class="content">
         <section class="tab-panel" id="panel-controls" role="tabpanel"
           aria-labelledby="tab-controls" tabindex="0">
-
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Block pages</h2>
             </div>
-            <div class="card-body">
-              <div class="check-grid">
-                <label class="checkbox-label"><input type="checkbox"
-                    role="switch"
-                    id="block-homepage" /><span>Homepage</span></label>
-                <label class="checkbox-label"><input type="checkbox"
-                    role="switch"
-                    id="block-popular" /><span>Popular</span></label>
-                <label class="checkbox-label"><input type="checkbox"
-                    role="switch"
-                    id="block-explore" /><span>Explore</span></label>
-                <label class="checkbox-label"><input type="checkbox"
-                    role="switch"
-                    id="block-news" /><span>News</span></label>
-                <label class="checkbox-label"><input type="checkbox"
-                    role="switch" id="block-sub-home" /><span>All subreddit
-                    front pages<small>Includes hot, new, top and rising
-                      views.</small></span></label>
-              </div>
+            <div class="card-body check-grid">
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="block-homepage" name="blockHomepage" />
+                <span>Homepage</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="block-popular" name="blockPopular" />
+                <span>Popular</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="block-explore" name="blockExplore" />
+                <span>Explore</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="block-news" name="blockNews" />
+                <span>News</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="block-sub-home" name="blockSubHome" />
+                <span>All subreddit front pages
+                  <small>Includes hot, new, top and rising views.</small></span>
+              </label>
             </div>
           </div>
 
           <div class="card">
-            <div class="card-header"><h2 class="card-title">Content</h2></div>
+            <div class="card-header">
+              <h2 class="card-title">Content</h2>
+            </div>
             <div class="card-body check-grid">
-              <div class="setting-group" role="group"
-                aria-label="Comment visibility">
+              <div class="setting-group" role="group" aria-label="Comment visibility">
                 <div class="checkbox-label group-header">
                   <button type="button" class="group-toggle" id="comments-toggle"
-                    aria-expanded="false" aria-controls="comments-options"><svg
-                      viewBox="0 0 12 12" aria-hidden="true"><path
-                        d="M4.5 3 7.5 6 4.5 9" /></svg><span
-                        id="comments-title">Hide comments</span></button>
-                  <input type="checkbox" id="hide-comments"
+                    aria-expanded="false" aria-controls="comments-options">
+                    <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
+                    <span id="comments-title">Hide comments</span>
+                  </button>
+                  <input type="checkbox" id="hide-comments" name="hideComments"
                     aria-labelledby="comments-title" />
                 </div>
                 <div class="sub-options" id="comments-options" hidden>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-comment-replies" /><span>Hide comment
-                      replies</span></label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-comment-replies"
+                      name="hideCommentReplies" />
+                    <span>Hide comment replies</span>
+                  </label>
                 </div>
               </div>
-              <label class="checkbox-label"><input type="checkbox" role="switch"
-                  id="disable-autoplay" /><span>Disable video autoplay</span></label>
-              <label class="checkbox-label"><input type="checkbox" role="switch"
-                  id="hide-suggested-communities" /><span>Hide suggested
-                  communities</span></label>
-              <label class="checkbox-label"><input type="checkbox" role="switch"
-                  id="hide-suggested-posts" /><span>Hide suggested posts<small>Home
-                    feed posts from communities you have not joined.</small></span></label>
-              <label class="checkbox-label"><input type="checkbox" role="switch"
-                  id="hide-ads" /><span>Hide ads and promoted posts</span></label>
-              <div class="setting-group" role="group"
-                aria-label="Votes and user info visibility">
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="disable-autoplay" name="disableAutoplay" />
+                <span>Disable video autoplay</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="hide-suggested-communities"
+                  name="hideSuggestedCommunities" />
+                <span>Hide suggested communities</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="hide-suggested-posts"
+                  name="hideSuggestedPosts" />
+                <span>Hide suggested posts
+                  <small>Home feed posts from communities you have not joined.</small></span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="hide-ads" name="hideAds" />
+                <span>Hide ads and promoted posts</span>
+              </label>
+              <div class="setting-group" role="group" aria-label="Votes and user info visibility">
                 <div class="checkbox-label group-header">
                   <button type="button" class="group-toggle" id="social-toggle"
-                    aria-expanded="false" aria-controls="social-options"><svg
-                      viewBox="0 0 12 12" aria-hidden="true"><path
-                        d="M4.5 3 7.5 6 4.5 9" /></svg><span
-                        id="social-title">Hide votes and user info</span></button>
-                  <input type="checkbox" id="hide-social-signals"
+                    aria-expanded="false" aria-controls="social-options">
+                    <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
+                    <span id="social-title">Hide votes and user info</span>
+                  </button>
+                  <input type="checkbox" id="hide-social-signals" name="hideSocialSignals"
                     aria-labelledby="social-title" />
                 </div>
                 <div class="sub-options" id="social-options" hidden>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-votes" /><span>Hide votes</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-karma" /><span>Hide karma</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-awards" /><span>Hide awards</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-avatars" /><span>Hide avatars</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-usernames" /><span>Hide usernames</span></label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-votes" name="hideVotes" />
+                    <span>Hide votes</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-karma" name="hideKarma" />
+                    <span>Hide karma</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-awards" name="hideAwards" />
+                    <span>Hide awards</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-avatars" name="hideAvatars" />
+                    <span>Hide avatars</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-usernames" name="hideUsernames" />
+                    <span>Hide usernames</span>
+                  </label>
                 </div>
               </div>
             </div>
           </div>
 
           <div class="card">
-            <div class="card-header"><h2 class="card-title">Interface</h2></div>
+            <div class="card-header">
+              <h2 class="card-title">Interface</h2>
+            </div>
             <div class="card-body check-grid">
-              <div class="setting-group" role="group"
-                aria-label="Navbar visibility">
+              <div class="setting-group" role="group" aria-label="Navbar visibility">
                 <div class="checkbox-label group-header">
                   <button type="button" class="group-toggle" id="navbar-toggle"
-                    aria-expanded="false" aria-controls="navbar-options"><svg
-                      viewBox="0 0 12 12" aria-hidden="true"><path
-                        d="M4.5 3 7.5 6 4.5 9" /></svg><span
-                        id="navbar-title">Hide navbar</span></button>
-                  <input type="checkbox" id="hide-navbar"
+                    aria-expanded="false" aria-controls="navbar-options">
+                    <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
+                    <span id="navbar-title">Hide navbar</span>
+                  </button>
+                  <input type="checkbox" id="hide-navbar" name="hideNavbar"
                     aria-labelledby="navbar-title" />
                 </div>
                 <div class="sub-options" id="navbar-options" hidden>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-navbar-menu" /><span>Hide menu button</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-navbar-search" /><span>Hide Search</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-navbar-chat" /><span>Hide Chat</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-navbar-notifications" /><span>Hide
-                      Notifications</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-navbar-profile" /><span>Hide Profile menu</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-navbar-others" /><span>Hide Others</span></label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-navbar-menu" name="hideNavbarMenu" />
+                    <span>Hide menu button</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-navbar-search"
+                      name="hideNavbarSearch" />
+                    <span>Hide Search</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-navbar-chat" name="hideNavbarChat" />
+                    <span>Hide Chat</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-navbar-notifications"
+                      name="hideNavbarNotifications" />
+                    <span>Hide Notifications</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-navbar-profile"
+                      name="hideNavbarProfile" />
+                    <span>Hide Profile menu</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-navbar-others"
+                      name="hideNavbarOthers" />
+                    <span>Hide Others</span>
+                  </label>
                 </div>
               </div>
-              <div class="setting-group" role="group"
-                aria-label="Left sidebar visibility">
+              <div class="setting-group" role="group" aria-label="Left sidebar visibility">
                 <div class="checkbox-label group-header">
                   <button type="button" class="group-toggle" id="left-sidebar-toggle"
-                    aria-expanded="false" aria-controls="left-sidebar-options"><svg
-                      viewBox="0 0 12 12" aria-hidden="true"><path
-                        d="M4.5 3 7.5 6 4.5 9" /></svg><span
-                        id="left-sidebar-title">Hide left sidebar</span></button>
-                  <input type="checkbox" id="hide-left-sidebar"
+                    aria-expanded="false" aria-controls="left-sidebar-options">
+                    <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
+                    <span id="left-sidebar-title">Hide left sidebar</span>
+                  </button>
+                  <input type="checkbox" id="hide-left-sidebar" name="hideLeftSidebar"
                     aria-labelledby="left-sidebar-title" />
                 </div>
                 <div class="sub-options" id="left-sidebar-options" hidden>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-left-sidebar-games" /><span>Hide Games</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-left-sidebar-custom-feeds" /><span>Hide Custom
-                      feeds</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-left-sidebar-recent" /><span>Hide Recent</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-left-sidebar-communities" /><span>Hide
-                      Communities</span></label>
-                  <label class="checkbox-label sub-option"><input
-                      type="checkbox" role="switch"
-                      id="hide-left-sidebar-resources" /><span>Hide
-                      Resources</span></label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-left-sidebar-games"
+                      name="hideLeftSidebarGames" />
+                    <span>Hide Games</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-left-sidebar-custom-feeds"
+                      name="hideLeftSidebarCustomFeeds" />
+                    <span>Hide Custom feeds</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-left-sidebar-recent"
+                      name="hideLeftSidebarRecent" />
+                    <span>Hide Recent</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-left-sidebar-communities"
+                      name="hideLeftSidebarCommunities" />
+                    <span>Hide Communities</span>
+                  </label>
+                  <label class="checkbox-label sub-option">
+                    <input type="checkbox" role="switch" id="hide-left-sidebar-resources"
+                      name="hideLeftSidebarResources" />
+                    <span>Hide Resources</span>
+                  </label>
                 </div>
               </div>
-              <label class="checkbox-label"><input type="checkbox" role="switch"
-                  id="hide-right-sidebar" /><span>Hide right
-                  sidebar</span></label>
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="hide-right-sidebar" name="hideRelatedPosts" />
+                <span>Hide right sidebar</span>
+              </label>
             </div>
           </div>
 
           <div class="card">
             <div class="card-header scroll-header">
               <h2 class="card-title">Scroll limit</h2>
-              <label class="checkbox-label"><input type="checkbox" role="switch"
-                  id="limit-infinite-scroll"
-                  aria-label="Limit infinite scroll" /></label>
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="limit-infinite-scroll"
+                  name="limitInfiniteScroll" aria-label="Limit infinite scroll" />
+              </label>
             </div>
-            <div class="card-body">
-              <div class="scroll-options">
-                <label for="scroll-mode">Mode<select id="scroll-mode">
-                    <option value="fixed">Stop at the limit</option>
-                    <option value="button">Show next</option>
-                  </select></label>
-                <label for="scroll-limit">Posts per batch<input type="number"
-                    id="scroll-limit" min="1" step="1" value="25" /></label>
-              </div>
+            <div class="card-body scroll-options">
+              <label for="scroll-mode">Mode
+                <select id="scroll-mode">
+                  <option value="fixed">Stop at the limit</option>
+                  <option value="button">Show next</option>
+                </select>
+              </label>
+              <label for="scroll-limit">Posts per batch
+                <input type="number" id="scroll-limit" min="1" step="1" value="25" />
+              </label>
             </div>
           </div>
-
         </section>
 
         <section class="tab-panel" id="panel-filters" role="tabpanel"
           aria-labelledby="tab-filters" tabindex="0" hidden>
-          <div class="card community-list">
+          <div class="card">
             <div class="card-header">
               <h2 class="card-title">Blocked subreddits</h2>
               <span id="blocked-count" class="count"></span>
@@ -233,96 +265,89 @@
             <div class="card-body">
               <details class="mode-help">
                 <summary>Block modes</summary>
-                <p><strong>HOME</strong> blocks only the subreddit front page
-                  and sort views, such as hot, top, new, and rising.</p>
-                <p><strong>ALL</strong> blocks every page under that subreddit
-                  and hides its posts from Home and Popular.</p>
-                <p>Each subreddit has one rule: adding it again keeps ALL if
-                  either rule had it.</p>
-                <p>You can use <strong>*</strong> as a wildcard to filter
-                  multiple subreddits, for example
-                  <strong>*news*</strong> (filters subreddits containing
-                  "news"), <strong>news*</strong> (filters subreddits starting
-                  with "news"), or
-                  <strong>*news</strong> (filters subreddits ending with
-                  "news").</p>
+                <p><strong>HOME</strong> blocks only the subreddit front page and sort views,
+                  such as hot, top, new, and rising.</p>
+                <p><strong>ALL</strong> blocks every page under that subreddit and hides its
+                  posts from Home and Popular.</p>
+                <p>Each subreddit has one rule: adding it again keeps ALL if either rule had
+                  it.</p>
+                <p>You can use <strong>*</strong> as a wildcard to filter multiple subreddits,
+                  for example <strong>*news*</strong> (filters subreddits containing "news"),
+                  <strong>news*</strong> (filters subreddits starting with "news"), or
+                  <strong>*news</strong> (filters subreddits ending with "news").</p>
               </details>
               <div class="add-row">
-                <button id="add-subreddit" class="btn btn-primary">+
-                  Add</button>
-                <button id="add-current-subreddit" class="btn btn-ghost">+ Add
-                  Current</button>
+                <button type="button" id="add-subreddit" class="btn btn-primary">+ Add</button>
+                <button type="button" id="add-current-subreddit"
+                  class="btn btn-ghost">+ Add current</button>
               </div>
-              <div id="blocked-list"></div>
+              <div id="blocked-list" class="entry-list"></div>
             </div>
           </div>
 
-          <div class="card allowed-list">
+          <div class="card">
             <div class="card-header">
               <h2 class="card-title">Allowed subreddits</h2>
               <span id="allowed-count" class="count"></span>
             </div>
             <div class="card-body">
-              <p class="filter-help">These exact subreddits override “All
-                subreddit front pages” and blocked subreddit rules. Wildcards
-                are not supported.</p>
+              <p class="filter-help">These exact subreddits override “All subreddit front
+                pages” and blocked subreddit rules. Wildcards are not supported.</p>
               <div class="add-row">
-                <button id="add-allowed-subreddit" class="btn btn-primary">+
-                  Add</button>
-                <button id="add-current-allowed-subreddit"
-                  class="btn btn-ghost">+ Add Current</button>
+                <button type="button" id="add-allowed-subreddit"
+                  class="btn btn-primary">+ Add</button>
+                <button type="button" id="add-current-allowed-subreddit"
+                  class="btn btn-ghost">+ Add current</button>
               </div>
-              <div id="allowed-list"></div>
+              <div id="allowed-list" class="entry-list"></div>
             </div>
           </div>
 
-          <div class="card keyword-list">
+          <div class="card">
             <div class="card-header">
               <h2 class="card-title">Keywords</h2>
               <span id="title-keyword-count" class="count"></span>
             </div>
             <div class="card-body">
-              <p class="filter-help">Hide posts and comments when their title,
-                text preview or comment text contains one of these keywords.
-                Matching is case-insensitive. Replies to a hidden comment are
-                hidden too.</p>
+              <p class="filter-help">Hide posts and comments when their title, text preview
+                or comment text contains one of these keywords. Matching is
+                case-insensitive. Replies to a hidden comment are hidden too.</p>
               <div class="add-row">
-                <button id="add-title-keyword" class="btn btn-primary">+ Add
-                  keyword</button>
+                <button type="button" id="add-title-keyword"
+                  class="btn btn-primary">+ Add keyword</button>
               </div>
-              <div id="title-keyword-list"></div>
+              <div id="title-keyword-list" class="entry-list"></div>
             </div>
           </div>
 
-          <div class="card flair-list">
+          <div class="card">
             <div class="card-header">
               <h2 class="card-title">Post flairs</h2>
               <span id="blocked-flair-count" class="count"></span>
             </div>
             <div class="card-body">
               <p class="filter-help">Hide posts with these flairs, such as
-                <strong>Meme</strong>. Matching ignores case; use
-                <strong>*</strong> as a wildcard, as in
-                <strong>*politic*</strong>.</p>
+                <strong>Meme</strong>. Matching ignores case; use <strong>*</strong> as a
+                wildcard, as in <strong>*politic*</strong>.</p>
               <div class="add-row">
-                <button id="add-blocked-flair" class="btn btn-primary">+ Add
-                  flair</button>
+                <button type="button" id="add-blocked-flair"
+                  class="btn btn-primary">+ Add flair</button>
               </div>
-              <div id="blocked-flair-list"></div>
+              <div id="blocked-flair-list" class="entry-list"></div>
             </div>
           </div>
-
         </section>
 
         <section class="tab-panel" id="panel-settings" role="tabpanel"
           aria-labelledby="tab-settings" tabindex="0" hidden>
           <div class="card">
-            <div class="card-header"><h2 class="card-title">Appearance</h2></div>
+            <div class="card-header">
+              <h2 class="card-title">Appearance</h2>
+            </div>
             <div class="card-body preference-row">
               <div class="preference-copy">
                 <label for="color-theme">Color mode</label>
-                <p id="color-theme-help">System follows your browser or device
-                  appearance.</p>
+                <p id="color-theme-help">System follows your browser or device appearance.</p>
               </div>
               <select id="color-theme" class="settings-select"
                 aria-describedby="color-theme-help">
@@ -332,40 +357,44 @@
               </select>
             </div>
           </div>
+
           <div class="card">
-            <div class="card-header"><h2 class="card-title">Feed tools</h2></div>
+            <div class="card-header">
+              <h2 class="card-title">Feed tools</h2>
+            </div>
             <div class="card-body check-grid">
-              <label class="checkbox-label"><input type="checkbox" role="switch"
-                  id="show-block-subreddit-button" /><span>Show a Block button on
-                  posts<small>Adds a button next to each post's subreddit in
-                    Home, Popular and other mixed feeds, and beside Create Post
-                    on subreddit pages. It blocks the subreddit in ALL mode,
-                    hiding its posts everywhere, with an option to
-                    undo.</small></span></label>
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="show-block-subreddit-button"
+                  name="showBlockSubredditButton" />
+                <span>Show a Block button on posts
+                  <small>Adds a button next to each post's subreddit in Home, Popular and
+                    other mixed feeds, and beside Create Post on subreddit pages. It blocks
+                    the subreddit in ALL mode, hiding its posts everywhere, with an option
+                    to undo.</small></span>
+              </label>
             </div>
           </div>
+
           <div class="card">
-            <div class="card-header"><h2 class="card-title">Configuration
-                backup</h2></div>
+            <div class="card-header">
+              <h2 class="card-title">Configuration backup</h2>
+            </div>
             <div class="card-body backup-actions">
               <div>
-                <button id="export-config" class="btn btn-primary">Export
-                  configuration</button>
-                <p>Download your controls and filter rules as a JSON
-                  file.</p>
+                <button type="button" id="export-config"
+                  class="btn btn-primary">Export configuration</button>
+                <p>Download your controls and filter rules as a JSON file.</p>
               </div>
               <div>
-                <button id="import-config" class="btn btn-ghost"
+                <button type="button" id="import-config" class="btn btn-ghost"
                   aria-describedby="import-help">Import configuration</button>
-                <p id="import-help">Settings included in the file replace their
-                  current values.</p>
+                <p id="import-help">Settings included in the file replace their current
+                  values.</p>
               </div>
-              <input type="file" id="import-file"
-                accept=".json,application/json" hidden />
+              <input type="file" id="import-file" accept=".json,application/json" hidden />
             </div>
           </div>
         </section>
-
       </main>
 
       <footer>

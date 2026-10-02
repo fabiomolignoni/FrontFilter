@@ -1,10 +1,11 @@
 /**
- * FrontFilter - Popup Script
- * Handles settings, import/export, and auto-save.
+ * FrontFilter's settings page, shown as the toolbar popup and in a tab of
+ * its own. Every change is saved as it is made.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
   const pageParams = new URLSearchParams(globalThis.location?.search);
+  // In a tab of its own, Add current adds the subreddit this page was opened for.
   const standaloneCurrentSubreddit = FrontFilter.normalizeAllowedSubreddits([
     pageParams.get("currentSubreddit"),
   ])[0] || "";
@@ -21,8 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const selected = tab === selectedTab;
       tab.setAttribute("aria-selected", String(selected));
       tab.tabIndex = selected ? 0 : -1;
-      document.getElementById(tab.getAttribute("aria-controls")).hidden =
-        !selected;
+      document.getElementById(tab.getAttribute("aria-controls")).hidden = !selected;
     }
   }
   for (const [index, tab] of tabs.entries()) {
@@ -30,8 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
     tab.addEventListener("keydown", (event) => {
       let nextIndex;
       if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
-      else if (event.key === "ArrowLeft")
-        nextIndex = (index + tabs.length - 1) % tabs.length;
+      else if (event.key === "ArrowLeft") nextIndex = (index + tabs.length - 1) % tabs.length;
       else if (event.key === "Home") nextIndex = 0;
       else if (event.key === "End") nextIndex = tabs.length - 1;
       else return;
@@ -41,65 +40,26 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const blockedListEl = document.getElementById("blocked-list");
-  const blockedCount = document.getElementById("blocked-count");
-  const addBtn = document.getElementById("add-subreddit");
-  const addCurrent = document.getElementById("add-current-subreddit");
-  const addCurrentAllowed = document.getElementById(
-    "add-current-allowed-subreddit",
-  );
+  const content = document.querySelector("main");
   const saveIndicator = document.getElementById("save-indicator");
   const toast = document.getElementById("toast");
-  const exportBtn = document.getElementById("export-config");
-  const importBtn = document.getElementById("import-config");
   const importFile = document.getElementById("import-file");
   const scrollLimit = document.getElementById("scroll-limit");
   const scrollMode = document.getElementById("scroll-mode");
   const colorTheme = document.getElementById("color-theme");
 
-  const checkboxIds = {
-    blockHomepage: "block-homepage",
-    blockPopular: "block-popular",
-    blockExplore: "block-explore",
-    blockNews: "block-news",
-    blockSubHome: "block-sub-home",
-    hideComments: "hide-comments",
-    hideCommentReplies: "hide-comment-replies",
-    disableAutoplay: "disable-autoplay",
-    hideSuggestedCommunities: "hide-suggested-communities",
-    hideSuggestedPosts: "hide-suggested-posts",
-    hideAds: "hide-ads",
-    hideSocialSignals: "hide-social-signals",
-    hideVotes: "hide-votes",
-    hideKarma: "hide-karma",
-    hideAwards: "hide-awards",
-    hideAvatars: "hide-avatars",
-    hideUsernames: "hide-usernames",
-    hideNavbar: "hide-navbar",
-    hideNavbarMenu: "hide-navbar-menu",
-    hideNavbarSearch: "hide-navbar-search",
-    hideNavbarChat: "hide-navbar-chat",
-    hideNavbarNotifications: "hide-navbar-notifications",
-    hideNavbarProfile: "hide-navbar-profile",
-    hideNavbarOthers: "hide-navbar-others",
-    hideLeftSidebar: "hide-left-sidebar",
-    hideLeftSidebarGames: "hide-left-sidebar-games",
-    hideLeftSidebarCustomFeeds: "hide-left-sidebar-custom-feeds",
-    hideLeftSidebarRecent: "hide-left-sidebar-recent",
-    hideLeftSidebarCommunities: "hide-left-sidebar-communities",
-    hideLeftSidebarResources: "hide-left-sidebar-resources",
-    hideRelatedPosts: "hide-right-sidebar",
-    showBlockSubredditButton: "show-block-subreddit-button",
-    limitInfiniteScroll: "limit-infinite-scroll",
-  };
-  const checkboxes = Object.fromEntries(
-    Object.entries(checkboxIds).map(([key, id]) => [
-      key,
-      document.getElementById(id),
-    ]),
-  );
+  // Each switch's name is the setting it stores.
+  const switches = Object.fromEntries(Array.from(
+    document.querySelectorAll('input[type="checkbox"][name]'),
+    (input) => [input.name, input],
+  ));
+  // A parent switch checks and locks its sections, and turns them off with
+  // it. While it is off with some sections on, it shows a mixed state.
+  const switchGroups = Object.entries(FrontFilter.SETTING_GROUPS).map(([parent, sections]) => ({
+    parent: switches[parent],
+    sections: sections.map((section) => switches[section]),
+  }));
 
-  let blockedEntries = [];
   let toastTimer = null;
   let indicatorTimer = null;
   let debounceTimer = null;
@@ -108,22 +68,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let latestSaveId = 0;
   let controlsDisabled = false;
   let lastScrollLimit = FrontFilter.DEFAULT_SETTINGS.scrollLimit;
-  // A parent switch checks and locks its sections, and turns them off with
-  // it. While it is off with some sections on, it shows a mixed state.
-  const settingGroups = [
-    { id: "comments", parentKey: "hideComments" },
-    { id: "navbar", parentKey: "hideNavbar" },
-    { id: "left-sidebar", parentKey: "hideLeftSidebar" },
-    { id: "social", parentKey: "hideSocialSignals" },
-  ].map((group) => ({
-    ...group,
-    childKeys: FrontFilter.SETTING_GROUPS[group.parentKey],
-    toggle: document.getElementById(`${group.id}-toggle`),
-    options: document.getElementById(`${group.id}-options`),
-  }));
 
-  // Sub-options start collapsed; the mixed state keeps hidden choices visible.
-  for (const { toggle, options } of settingGroups) {
+  // Sections start collapsed; a mixed parent switch tells what they hide.
+  for (const toggle of document.querySelectorAll(".group-toggle")) {
+    const options = document.getElementById(toggle.getAttribute("aria-controls"));
     toggle.addEventListener("click", () => {
       const expanded = toggle.getAttribute("aria-expanded") !== "true";
       toggle.setAttribute("aria-expanded", String(expanded));
@@ -133,54 +81,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setControlsDisabled(disabled) {
     controlsDisabled = disabled;
-    for (const control of [
-      ...Object.values(checkboxes),
-      addBtn,
-      addCurrent,
-      addCurrentAllowed,
-      ...Object.values(textLists).map((list) => list.addButton),
-      exportBtn,
-      importBtn,
-      importFile,
-      scrollLimit,
-      scrollMode,
-      colorTheme,
-    ]) {
+    for (const control of content.querySelectorAll("input, select, button")) {
       control.disabled = disabled;
-    }
-
-    blockedListEl
-      .querySelectorAll("input, select, button")
-      .forEach((control) => {
-        control.disabled = disabled;
-      });
-    for (const list of Object.values(textLists)) {
-      list.listEl
-        .querySelectorAll("input, button")
-        .forEach((control) => {
-          control.disabled = disabled;
-        });
     }
     updateScrollControls();
     updateGroupControls();
   }
 
   function updateScrollControls() {
-    const disabled =
-      controlsDisabled || !checkboxes.limitInfiniteScroll.checked;
+    const disabled = controlsDisabled || !switches.limitInfiniteScroll.checked;
     scrollLimit.disabled = disabled;
     scrollMode.disabled = disabled;
   }
 
   function updateGroupControls() {
-    for (const { parentKey, childKeys } of settingGroups) {
-      const parent = checkboxes[parentKey];
-      for (const key of childKeys) {
-        if (parent.checked) checkboxes[key].checked = true;
-        checkboxes[key].disabled = controlsDisabled || parent.checked;
+    for (const { parent, sections } of switchGroups) {
+      for (const section of sections) {
+        if (parent.checked) section.checked = true;
+        section.disabled = controlsDisabled || parent.checked;
       }
-      parent.indeterminate = !parent.checked
-        && childKeys.some((key) => checkboxes[key].checked);
+      parent.indeterminate = !parent.checked && sections.some((section) => section.checked);
     }
   }
 
@@ -195,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function showSaving() {
     clearTimeout(indicatorTimer);
-    saveIndicator.textContent = "Saving...";
+    saveIndicator.textContent = "Saving…";
     saveIndicator.classList.add("visible");
   }
 
@@ -204,10 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     clearTimeout(indicatorTimer);
     saveIndicator.textContent = "Saved";
-    indicatorTimer = setTimeout(
-      () => saveIndicator.classList.remove("visible"),
-      1200,
-    );
+    indicatorTimer = setTimeout(() => saveIndicator.classList.remove("visible"), 1200);
   }
 
   function showSaveFailed(saveId) {
@@ -218,39 +135,28 @@ document.addEventListener("DOMContentLoaded", () => {
     saveIndicator.classList.add("visible");
   }
 
-  function getCheckboxSettings() {
-    return Object.fromEntries(
-      Object.entries(checkboxes).map(([key, checkbox]) => [
-        key,
-        checkbox.checked,
-      ]),
-    );
-  }
-
   function getSettingsSnapshot() {
     return {
-      ...getCheckboxSettings(),
-      blockedSubreddits: FrontFilter.normalizeBlockedSubreddits(blockedEntries),
       ...Object.fromEntries(
-        Object.values(textLists).map((list) => [list.key, list.values()]),
+        Object.entries(switches).map(([key, input]) => [key, input.checked]),
       ),
+      ...Object.fromEntries(entryLists.map((list) => [list.key, list.values()])),
       scrollLimit: lastScrollLimit,
-      scrollMode: scrollMode.value === "button" ? "button" : "fixed",
-      theme: FrontFilter.normalizeTheme(colorTheme.value),
+      scrollMode: scrollMode.value,
+      theme: colorTheme.value,
     };
   }
 
+  // Saves only the given settings, so this page cannot overwrite changes
+  // made elsewhere, such as in another settings page, with stale values.
   function queueSave(keys) {
     const saveId = ++latestSaveId;
     const snapshot = getSettingsSnapshot();
-    const settings = Object.fromEntries(
-      Array.from(keys, (key) => [key, snapshot[key]]),
-    );
-    updateBlockedCount();
-    for (const list of Object.values(textLists)) list.updateCount();
+    const settings = Object.fromEntries(Array.from(keys, (key) => [key, snapshot[key]]));
+    for (const list of entryLists) list.updateCount();
     showSaving();
 
-    enqueueStorageWrite(settings);
+    enqueueStorageOperation(() => chrome.storage.local.set(settings));
     saveQueue.then(
       () => showSaved(saveId),
       (error) => {
@@ -261,10 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return saveQueue;
   }
 
-  function enqueueStorageWrite(settings) {
-    return enqueueStorageOperation(() => chrome.storage.local.set(settings));
-  }
-
+  // Writes run one at a time, so an older write cannot finish last.
   function enqueueStorageOperation(operation) {
     saveQueue = saveQueue.catch(() => undefined).then(operation);
     return saveQueue;
@@ -278,6 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return queueSave(keys);
   }
 
+  // Typing saves once it pauses; other changes save at once.
   function scheduleAutoSave(keys, immediate = false) {
     for (const key of keys) pendingSaveKeys.add(key);
     clearTimeout(debounceTimer);
@@ -295,277 +199,208 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function flushPendingSave() {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-      debounceTimer = null;
-    }
-    queuePendingSave();
-
-    await saveQueue;
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+    await queuePendingSave();
   }
 
-  function sortDraftEntries(draftEntries, key, options) {
-    draftEntries.sort((a, b) => {
-      if (!a[key] && !b[key]) return 0;
-      if (!a[key]) return -1;
-      if (!b[key]) return 1;
-      return a[key].localeCompare(b[key], undefined, options);
-    });
-  }
-
-  function appendEmptyState(container, message) {
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    const icon = document.createElement("span");
-    icon.textContent = "-";
-    empty.appendChild(icon);
-    empty.appendChild(document.createTextNode(message));
-    container.appendChild(empty);
-  }
-
-  function createRemoveButton(ariaLabel) {
-    const button = document.createElement("button");
-    button.className = "remove-btn";
-    button.title = "Remove";
-    button.setAttribute("aria-label", ariaLabel);
-    button.textContent = "x";
-    button.disabled = controlsDisabled;
-    return button;
-  }
-
-  function focusListInput(container, itemSelector, normalizedValue, animate) {
-    const items = container.querySelectorAll(itemSelector);
-    const target = normalizedValue
-      ? Array.from(items).find(
-          (item) => item.querySelector("input").value === normalizedValue,
-        )
-      : items[0];
-
-    if (!target) return;
-    if (animate) target.classList.add("pop-in");
-    target.querySelector("input").focus();
-  }
-
-  function setCount(element, count, singular, plural) {
-    element.textContent = `${count} ${count === 1 ? singular : plural}`;
-  }
-
-  function updateBlockedCount() {
-    const count = FrontFilter.normalizeBlockedSubreddits(blockedEntries).length;
-    setCount(blockedCount, count, "rule", "rules");
-  }
-
-  function renderList() {
-    blockedListEl.innerHTML = "";
-    updateBlockedCount();
-
-    if (blockedEntries.length === 0) {
-      appendEmptyState(blockedListEl, "No subreddits blocked yet");
-      return;
-    }
-
-    sortDraftEntries(blockedEntries, "name");
-    blockedEntries.forEach((entry) => {
-      const item = document.createElement("div");
-      item.className = "blocked-item";
-
-      const input = document.createElement("input");
-      input.type = "text";
-      input.value = entry.name;
-      input.placeholder = "Subreddit, wildcard, or Reddit URL";
-      input.setAttribute("aria-label", "Subreddit, wildcard, or Reddit URL");
-      input.spellcheck = false;
-      input.disabled = controlsDisabled;
-
-      const select = document.createElement("select");
-      select.className = "mode-badge";
-      select.setAttribute("aria-label", "Block mode");
-      select.disabled = controlsDisabled;
-      for (const mode of ["home", "all"]) {
-        const option = document.createElement("option");
-        option.value = mode;
-        option.textContent = mode.toUpperCase();
-        option.selected = entry.mode === mode;
-        select.appendChild(option);
-      }
-
-      const removeBtn = createRemoveButton("Remove subreddit rule");
-
-      input.addEventListener("input", (event) => {
-        entry.name = event.target.value;
-        scheduleAutoSave(["blockedSubreddits"]);
-      });
-      input.addEventListener("blur", (event) => {
-        const normalizedName = FrontFilter.normalizeSubredditName(
-          event.target.value,
-        );
-        entry.name = normalizedName;
-        event.target.value = normalizedName;
-        if (mergeDuplicateEntries()) {
-          renderList();
-          focusEntry(normalizedName, true);
-        }
-        scheduleAutoSave(["blockedSubreddits"], true);
-      });
-      select.addEventListener("change", (event) => {
-        entry.mode = event.target.value === "all" ? "all" : "home";
-        scheduleAutoSave(["blockedSubreddits"], true);
-      });
-      removeBtn.addEventListener("click", () => {
-        const entryIndex = blockedEntries.indexOf(entry);
-        if (entryIndex < 0) return;
-        blockedEntries.splice(entryIndex, 1);
-        renderList();
-        scheduleAutoSave(["blockedSubreddits"], true);
-      });
-
-      item.appendChild(input);
-      item.appendChild(select);
-      item.appendChild(removeBtn);
-      blockedListEl.appendChild(item);
-    });
-  }
-
-  function focusEntry(name, animate) {
-    const normalizedName = FrontFilter.normalizeSubredditName(name);
-    focusListInput(blockedListEl, ".blocked-item", normalizedName, animate);
-  }
-
-  // One rule per subreddit, as storage keeps them: a repeated name merges
-  // into its first row, which becomes ALL if either row was.
-  function mergeDuplicateEntries() {
-    const byName = new Map();
-    const merged = blockedEntries.filter((entry) => {
-      const first = entry.name && byName.get(entry.name);
-      if (!first) {
-        if (entry.name) byName.set(entry.name, entry);
-        return true;
-      }
-      if (entry.mode === "all") first.mode = "all";
-      return false;
-    });
-    const changed = merged.length !== blockedEntries.length;
-    blockedEntries = merged;
-    return changed;
-  }
-
-  function addEntry(name = "", mode = "all", animate = true) {
-    const normalizedName = FrontFilter.normalizeSubredditName(name);
-    blockedEntries.unshift({
-      name: normalizedName,
-      mode: mode === "all" ? "all" : "home",
-    });
-    mergeDuplicateEntries();
-    renderList();
-    focusEntry(normalizedName, animate);
-
-    if (normalizedName) scheduleAutoSave(["blockedSubreddits"], true);
-  }
-
-  // Plain text filter lists share one editor: drafts keep what the user
-  // typed until the field loses focus, and saves store the normalized list.
-  function createTextList({
-    key, listId, countId, addId, itemClass, normalizeList, placeholder, label,
-    removeLabel, emptyMessage, invalidMessage, countNouns, sortOptions,
+  // An editable list of filter rules. Each row is a draft that keeps what
+  // the user types until the field loses focus; it is then normalized and
+  // merged into an earlier row for the same rule. Saves store the
+  // normalized list. With modes, each rule is blocked in HOME or ALL mode.
+  function createEntryList({
+    key, listId, countId, addId, itemClass, normalizeList, modes = false,
+    placeholder, label, removeLabel, emptyMessage, invalidMessage, countNouns,
   }) {
     const listEl = document.getElementById(listId);
     const countEl = document.getElementById(countId);
-    const addButton = document.getElementById(addId);
     let entries = [];
-    const normalize = (value) => normalizeList([value])[0] || "";
-    const values = () => normalizeList(entries.map((entry) => entry.value));
-    const updateCount = () => setCount(countEl, values().length, ...countNouns);
 
-    function render() {
-      listEl.innerHTML = "";
-      updateCount();
+    function normalize(value) {
+      const [normalized] = normalizeList([value]);
+      return (modes ? normalized?.name : normalized) ?? "";
+    }
 
-      if (entries.length === 0) {
-        appendEmptyState(listEl, emptyMessage);
-        return;
+    function values() {
+      return normalizeList(entries.map(({ value, mode }) => (modes ? { name: value, mode } : value)));
+    }
+
+    function updateCount() {
+      const count = values().length;
+      countEl.textContent = `${count} ${count === 1 ? countNouns[0] : countNouns[1]}`;
+    }
+
+    function save(immediate = true) {
+      scheduleAutoSave([key], immediate);
+    }
+
+    // Rules compare case-insensitively; a merged row is in ALL mode if
+    // either row was. Returns whether a row was merged.
+    function mergeDuplicates() {
+      const byRule = new Map();
+      const merged = entries.filter((entry) => {
+        const rule = entry.value.toLowerCase();
+        const first = rule && byRule.get(rule);
+        if (!first) {
+          if (rule) byRule.set(rule, entry);
+          return true;
+        }
+        if (entry.mode === "all") first.mode = "all";
+        return false;
+      });
+      const changed = merged.length !== entries.length;
+      entries = merged;
+      return changed;
+    }
+
+    function focus(value, animate) {
+      const items = Array.from(listEl.querySelectorAll(`.${itemClass}`));
+      const item = value
+        ? items.find((element) => element.querySelector("input").value === value)
+        : items[0];
+      if (!item) return;
+      if (animate) item.classList.add("pop-in");
+      item.querySelector("input").focus();
+    }
+
+    function createRow(entry) {
+      const item = document.createElement("div");
+      item.className = `entry ${itemClass}`;
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = entry.value;
+      input.placeholder = placeholder;
+      input.setAttribute("aria-label", label);
+      input.spellcheck = false;
+      input.disabled = controlsDisabled;
+      input.addEventListener("input", () => {
+        entry.value = input.value;
+        save(false);
+      });
+      input.addEventListener("blur", () => {
+        const normalized = normalize(input.value);
+        if (invalidMessage && input.value.trim() && !normalized) {
+          showToast(invalidMessage, "error");
+        }
+        entry.value = normalized;
+        input.value = normalized;
+        if (mergeDuplicates()) {
+          render();
+          focus(normalized, true);
+        }
+        save();
+      });
+      item.append(input);
+
+      if (modes) {
+        const select = document.createElement("select");
+        select.className = "mode-badge";
+        select.setAttribute("aria-label", "Block mode");
+        select.disabled = controlsDisabled;
+        for (const mode of ["home", "all"]) {
+          const option = document.createElement("option");
+          option.value = mode;
+          option.textContent = mode.toUpperCase();
+          option.selected = entry.mode === mode;
+          select.append(option);
+        }
+        select.addEventListener("change", () => {
+          entry.mode = select.value === "all" ? "all" : "home";
+          save();
+        });
+        item.append(select);
       }
 
-      sortDraftEntries(entries, "value", sortOptions);
-      entries.forEach((entry) => {
-        const item = document.createElement("div");
-        item.className = itemClass;
-
-        const input = document.createElement("input");
-        input.type = "text";
-        input.value = entry.value;
-        input.placeholder = placeholder;
-        input.setAttribute("aria-label", label);
-        input.spellcheck = false;
-        input.disabled = controlsDisabled;
-
-        const removeBtn = createRemoveButton(removeLabel);
-
-        input.addEventListener("input", (event) => {
-          entry.value = event.target.value;
-          scheduleAutoSave([key]);
-        });
-        input.addEventListener("blur", (event) => {
-          const normalized = normalize(event.target.value);
-          if (invalidMessage && event.target.value.trim() && !normalized) {
-            showToast(invalidMessage, "error");
-          }
-          entry.value = normalized;
-          event.target.value = normalized;
-          scheduleAutoSave([key], true);
-        });
-        removeBtn.addEventListener("click", () => {
-          const entryIndex = entries.indexOf(entry);
-          if (entryIndex < 0) return;
-          entries.splice(entryIndex, 1);
-          render();
-          scheduleAutoSave([key], true);
-        });
-
-        item.appendChild(input);
-        item.appendChild(removeBtn);
-        listEl.appendChild(item);
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "remove-btn";
+      removeButton.title = "Remove";
+      removeButton.setAttribute("aria-label", removeLabel);
+      removeButton.textContent = "×";
+      removeButton.disabled = controlsDisabled;
+      removeButton.addEventListener("click", () => {
+        entries = entries.filter((other) => other !== entry);
+        render();
+        save();
       });
+      item.append(removeButton);
+      return item;
     }
 
-    function add(value = "", animate = true) {
+    // New drafts come first, then rules in alphabetical order.
+    function render() {
+      updateCount();
+      if (entries.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "empty-state";
+        empty.textContent = emptyMessage;
+        listEl.replaceChildren(empty);
+        return;
+      }
+      entries.sort((a, b) => {
+        if (!a.value || !b.value) return Number(Boolean(a.value)) - Number(Boolean(b.value));
+        return a.value.localeCompare(b.value, undefined, { sensitivity: "base" });
+      });
+      listEl.replaceChildren(...entries.map(createRow));
+    }
+
+    // One-click additions use ALL mode, as the Block buttons on Reddit do.
+    function add(value = "") {
       const normalized = normalize(value);
-      entries.unshift({ value: normalized });
+      entries.unshift({ value: normalized, mode: "all" });
+      mergeDuplicates();
       render();
-      focusListInput(listEl, `.${itemClass}`, normalized, animate);
-      if (normalized) scheduleAutoSave([key], true);
+      focus(normalized, true);
+      if (normalized) save();
     }
 
-    addButton.addEventListener("click", () => add());
+    document.getElementById(addId).addEventListener("click", () => add());
     return {
       key,
-      listEl,
-      addButton,
       add,
       values,
       updateCount,
       load(list) {
-        entries = list.map((value) => ({ value }));
+        entries = list.map((rule) => (modes ? { value: rule.name, mode: rule.mode } : { value: rule }));
         render();
       },
     };
   }
 
-  const textLists = Object.fromEntries([
-    {
-      key: "allowedSubreddits",
-      listId: "allowed-list",
-      countId: "allowed-count",
-      addId: "add-allowed-subreddit",
-      itemClass: "allowed-item",
-      normalizeList: FrontFilter.normalizeAllowedSubreddits,
-      placeholder: "Exact subreddit or Reddit URL",
-      label: "Allowed subreddit or Reddit URL",
-      removeLabel: "Remove subreddit exception",
-      emptyMessage: "No subreddit exceptions yet",
-      invalidMessage: "Whitelist entries must be exact subreddit names",
-      countNouns: ["exception", "exceptions"],
-    },
-    {
+  const blockedList = createEntryList({
+    key: "blockedSubreddits",
+    listId: "blocked-list",
+    countId: "blocked-count",
+    addId: "add-subreddit",
+    itemClass: "blocked-item",
+    normalizeList: FrontFilter.normalizeBlockedSubreddits,
+    modes: true,
+    placeholder: "Subreddit, wildcard, or Reddit URL",
+    label: "Subreddit, wildcard, or Reddit URL",
+    removeLabel: "Remove subreddit rule",
+    emptyMessage: "No subreddits blocked yet",
+    invalidMessage: "Enter a subreddit name, a pattern with *, or a Reddit URL",
+    countNouns: ["rule", "rules"],
+  });
+  const allowedList = createEntryList({
+    key: "allowedSubreddits",
+    listId: "allowed-list",
+    countId: "allowed-count",
+    addId: "add-allowed-subreddit",
+    itemClass: "allowed-item",
+    normalizeList: FrontFilter.normalizeAllowedSubreddits,
+    placeholder: "Exact subreddit or Reddit URL",
+    label: "Allowed subreddit or Reddit URL",
+    removeLabel: "Remove subreddit exception",
+    emptyMessage: "No subreddit exceptions yet",
+    invalidMessage: "Allowed subreddits must be exact names, without *",
+    countNouns: ["exception", "exceptions"],
+  });
+  const entryLists = [
+    blockedList,
+    allowedList,
+    createEntryList({
       key: "blockedTitleKeywords",
       listId: "title-keyword-list",
       countId: "title-keyword-count",
@@ -577,9 +412,8 @@ document.addEventListener("DOMContentLoaded", () => {
       removeLabel: "Remove keyword",
       emptyMessage: "No keywords filtered yet",
       countNouns: ["keyword", "keywords"],
-      sortOptions: { sensitivity: "base" },
-    },
-    {
+    }),
+    createEntryList({
       key: "blockedFlairs",
       listId: "blocked-flair-list",
       countId: "blocked-flair-count",
@@ -590,26 +424,22 @@ document.addEventListener("DOMContentLoaded", () => {
       label: "Post flair",
       removeLabel: "Remove flair",
       emptyMessage: "No flairs filtered yet",
+      invalidMessage: "Flairs can be at most 100 characters long",
       countNouns: ["flair", "flairs"],
-      sortOptions: { sensitivity: "base" },
-    },
-  ].map((options) => [options.key, createTextList(options)]));
+    }),
+  ];
 
   async function loadSettings() {
-    const result = FrontFilter.coerceSettings(
+    const settings = FrontFilter.coerceSettings(
       await chrome.storage.local.get(FrontFilter.STORAGE_KEYS),
     );
 
-    blockedEntries = result.blockedSubreddits;
-    scrollLimit.value = String(result.scrollLimit);
-    lastScrollLimit = result.scrollLimit;
-    scrollMode.value = result.scrollMode;
-    colorTheme.value = FrontFilter.applyTheme(result.theme);
-    Object.entries(checkboxes).forEach(([key, checkbox]) => {
-      checkbox.checked = result[key];
-    });
-    renderList();
-    for (const list of Object.values(textLists)) list.load(result[list.key]);
+    for (const [key, input] of Object.entries(switches)) input.checked = settings[key];
+    for (const list of entryLists) list.load(settings[list.key]);
+    scrollLimit.value = String(settings.scrollLimit);
+    lastScrollLimit = settings.scrollLimit;
+    scrollMode.value = settings.scrollMode;
+    colorTheme.value = applyTheme(settings.theme);
   }
 
   async function exportConfig() {
@@ -618,9 +448,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = FrontFilter.coerceSettings(
         await chrome.storage.local.get(FrontFilter.STORAGE_KEYS),
       );
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -633,6 +461,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Settings in the file replace their current values; others stay.
   async function importConfig(file) {
     setControlsDisabled(true);
     try {
@@ -642,18 +471,15 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const filtered = Object.fromEntries(
-        Object.entries(data).filter(([key]) =>
-          FrontFilter.STORAGE_KEYS.includes(key),
-        ),
+      const imported = Object.fromEntries(
+        Object.entries(data).filter(([key]) => FrontFilter.STORAGE_KEYS.includes(key)),
       );
-
-      if (Object.keys(filtered).length === 0) {
+      if (Object.keys(imported).length === 0) {
         showToast("Invalid config: no recognized keys", "error");
         return;
       }
 
-      const invalidKeys = FrontFilter.getInvalidSettingKeys(filtered);
+      const invalidKeys = FrontFilter.getInvalidSettingKeys(imported);
       if (invalidKeys.length > 0) {
         showToast(`Invalid config values: ${invalidKeys.join(", ")}`, "error");
         return;
@@ -662,9 +488,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await flushPendingSave();
       await enqueueStorageOperation(async () => {
         const current = await chrome.storage.local.get(FrontFilter.STORAGE_KEYS);
-        await chrome.storage.local.set(
-          FrontFilter.coerceSettings({ ...current, ...filtered }),
-        );
+        await chrome.storage.local.set(FrontFilter.coerceSettings({ ...current, ...imported }));
       });
       await loadSettings();
       showToast("Configuration imported!", "success");
@@ -675,16 +499,35 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  Object.entries(checkboxes).forEach(([key, checkbox]) => {
-    checkbox.addEventListener("change", () => {
+  async function addCurrentSubreddit(list) {
+    try {
+      if (standaloneCurrentSubreddit) {
+        list.add(standaloneCurrentSubreddit);
+        return;
+      }
+
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.url) return;
+
+      const url = FrontFilter.getRedditUrl(tab.url);
+      const subreddit = url && FrontFilter.getSubredditPath(url.pathname);
+      if (subreddit) list.add(subreddit.name);
+      else showToast("No subreddit found on current tab", "error");
+    } catch {
+      showToast("Could not access current tab", "error");
+    }
+  }
+
+  for (const [key, input] of Object.entries(switches)) {
+    input.addEventListener("change", () => {
       // Sections are saved with their parent, as storage implies them.
       const sections = FrontFilter.SETTING_GROUPS[key] || [];
-      for (const section of sections) checkboxes[section].checked = checkbox.checked;
+      for (const section of sections) switches[section].checked = input.checked;
       updateScrollControls();
       updateGroupControls();
       scheduleAutoSave([key, ...sections], true);
     });
-  });
+  }
 
   scrollLimit.addEventListener("change", () => {
     const value = Number(scrollLimit.value);
@@ -698,45 +541,19 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   scrollMode.addEventListener("change", () => scheduleAutoSave(["scrollMode"], true));
   colorTheme.addEventListener("change", () => {
-    colorTheme.value = FrontFilter.applyTheme(colorTheme.value);
+    colorTheme.value = applyTheme(colorTheme.value);
     scheduleAutoSave(["theme"], true);
   });
 
-  addBtn.addEventListener("click", () => addEntry());
-
-  async function addCurrentSubreddit(addEntryCallback) {
-    try {
-      if (standaloneCurrentSubreddit) {
-        addEntryCallback(standaloneCurrentSubreddit);
-        return;
-      }
-
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (!tab?.url) return;
-
-      const url = FrontFilter.getRedditUrl(tab.url);
-      const subreddit = url && FrontFilter.getSubredditPath(url.pathname);
-      subreddit
-        ? addEntryCallback(subreddit.name)
-        : showToast("No subreddit found on current tab", "error");
-    } catch {
-      showToast("Could not access current tab", "error");
-    }
-  }
-
-  addCurrent.addEventListener("click", () => addCurrentSubreddit(addEntry));
-  addCurrentAllowed.addEventListener("click", () =>
-    addCurrentSubreddit((name) => textLists.allowedSubreddits.add(name))
-  );
-
-  exportBtn.addEventListener("click", exportConfig);
-  importBtn.addEventListener("click", () => importFile.click());
-  importFile.addEventListener("change", (event) => {
-    const [file] = event.target.files;
-    if (file) importConfig(file);
+  document.getElementById("add-current-subreddit")
+    .addEventListener("click", () => addCurrentSubreddit(blockedList));
+  document.getElementById("add-current-allowed-subreddit")
+    .addEventListener("click", () => addCurrentSubreddit(allowedList));
+  document.getElementById("export-config").addEventListener("click", exportConfig);
+  document.getElementById("import-config").addEventListener("click", () => importFile.click());
+  importFile.addEventListener("change", () => {
+    const [file] = importFile.files;
+    if (file) void importConfig(file);
     importFile.value = "";
   });
 

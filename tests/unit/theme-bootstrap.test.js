@@ -1,14 +1,9 @@
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const { readSource, settle } = require("./helpers");
 
-const root = join(__dirname, "..", "..");
-const source = readFileSync(
-  join(root, "src", "shared", "theme-bootstrap.js"),
-  "utf8",
-);
+const source = readSource("shared/theme-bootstrap.js");
 
 function runBootstrap(cachedTheme) {
   const attributes = new Map();
@@ -33,7 +28,7 @@ function runBootstrap(cachedTheme) {
   });
 
   vm.runInContext(source, context, { filename: "shared/theme-bootstrap.js" });
-  return { attributes, removed, written };
+  return { context, attributes, removed, written };
 }
 
 test("applies every valid cached theme before stylesheets run", () => {
@@ -66,11 +61,42 @@ test("primes a missing cache from extension storage as early as possible", async
 
   vm.runInContext(source, context, { filename: "shared/theme-bootstrap.js" });
   assert.equal(attributes.has("data-theme-pending"), true);
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(attributes.get("data-theme"), "light");
   assert.equal(attributes.has("data-theme-pending"), false);
   assert.equal(written.get("frontfilter-theme"), "light");
+});
+
+test("shows the page with the system mode when extension storage fails", async () => {
+  const attributes = new Map();
+  const context = vm.createContext({
+    chrome: {
+      storage: { local: { get: async () => { throw new Error("storage unavailable"); } } },
+    },
+    document: {
+      documentElement: {
+        removeAttribute: (name) => attributes.delete(name),
+        setAttribute: (name, value) => attributes.set(name, String(value)),
+      },
+    },
+    localStorage: { getItem: () => null },
+  });
+
+  vm.runInContext(source, context, { filename: "shared/theme-bootstrap.js" });
+  assert.equal(attributes.has("data-theme-pending"), true);
+  await settle();
+  assert.equal(attributes.has("data-theme-pending"), false);
+  assert.equal(attributes.has("data-theme"), false);
+});
+
+test("lets pages apply a mode, which it caches for their next load", () => {
+  const { context, attributes, written } = runBootstrap("dark");
+  assert.equal(context.applyTheme("light"), "light");
+  assert.equal(attributes.get("data-theme"), "light");
+  assert.equal(written.get("frontfilter-theme"), "light");
+  assert.equal(context.applyTheme("sepia"), "system");
+  assert.equal(attributes.get("data-theme"), "system");
 });
 
 test("ignores missing theme caches and removes invalid values", () => {
@@ -83,7 +109,7 @@ test("ignores missing theme caches and removes invalid values", () => {
 
 test("loads the bootstrap script before theme CSS on every extension page", () => {
   for (const page of ["popup/index.html", "blocked/index.html"]) {
-    const html = readFileSync(join(root, "src", page), "utf8");
+    const html = readSource(page);
     const bootstrap = html.indexOf('src="../shared/theme-bootstrap.js"');
     const themeCss = html.indexOf('href="../shared/theme.css"');
 

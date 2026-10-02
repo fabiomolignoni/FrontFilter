@@ -1,109 +1,7 @@
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
-
-function deferred() {
-  let resolve;
-  let reject;
-  const promise = new Promise((done, fail) => {
-    resolve = done;
-    reject = fail;
-  });
-  return { promise, reject, resolve };
-}
-
-class FakeElement {
-  constructor(tagName = "") {
-    this.tagName = tagName.toUpperCase();
-    this.checked = false;
-    this.children = [];
-    this.className = "";
-    this.disabled = false;
-    this.files = [];
-    this.focused = false;
-    this.listeners = {};
-    this.attributes = {};
-    this.parentElement = null;
-    this.textContent = "";
-    this.value = "";
-    const classes = new Set();
-    this.classList = {
-      add: (...names) => names.forEach((name) => classes.add(name)),
-      remove: (...names) => names.forEach((name) => classes.delete(name)),
-      contains: (name) => classes.has(name),
-    };
-  }
-
-  set innerHTML(value) {
-    this._innerHTML = value;
-    if (value === "") this.children = [];
-  }
-
-  get innerHTML() {
-    return this._innerHTML || "";
-  }
-
-  addEventListener(type, listener) {
-    this.listeners[type] = listener;
-  }
-
-  setAttribute(name, value) {
-    this.attributes[name] = String(value);
-  }
-
-  getAttribute(name) {
-    return this.attributes[name] ?? null;
-  }
-
-  appendChild(child) {
-    child.parentElement = this;
-    this.children.push(child);
-    return child;
-  }
-
-  click() {
-    this.clickCount = (this.clickCount || 0) + 1;
-    return this.listeners.click?.({ target: this });
-  }
-
-  dispatch(type, event = {}) {
-    return this.listeners[type]?.({ target: this, ...event });
-  }
-
-  focus() {
-    this.focused = true;
-  }
-
-  querySelector(selector) {
-    return this.querySelectorAll(selector)[0] || null;
-  }
-
-  querySelectorAll(selector) {
-    const descendants = [];
-    const visit = (element) => {
-      for (const child of element.children || []) {
-        descendants.push(child);
-        visit(child);
-      }
-    };
-    visit(this);
-
-    if (/^\.[\w-]+$/.test(selector)) {
-      return descendants.filter((element) => element.className === selector.slice(1));
-    }
-    if (selector === "input") {
-      return descendants.filter((element) => element.tagName === "INPUT");
-    }
-    if (selector === "input, select, button") {
-      return descendants.filter((element) => ["INPUT", "SELECT", "BUTTON"].includes(
-        element.tagName,
-      ));
-    }
-    return [];
-  }
-}
+const { deferred, loadPage, runScripts, settle } = require("./helpers");
 
 async function loadPopup({
   storedSettings = {},
@@ -111,103 +9,11 @@ async function loadPopup({
   getSettings,
   locationSearch = "",
   tabs = [],
+  cachedTheme = "system",
 } = {}) {
-  const ids = [
-    "tab-controls", "tab-filters", "tab-settings",
-    "panel-controls", "panel-filters", "panel-settings",
-    "blocked-count",
-    "blocked-list",
-    "add-subreddit",
-    "add-current-subreddit",
-    "allowed-count",
-    "allowed-list",
-    "add-allowed-subreddit",
-    "add-current-allowed-subreddit",
-    "title-keyword-count",
-    "title-keyword-list",
-    "add-title-keyword",
-    "blocked-flair-count",
-    "blocked-flair-list",
-    "add-blocked-flair",
-    "save-indicator",
-    "toast",
-    "export-config",
-    "import-config",
-    "import-file",
-    "block-homepage",
-    "block-popular",
-    "block-explore",
-    "block-news",
-    "block-sub-home",
-    "hide-comments",
-    "hide-comment-replies",
-    "disable-autoplay",
-    "hide-suggested-communities",
-    "hide-suggested-posts",
-    "hide-ads",
-    "hide-social-signals",
-    "hide-votes",
-    "hide-karma",
-    "hide-awards",
-    "hide-avatars",
-    "hide-usernames",
-    "hide-navbar",
-    "hide-navbar-menu",
-    "hide-navbar-search",
-    "hide-navbar-chat",
-    "hide-navbar-notifications",
-    "hide-navbar-profile",
-    "hide-navbar-others",
-    "hide-left-sidebar",
-    "hide-left-sidebar-games",
-    "hide-left-sidebar-custom-feeds",
-    "hide-left-sidebar-recent",
-    "hide-left-sidebar-communities",
-    "hide-left-sidebar-resources",
-    "hide-right-sidebar",
-    "show-block-subreddit-button",
-    ...["comments", "navbar", "left-sidebar", "social"].flatMap((group) => [
-      `${group}-toggle`, `${group}-options`,
-    ]),
-    "limit-infinite-scroll",
-    "scroll-limit",
-    "scroll-mode",
-    "color-theme",
-    "app-version",
-  ];
-  const elements = Object.fromEntries(ids.map((id) => [id, new FakeElement()]));
-  const tabsElements = ["controls", "filters", "settings"].map((name, index) => {
-    const tab = elements[`tab-${name}`];
-    tab.setAttribute("aria-controls", `panel-${name}`);
-    tab.setAttribute("aria-selected", String(index === 0));
-    tab.tabIndex = index === 0 ? 0 : -1;
-    elements[`panel-${name}`].hidden = index !== 0;
-    return tab;
-  });
-  for (const group of ["comments", "navbar", "left-sidebar", "social"]) {
-    elements[`${group}-toggle`].setAttribute("aria-expanded", "false");
-    elements[`${group}-options`].hidden = true;
-  }
-  let readyListener;
-  const createdElements = [];
-  const documentElement = new FakeElement("html");
-  const document = {
-    addEventListener(type, listener) {
-      if (type === "DOMContentLoaded") readyListener = listener;
-    },
-    createElement: (tagName) => {
-      const element = new FakeElement(tagName);
-      createdElements.push(element);
-      return element;
-    },
-    createTextNode: () => ({}),
-    body: new FakeElement("body"),
-    documentElement,
-    getElementById: (id) => elements[id],
-    querySelectorAll: (selector) => selector === '[role="tab"]' ? tabsElements : [],
-  };
+  const page = loadPage("popup/index.html");
   const writes = [];
-  const themeCache = new Map();
+  const themeCache = new Map([["frontfilter-theme", cachedTheme]]);
   let currentSettings = storedSettings;
   const chrome = {
     storage: {
@@ -233,7 +39,7 @@ async function loadPopup({
     URLSearchParams,
     chrome,
     console,
-    document,
+    document: page.document,
     localStorage: {
       getItem: (key) => themeCache.get(key) ?? null,
       setItem: (key, value) => themeCache.set(key, String(value)),
@@ -243,14 +49,17 @@ async function loadPopup({
     clearTimeout,
   });
 
-  for (const file of ["shared/core.js", "popup/popup.js"]) {
-    const source = readFileSync(join(__dirname, "..", "..", "src", file), "utf8");
-    vm.runInContext(source, context, { filename: file });
-  }
-  readyListener();
-  await new Promise((resolve) => setImmediate(resolve));
+  runScripts(context, ["shared/theme-bootstrap.js", "shared/core.js", "popup/popup.js"]);
+  page.ready();
+  await settle();
 
-  return { createdElements, documentElement, elements, themeCache, writes };
+  return {
+    createdElements: page.created,
+    documentElement: page.document.documentElement,
+    elements: page.elements,
+    themeCache,
+    writes,
+  };
 }
 
 function getRenderedItems(elements) {
@@ -327,7 +136,7 @@ test("serializes popup saves so an older write cannot finish last", async () => 
   elements["block-homepage"].dispatch("change");
   elements["block-popular"].checked = true;
   elements["block-popular"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(writes.length, 1);
   assert.deepEqual(JSON.parse(JSON.stringify(writes[0].settings)), {
@@ -335,14 +144,14 @@ test("serializes popup saves so an older write cannot finish last", async () => 
   });
 
   writes[0].completion.resolve();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(writes.length, 2);
   assert.deepEqual(JSON.parse(JSON.stringify(writes[1].settings)), {
     blockPopular: true,
   });
 
   writes[1].completion.resolve();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 });
 
 test("continues the save queue after an earlier storage write fails", async () => {
@@ -352,15 +161,15 @@ test("continues the save queue after an earlier storage write fails", async () =
   elements["block-homepage"].dispatch("change");
   elements["block-popular"].checked = true;
   elements["block-popular"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   writes[0].completion.reject(new Error("storage unavailable"));
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(writes.length, 2);
   assert.equal(writes[1].settings.blockPopular, true);
 
   writes[1].completion.resolve();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(elements["toast"].textContent, "Save failed: storage unavailable");
 });
 
@@ -369,9 +178,9 @@ test("does not leave the save indicator in a saving state after a failure", asyn
 
   elements["block-homepage"].checked = true;
   elements["block-homepage"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   writes[0].completion.reject(new Error("storage unavailable"));
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(elements["save-indicator"].textContent, "Save failed");
   assert.equal(elements["save-indicator"].classList.contains("visible"), true);
@@ -410,7 +219,7 @@ test("normalizes edited entries and saves their selected mode", async () => {
   input.dispatch("blur");
   select.value = "all";
   select.dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(input.value, "firefox");
   assert.equal(writes.length, 2);
@@ -429,7 +238,7 @@ test("keeps one rule per subreddit, the ALL one when they differ", async () => {
 
   // Adding the current subreddit upgrades its HOME rule instead of adding one.
   await elements["add-current-subreddit"].click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   let items = getRenderedItems(elements);
   assert.equal(items.length, 1);
   assert.equal(items[0].children[1].children[1].selected, true);
@@ -444,7 +253,7 @@ test("keeps one rule per subreddit, the ALL one when they differ", async () => {
   input.value = "r/Firefox";
   input.dispatch("input");
   input.dispatch("blur");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   items = getRenderedItems(elements);
   assert.equal(items.length, 1);
   assert.equal(items[0].children[1].children[1].selected, true);
@@ -463,7 +272,7 @@ test("removes an entry and persists the resulting list", async () => {
   });
 
   getRenderedItems(elements)[0].children[2].click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(getRenderedItems(elements).length, 0);
   assert.deepEqual(
@@ -498,7 +307,7 @@ test("renders, edits and removes exact subreddit exceptions", async () => {
   input.value = " https://www.reddit.com/r/Firefox/ ";
   input.dispatch("input");
   input.dispatch("blur");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(input.value, "firefox");
   assert.deepEqual(
@@ -510,15 +319,15 @@ test("renders, edits and removes exact subreddit exceptions", async () => {
   input.value = "*fire*";
   input.dispatch("input");
   input.dispatch("blur");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(input.value, "");
   assert.equal(
     elements["toast"].textContent,
-    "Whitelist entries must be exact subreddit names",
+    "Allowed subreddits must be exact names, without *",
   );
 
   getRenderedAllowedItems(elements)[0].children[1].click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes.at(-1).settings.allowedSubreddits)),
     ["italypersonalfinance", "zeta"],
@@ -540,7 +349,7 @@ test("edits blocked flairs with normalization and a live count", async () => {
   input.value = "  *Politic*  ";
   input.dispatch("input");
   input.dispatch("blur");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(input.value, "*Politic*");
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes.at(-1).settings.blockedFlairs)),
@@ -549,7 +358,7 @@ test("edits blocked flairs with normalization and a live count", async () => {
   assert.equal(elements["blocked-flair-count"].textContent, "2 flairs");
 
   items().find((item) => item.querySelector("input").value === "Meme").children[1].click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes.at(-1).settings.blockedFlairs)),
     ["*Politic*"],
@@ -577,7 +386,7 @@ test("renders, edits and removes case-insensitive post keywords", async () => {
   input.value = "  climate   CHANGE ";
   input.dispatch("input");
   input.dispatch("blur");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(input.value, "climate CHANGE");
   assert.deepEqual(
@@ -587,7 +396,7 @@ test("renders, edits and removes case-insensitive post keywords", async () => {
   assert.equal(elements["title-keyword-count"].textContent, "3 keywords");
 
   getRenderedKeywords(elements)[0].children[1].click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes.at(-1).settings.blockedTitleKeywords)),
     ["Trump", "zeta"],
@@ -601,7 +410,7 @@ test("adds the current tab's subreddit and reports non-subreddit tabs", async ()
   });
 
   await currentSubreddit.elements["add-current-subreddit"].click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(
     getRenderedItems(currentSubreddit.elements)[0].querySelector("input").value,
     "firefox",
@@ -609,7 +418,7 @@ test("adds the current tab's subreddit and reports non-subreddit tabs", async ()
   assert.equal(currentSubreddit.writes.length, 1);
 
   await currentSubreddit.elements["add-current-allowed-subreddit"].click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(
     getRenderedAllowedItems(currentSubreddit.elements)[0]
       .querySelector("input").value,
@@ -640,7 +449,7 @@ test("adds the originating subreddit from standalone blocked-page settings", asy
   });
 
   await popup.elements["add-current-subreddit"].click();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(
     getRenderedItems(popup.elements)[0].querySelector("input").value,
@@ -715,14 +524,14 @@ test("makes hiding all comments imply the nested reply toggle and turn it off wi
 
   allComments.checked = true;
   allComments.dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(replies.checked, true);
   assert.equal(replies.disabled, true);
   assert.equal(writes.at(-1).settings.hideCommentReplies, true);
 
   allComments.checked = false;
   allComments.dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(replies.checked, false);
   assert.equal(replies.disabled, false);
   assert.equal(allComments.indeterminate, false);
@@ -733,7 +542,7 @@ test("makes hiding all comments imply the nested reply toggle and turn it off wi
 
   replies.checked = true;
   replies.dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(writes.at(-1).settings.hideCommentReplies, true);
   assert.equal(allComments.indeterminate, true);
 });
@@ -757,7 +566,7 @@ test("makes hiding the navbar imply its indented section toggles", async () => {
 
   allNavbar.checked = true;
   allNavbar.dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   for (const id of sectionIds) {
     assert.equal(elements[id].checked, true);
     assert.equal(elements[id].disabled, true);
@@ -766,7 +575,7 @@ test("makes hiding the navbar imply its indented section toggles", async () => {
 
   allNavbar.checked = false;
   allNavbar.dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   for (const id of sectionIds) {
     assert.equal(elements[id].checked, false);
     assert.equal(elements[id].disabled, false);
@@ -775,7 +584,7 @@ test("makes hiding the navbar imply its indented section toggles", async () => {
 
   elements[sectionIds[1]].checked = true;
   elements[sectionIds[1]].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     hideNavbarSearch: true,
   });
@@ -835,7 +644,7 @@ test("makes hiding votes and user info imply every signal toggle", async () => {
 
   elements["hide-social-signals"].checked = true;
   elements["hide-social-signals"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   for (const id of signalIds) {
     assert.equal(elements[id].checked, true);
     assert.equal(elements[id].disabled, true);
@@ -852,7 +661,7 @@ test("makes hiding votes and user info imply every signal toggle", async () => {
 
   elements["hide-social-signals"].checked = false;
   elements["hide-social-signals"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   for (const id of signalIds) {
     assert.equal(elements[id].checked, false);
     assert.equal(elements[id].disabled, false);
@@ -860,7 +669,7 @@ test("makes hiding votes and user info imply every signal toggle", async () => {
 
   elements["hide-usernames"].checked = true;
   elements["hide-usernames"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     hideUsernames: true,
   });
@@ -885,7 +694,7 @@ test("makes hiding the left sidebar imply its indented section toggles", async (
 
   allSidebar.checked = true;
   allSidebar.dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   for (const id of sectionIds) {
     assert.equal(elements[id].checked, true);
     assert.equal(elements[id].disabled, true);
@@ -894,7 +703,7 @@ test("makes hiding the left sidebar imply its indented section toggles", async (
 
   allSidebar.checked = false;
   allSidebar.dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   for (const id of sectionIds) {
     assert.equal(elements[id].checked, false);
     assert.equal(elements[id].disabled, false);
@@ -903,7 +712,7 @@ test("makes hiding the left sidebar imply its indented section toggles", async (
 
   elements[sectionIds[0]].checked = true;
   elements[sectionIds[0]].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     hideLeftSidebarGames: true,
   });
@@ -959,7 +768,7 @@ test("maps every checkbox to the matching storage setting", async () => {
 
   elements["block-homepage"].checked = false;
   elements["block-homepage"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(writes.length, 1);
   assert.deepEqual(JSON.parse(JSON.stringify(writes[0].settings)), {
@@ -980,7 +789,7 @@ test("saves only changed settings so another open settings page cannot be clobbe
   // A local theme edit must not write this page's stale copies back to storage.
   elements["color-theme"].value = "light";
   elements["color-theme"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.deepEqual(JSON.parse(JSON.stringify(writes[0].settings)), {
     theme: "light",
@@ -997,7 +806,7 @@ test("follows the system theme by default and persists explicit color modes", as
   initial.elements["color-theme"].dispatch("change");
   assert.equal(initial.documentElement.getAttribute("data-theme"), "light");
   assert.equal(initial.themeCache.get("frontfilter-theme"), "light");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(initial.writes.at(-1).settings.theme, "light");
 
   const stored = await loadPopup({ storedSettings: { theme: "dark" } });
@@ -1025,8 +834,8 @@ test("preserves current settings during a partial import", async () => {
   }];
 
   elements["import-file"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
+  await settle();
 
   assert.equal(writes.length, 1);
   assert.equal(writes[0].settings.blockHomepage, true);
@@ -1073,7 +882,7 @@ test("rejects imports without recognized configuration keys", async () => {
   }];
 
   elements["import-file"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(writes.length, 0);
   assert.equal(elements["toast"].textContent, "Invalid config: no recognized keys");
@@ -1090,7 +899,7 @@ test("rejects malformed recognized import values without overwriting settings", 
   }];
 
   elements["import-file"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(writes.length, 0);
   assert.equal(elements["block-homepage"].checked, true);
@@ -1114,7 +923,7 @@ test("disables editing while an import is in progress", async () => {
   }];
 
   elements["import-file"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal(elements["block-sub-home"].disabled, true);
   assert.equal(elements["import-config"].disabled, true);
@@ -1123,8 +932,8 @@ test("disables editing while an import is in progress", async () => {
   assert.equal(elements["add-title-keyword"].disabled, true);
 
   importRead.resolve({ blockPopular: true });
-  await new Promise((resolve) => setImmediate(resolve));
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
+  await settle();
 
   assert.equal(writes.length, 1);
   assert.equal(writes[0].settings.blockHomepage, true);
@@ -1146,7 +955,7 @@ test("loads and saves typed scroll settings and disables dependent controls", as
   assert.equal(elements["scroll-limit"].disabled, false);
   elements["scroll-limit"].value = "12";
   elements["scroll-limit"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     scrollLimit: 12,
   });
@@ -1155,7 +964,7 @@ test("loads and saves typed scroll settings and disables dependent controls", as
   assert.equal(elements["scroll-limit"].value, "12");
   elements["limit-infinite-scroll"].checked = false;
   elements["limit-infinite-scroll"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(elements["scroll-limit"].disabled, true);
   assert.equal(elements["scroll-mode"].disabled, true);
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
@@ -1171,9 +980,85 @@ test("imports typed scroll preferences without dropping unrelated settings", asy
     limitInfiniteScroll: true, scrollLimit: 13, scrollMode: "button",
   }) }];
   elements["import-file"].dispatch("change");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(writes.at(-1).settings.hideComments, true);
   assert.equal(writes.at(-1).settings.scrollLimit, 13);
   assert.equal(elements["scroll-mode"].value, "button");
   assert.equal(elements["scroll-limit"].disabled, false);
+});
+
+test("saves typed text once typing pauses", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { elements, writes } = await loadPopup({ autoResolveWrites: true });
+  elements["add-title-keyword"].click();
+  const input = getRenderedKeywords(elements)[0].querySelector("input");
+  input.value = "spoilers";
+  input.dispatch("input");
+  t.mock.timers.tick(699);
+  await settle();
+  assert.equal(writes.length, 0);
+  t.mock.timers.tick(1);
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes[0].settings)), {
+    blockedTitleKeywords: ["spoilers"],
+  });
+});
+
+test("explains entries that cannot be used, and clears them", async () => {
+  const { elements, writes } = await loadPopup({ autoResolveWrites: true });
+  for (const [addId, list, value, message] of [
+    ["add-subreddit", "blocked-list", "not a subreddit!", "Enter a subreddit name, a pattern with *, or a Reddit URL"],
+    ["add-blocked-flair", "blocked-flair-list", "x".repeat(101), "Flairs can be at most 100 characters long"],
+  ]) {
+    elements[addId].click();
+    const input = elements[list].querySelector("input");
+    input.value = value;
+    input.dispatch("input");
+    input.dispatch("blur");
+    await settle();
+    assert.equal(input.value, "");
+    assert.equal(elements["toast"].textContent, message);
+  }
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), { blockedFlairs: [] });
+});
+
+test("merges a row into an earlier one for the same rule", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedTitleKeywords: ["Spoilers"] },
+  });
+  elements["add-title-keyword"].click();
+  const input = getRenderedKeywords(elements)[0].querySelector("input");
+  input.value = "SPOILERS";
+  input.dispatch("input");
+  input.dispatch("blur");
+  await settle();
+
+  const items = getRenderedKeywords(elements);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].querySelector("input").focused, true);
+  assert.equal(elements["title-keyword-count"].textContent, "1 keyword");
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedTitleKeywords: ["SPOILERS"],
+  });
+});
+
+test("tells empty lists apart and counts their rules", async () => {
+  const { elements } = await loadPopup({ storedSettings: { blockedFlairs: ["Meme"] } });
+  assert.equal(elements["blocked-list"].textContent, "No subreddits blocked yet");
+  assert.equal(elements["blocked-count"].textContent, "0 rules");
+  assert.equal(elements["allowed-list"].textContent, "No subreddit exceptions yet");
+  assert.equal(elements["title-keyword-list"].textContent, "No keywords filtered yet");
+  assert.equal(elements["blocked-flair-count"].textContent, "1 flair");
+});
+
+test("saves the scroll mode and opens the file picker for imports", async () => {
+  const { elements, writes } = await loadPopup({ autoResolveWrites: true });
+  elements["scroll-mode"].value = "button";
+  elements["scroll-mode"].dispatch("change");
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), { scrollMode: "button" });
+
+  elements["import-config"].click();
+  assert.equal(elements["import-file"].clickCount, 1);
 });

@@ -1,43 +1,50 @@
-/** Apply the cached color mode before the first stylesheet calculation. */
-(() => {
-  const cacheKey = "frontfilter-theme";
-  const themes = ["system", "dark", "light"];
+/**
+ * Color mode for the extension pages, loaded before their stylesheets. The
+ * mode is cached in local storage, which unlike extension storage can be
+ * read synchronously, so it applies before the first style calculation.
+ * The pages call applyTheme when the setting loads or changes.
+ */
+var applyTheme = (() => {
+  const CACHE_KEY = "frontfilter-theme";
+  const THEMES = ["system", "dark", "light"];
+  const root = document.documentElement;
 
-  function apply(theme) {
-    const normalizedTheme = themes.includes(theme) ? theme : "system";
-    document.documentElement.setAttribute("data-theme", normalizedTheme);
+  function applyTheme(theme) {
+    const normalizedTheme = THEMES.includes(theme) ? theme : "system";
+    root.setAttribute("data-theme", normalizedTheme);
+    root.removeAttribute("data-theme-pending");
     try {
-      globalThis.localStorage?.setItem(cacheKey, normalizedTheme);
+      globalThis.localStorage?.setItem(CACHE_KEY, normalizedTheme);
     } catch {
-      // Applying the attribute is sufficient for the current page.
+      // The mode still applies to this page without the cache.
     }
-    document.documentElement.removeAttribute("data-theme-pending");
+    return normalizedTheme;
   }
 
   try {
-    const theme = globalThis.localStorage?.getItem(cacheKey);
-    if (themes.includes(theme)) {
-      apply(theme);
-      return;
-    } else if (theme !== null) {
-      globalThis.localStorage?.removeItem(cacheKey);
+    const cachedTheme = globalThis.localStorage?.getItem(CACHE_KEY);
+    if (THEMES.includes(cachedTheme)) {
+      applyTheme(cachedTheme);
+      return applyTheme;
     }
+    if (cachedTheme != null) globalThis.localStorage.removeItem(CACHE_KEY);
   } catch {
-    // CSS still follows the browser color scheme when local storage is unavailable.
+    // Without local storage, the cache is filled from extension storage.
   }
 
-  // On the first page load after upgrading, populate the cache as early as the
-  // asynchronous extension API permits. Subsequent loads take the synchronous
-  // path above and apply the mode before CSS is evaluated.
+  // Without a cache, as on the first page load after an update, the page
+  // stays hidden until extension storage gives the mode.
   try {
-    const storedTheme = globalThis.chrome?.storage?.local?.get(["theme"]);
+    const storedTheme = globalThis.chrome?.storage?.local?.get("theme");
     if (storedTheme?.then) {
-      document.documentElement.setAttribute("data-theme-pending", "");
-      void storedTheme
-        .then(({ theme }) => apply(theme))
-        .catch(() => document.documentElement.removeAttribute("data-theme-pending"));
+      root.setAttribute("data-theme-pending", "");
+      storedTheme.then(
+        ({ theme }) => applyTheme(theme),
+        () => root.removeAttribute("data-theme-pending"),
+      );
     }
   } catch {
-    // With no cache or extension storage, the stylesheet follows the system.
+    // Without extension storage, the stylesheet follows the system.
   }
+  return applyTheme;
 })();
