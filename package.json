@@ -1,6 +1,6 @@
 {
   "name": "frontfilter",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "private": true,
   "description": "Validation and packaging tools for the FrontFilter browser extension",
   "homepage": "https://github.com/fabiomolignoni/FrontFilter#readme",
