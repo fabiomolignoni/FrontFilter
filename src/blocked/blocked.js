@@ -1,6 +1,16 @@
 /**
- * FrontFilter blocked-page controller.
+ * The page that replaces a blocked Reddit page. It names what is blocked,
+ * leads back or to the settings, and returns to the blocked page as soon as
+ * a settings change unblocks it.
  */
+
+const PAGE_MESSAGES = {
+  homepage: "Reddit Homepage is blocked",
+  popular: "Popular page is blocked",
+  explore: "Explore page is blocked",
+  news: "News page is blocked",
+  subhome: "Subreddit front pages are blocked",
+};
 
 document.addEventListener("DOMContentLoaded", () => {
   void loadTheme();
@@ -14,20 +24,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const sub = params.get("target") === "subreddit"
     ? FrontFilter.normalizeSubredditName(params.get("subreddit")) || returnSubreddit
     : "";
-  const page = params.get("page");
-  const filter = params.get("filter");
-
-  const PAGE_MESSAGES = {
-    homepage: "Reddit Homepage is blocked",
-    popular: "Popular page is blocked",
-    explore: "Explore page is blocked",
-    news: "News page is blocked",
-    subhome: "Subreddit front pages are blocked",
-  };
 
   document.getElementById("block-message").textContent = sub
     ? `r/${sub} is blocked`
-    : PAGE_MESSAGES[page] ?? "This content is blocked";
+    : PAGE_MESSAGES[params.get("page")] ?? "This content is blocked";
+
+  // The rule is worth naming when it is a pattern rather than the name.
+  const filter = params.get("filter");
+  if (filter && filter !== sub) {
+    const reason = document.getElementById("block-reason");
+    const value = document.createElement("strong");
+    value.textContent = filter;
+    reason.append("Blocked by the rule ", value);
+    reason.hidden = false;
+  }
 
   // Offered only on the redirect caused by a one-click block, whose token
   // must match the one-time marker stored with the rule.
@@ -38,17 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
     window.history.replaceState(null, "", `?${params}${window.location.hash}`);
   }
 
-  const reason = document.getElementById("block-reason");
-  if (filter) {
-    reason.textContent = "";
-    reason.appendChild(document.createTextNode("Applied filter: "));
-
-    const value = document.createElement("strong");
-    value.textContent = filter;
-    reason.appendChild(value);
-    reason.hidden = false;
-  }
-
   document.getElementById("go-back").addEventListener("click", async () => {
     if (window.history.length > 1) {
       window.history.back();
@@ -56,9 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const settings = FrontFilter.coerceSettings(
-        await chrome.storage.local.get(FrontFilter.NAVIGATION_STORAGE_KEYS),
-      );
+      const settings = await chrome.storage.local.get(FrontFilter.NAVIGATION_STORAGE_KEYS);
       if (!FrontFilter.getBlockedRoute("/", settings)) {
         window.location.href = "https://www.reddit.com";
         return;
@@ -67,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Could not determine a safe fallback page:", error);
     }
 
-    window.location.href = getStandaloneSettingsUrl(returnSubreddit);
+    window.location.href = getSettingsPageUrl(returnSubreddit);
   });
 
   document.getElementById("go-to-settings").addEventListener("click", async () => {
@@ -78,17 +75,15 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       if (response?.success) return;
     } catch {
-      // Fall through to opening the standalone settings page in this tab.
+      // Fall through to opening the settings page in this tab.
     }
 
-    window.location.href = getStandaloneSettingsUrl(returnSubreddit);
+    window.location.href = getSettingsPageUrl(returnSubreddit);
   });
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    if (Object.prototype.hasOwnProperty.call(changes, "theme")) {
-      FrontFilter.applyTheme(changes.theme?.newValue);
-    }
+    if (Object.hasOwn(changes, "theme")) applyTheme(changes.theme.newValue);
     void restoreIfUnblocked(returnUrl);
   });
 });
@@ -129,21 +124,17 @@ function setUpUndo(subreddit, previousMode) {
   });
 }
 
-function getStandaloneSettingsUrl(currentSubreddit = "") {
-  const settingsUrl = new URL(chrome.runtime.getURL("popup/index.html"));
-  settingsUrl.searchParams.set("standalone", "true");
-  if (currentSubreddit) {
-    settingsUrl.searchParams.set("currentSubreddit", currentSubreddit);
-  }
-  return settingsUrl.href;
+function getSettingsPageUrl(currentSubreddit) {
+  return chrome.runtime.getURL(FrontFilter.settingsPagePath(currentSubreddit));
 }
 
+// theme-bootstrap.js applies the cached mode; this catches up with a mode
+// changed while no extension page was open to update the cache.
 async function loadTheme() {
   try {
-    const { theme } = await chrome.storage.local.get(["theme"]);
-    FrontFilter.applyTheme(theme);
+    const { theme } = await chrome.storage.local.get("theme");
+    applyTheme(theme);
   } catch (error) {
-    FrontFilter.applyTheme(FrontFilter.DEFAULT_SETTINGS.theme);
     console.error("Could not load FrontFilter theme:", error);
   }
 }
@@ -159,13 +150,11 @@ async function restoreIfUnblocked(returnUrl) {
   const checkId = ++restoreCheckId;
 
   try {
-    const settings = FrontFilter.coerceSettings(
-      await chrome.storage.local.get(FrontFilter.NAVIGATION_STORAGE_KEYS)
-    );
-    const url = new URL(returnUrl);
-    const route = FrontFilter.getBlockedRoute(url.pathname, settings);
+    const settings = await chrome.storage.local.get(FrontFilter.NAVIGATION_STORAGE_KEYS);
+    const route = FrontFilter.getBlockedRoute(new URL(returnUrl).pathname, settings);
     if (route || checkId !== restoreCheckId) return;
 
+    // Navigation rules must be updated before the page is loaded again.
     const response = await chrome.runtime.sendMessage({ action: "syncNavigationRules" });
     if (!response?.success) {
       throw new Error(response?.error || "Navigation rule synchronization failed");

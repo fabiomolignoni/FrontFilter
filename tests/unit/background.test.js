@@ -1,12 +1,7 @@
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
-
-function settle() {
-  return new Promise((resolve) => setImmediate(resolve));
-}
+const { runScripts, settle } = require("./helpers");
 
 async function loadBackground({
   dynamicRules = [{ id: 42 }],
@@ -61,14 +56,7 @@ async function loadBackground({
     console,
   });
 
-  for (const file of [
-    "shared/core.js",
-    "background/navigation-rules.js",
-    "background/main.js",
-  ]) {
-    const source = readFileSync(join(__dirname, "..", "..", "src", file), "utf8");
-    vm.runInContext(source, context, { filename: file });
-  }
+  runScripts(context, ["shared/core.js", "background/navigation-rules.js", "background/main.js"]);
   await settle();
   await settle();
 
@@ -182,4 +170,43 @@ test("allows extension pages to await rule synchronization", async () => {
 
   assert.deepEqual(JSON.parse(JSON.stringify(response)), { success: true });
   assert.equal(background.updates.length, 2);
+});
+
+test("synchronizes when the browser starts", async () => {
+  const background = await loadBackground();
+  background.setSettings({ blockExplore: true });
+  background.listeners.startup();
+  await settle();
+  await settle();
+
+  assert.equal(background.updates.length, 2);
+  assert.match(background.updates[1].addRules[0].condition.regexFilter, /explore/);
+});
+
+test("keeps synchronizing after a failed synchronization, and reports it", async () => {
+  const background = await loadBackground();
+  const { declarativeNetRequest } = background.chrome;
+  const updateDynamicRules = declarativeNetRequest.updateDynamicRules;
+  declarativeNetRequest.updateDynamicRules = async () => {
+    throw new Error("rule limit reached");
+  };
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(await sendMessage(
+      background.listeners.message,
+      { action: "syncNavigationRules" },
+    ))),
+    { success: false, error: "rule limit reached" },
+  );
+
+  declarativeNetRequest.updateDynamicRules = updateDynamicRules;
+  background.setSettings({ blockNews: true });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(await sendMessage(
+      background.listeners.message,
+      { action: "syncNavigationRules" },
+    ))),
+    { success: true },
+  );
+  assert.match(background.updates.at(-1).addRules[0].condition.regexFilter, /news/);
 });

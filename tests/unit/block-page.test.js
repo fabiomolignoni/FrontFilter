@@ -1,39 +1,7 @@
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
-
-class FakeElement {
-  constructor() {
-    this.attributes = {};
-    this.children = [];
-    this.hidden = true;
-    this.listeners = {};
-    this.textContent = "";
-  }
-
-  addEventListener(type, listener) {
-    this.listeners[type] = listener;
-  }
-
-  appendChild(child) {
-    this.children.push(child);
-    return child;
-  }
-
-  getAttribute(name) {
-    return this.attributes[name] ?? null;
-  }
-
-  setAttribute(name, value) {
-    this.attributes[name] = String(value);
-  }
-
-  click() {
-    return this.listeners.click?.();
-  }
-}
+const { loadPage, readSource, runScripts, settle } = require("./helpers");
 
 async function loadBlockPage({
   historyLength = 1,
@@ -42,17 +10,10 @@ async function loadBlockPage({
   sendMessage = async () => ({ success: true }),
   storedSettings = {},
 } = {}) {
-  const elements = {
-    "block-message": new FakeElement(),
-    "block-reason": new FakeElement(),
-    "go-back": new FakeElement(),
-    "go-to-settings": new FakeElement(),
-    "undo-block": new FakeElement(),
-  };
+  const page = loadPage("blocked/index.html");
   const writes = [];
   const removals = [];
   const replacedUrls = [];
-  let readyListener;
   const redirects = [];
   const location = {
     href: "moz-extension://frontfilter/blocked/index.html",
@@ -63,16 +24,6 @@ async function loadBlockPage({
   let historyBackCount = 0;
   let storageListener;
   const themeCache = new Map();
-  const documentElement = new FakeElement();
-  const document = {
-    addEventListener(type, listener) {
-      if (type === "DOMContentLoaded") readyListener = listener;
-    },
-    createElement: () => new FakeElement(),
-    createTextNode: (textContent) => ({ textContent }),
-    documentElement,
-    getElementById: (id) => elements[id],
-  };
   const chrome = {
     runtime: {
       getURL: (path) => `moz-extension://frontfilter/${path}`,
@@ -106,7 +57,7 @@ async function loadBlockPage({
     URLSearchParams,
     chrome,
     console,
-    document,
+    document: page.document,
     localStorage: {
       getItem: (key) => themeCache.get(key) ?? null,
       setItem: (key, value) => themeCache.set(key, String(value)),
@@ -114,17 +65,14 @@ async function loadBlockPage({
     window,
   });
 
-  for (const file of ["shared/core.js", "blocked/blocked.js"]) {
-    const source = readFileSync(join(__dirname, "..", "..", "src", file), "utf8");
-    vm.runInContext(source, context, { filename: file });
-  }
-  readyListener();
-  await new Promise((resolve) => setImmediate(resolve));
+  runScripts(context, ["shared/theme-bootstrap.js", "shared/core.js", "blocked/blocked.js"]);
+  page.ready();
+  await settle();
 
   return {
     context,
-    documentElement,
-    elements,
+    documentElement: page.document.documentElement,
+    elements: page.elements,
     get historyBackCount() { return historyBackCount; },
     location,
     redirects,
@@ -151,7 +99,7 @@ test("loads the saved theme and reacts to color-mode changes", async () => {
   assert.equal(page.themeCache.get("frontfilter-theme"), "system");
 });
 
-test("renders the blocked subreddit and the applied filter", async () => {
+test("renders the blocked subreddit and the pattern rule that blocks it", async () => {
   const { elements } = await loadBlockPage({
     hash: "#https://www.reddit.com/r/other/",
     search: "?target=subreddit&subreddit=firefox&filter=fire*",
@@ -159,8 +107,18 @@ test("renders the blocked subreddit and the applied filter", async () => {
 
   assert.equal(elements["block-message"].textContent, "r/firefox is blocked");
   assert.equal(elements["block-reason"].hidden, false);
-  assert.equal(elements["block-reason"].children[0].textContent, "Applied filter: ");
-  assert.equal(elements["block-reason"].children[1].textContent, "fire*");
+  assert.equal(elements["block-reason"].textContent, "Blocked by the rule fire*");
+  assert.equal(elements["block-reason"].querySelector("strong").textContent, "fire*");
+});
+
+test("names the rule only when it is not the subreddit's own name", async () => {
+  const exact = await loadBlockPage({ search: "?target=subreddit&subreddit=firefox&filter=firefox" });
+  assert.equal(exact.elements["block-message"].textContent, "r/firefox is blocked");
+  assert.equal(exact.elements["block-reason"].hidden, true);
+
+  const page = await loadBlockPage({ search: "?page=subhome" });
+  assert.equal(page.elements["block-message"].textContent, "Subreddit front pages are blocked");
+  assert.equal(page.elements["block-reason"].hidden, true);
 });
 
 test("reads the subreddit from the blocked URL when navigation rules redirect", async () => {
@@ -170,7 +128,7 @@ test("reads the subreddit from the blocked URL when navigation rules redirect", 
   });
 
   assert.equal(elements["block-message"].textContent, "r/firefox is blocked");
-  assert.equal(elements["block-reason"].children[1].textContent, "fire*");
+  assert.equal(elements["block-reason"].querySelector("strong").textContent, "fire*");
 });
 
 test("renders known page messages and a safe fallback for unknown pages", async () => {
@@ -261,11 +219,11 @@ test("restores the original Reddit URL after a local setting unblocks it", async
   });
 
   page.storageListener({}, "sync");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(page.redirects, []);
 
   page.storageListener({}, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(page.redirects, [returnUrl]);
 });
 
@@ -279,7 +237,7 @@ test("does not restore a URL that remains blocked by route settings", async () =
     },
   });
   routeBlocked.storageListener({}, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(routeBlocked.redirects, []);
 });
 
@@ -312,7 +270,7 @@ test("offers to undo a one-click block once and returns to the subreddit", async
   await undo.click();
   assert.deepEqual(page.writes, [{ blockedSubreddits: [{ name: "pics", mode: "all" }] }]);
   page.storageListener({ blockedSubreddits: {} }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(page.redirects, [returnUrl]);
 });
 
@@ -358,9 +316,6 @@ test("does not offer an undo when visiting an already blocked subreddit", async 
 test("keeps hidden action buttons out of the layout", () => {
   // .btn sets display, which would otherwise override the hidden attribute
   // and show the undo button on every block page.
-  const blocked = join(__dirname, "..", "..", "src", "blocked");
-  const css = readFileSync(join(blocked, "blocked.css"), "utf8");
-  const html = readFileSync(join(blocked, "index.html"), "utf8");
-  assert.match(css, /\.btn\[hidden\]\s*\{\s*display:\s*none;?\s*\}/);
-  assert.match(html, /<button id="undo-block"[^>]*\shidden>/);
+  assert.match(readSource("blocked/blocked.css"), /\.btn\[hidden\]\s*\{\s*display:\s*none;?\s*\}/);
+  assert.equal(loadPage("blocked/index.html").elements["undo-block"].hidden, true);
 });

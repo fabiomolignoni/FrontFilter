@@ -1,30 +1,12 @@
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const { deferred, runScripts } = require("./helpers");
 
-function loadShared(overrides = {}) {
-  const context = vm.createContext({
-    URL,
-    URLSearchParams,
-    console,
-    ...overrides,
-  });
-  const source = readFileSync(
-    join(__dirname, "..", "..", "src", "shared", "core.js"),
-    "utf8",
-  );
-  vm.runInContext(source, context, { filename: "shared/core.js" });
+function loadShared() {
+  const context = vm.createContext({ URL, URLSearchParams, console });
+  runScripts(context, ["shared/core.js"]);
   return context.FrontFilter;
-}
-
-function deferred() {
-  let resolve;
-  const promise = new Promise((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
 }
 
 const FrontFilter = loadShared();
@@ -477,6 +459,13 @@ test("normalizes blocked flairs and matches them case-insensitively with wildcar
   assert.equal(FrontFilter.matchesFlairPattern("*", ""), false);
 });
 
+test("collapses whitespace in text and ignores values that are not text", () => {
+  assert.equal(FrontFilter.normalizeText("  Question \n\t (Serious) "), "Question (Serious)");
+  for (const value of [null, undefined, 42, {}]) {
+    assert.equal(FrontFilter.normalizeText(value), "");
+  }
+});
+
 test("validates and coerces blocked flairs", () => {
   assert.deepEqual(plain(FrontFilter.getInvalidSettingKeys({ blockedFlairs: ["Meme"] })), []);
   assert.deepEqual(plain(FrontFilter.getInvalidSettingKeys({ blockedFlairs: [3] })), ["blockedFlairs"]);
@@ -537,10 +526,7 @@ test("parses subreddit paths and their remaining segments", () => {
 
 test("recognizes page and subreddit blocking routes", () => {
   const popular = FrontFilter.getBlockedRoute("/r/popular/new", { blockPopular: true });
-  assert.deepEqual(
-    { type: popular.type, page: popular.page, filter: popular.filter },
-    { type: "page", page: "popular", filter: "r/popular" },
-  );
+  assert.deepEqual({ type: popular.type, page: popular.page }, { type: "page", page: "popular" });
   assert.deepEqual(
     JSON.parse(JSON.stringify(FrontFilter.getBlockedRoute("/r/firefox/comments/abc/post", {
       blockedSubreddits: [{ name: "fire*", mode: "all" }],
@@ -570,8 +556,8 @@ test("subreddit exceptions override global fronts and wildcard block rules", () 
     assert.equal(FrontFilter.getBlockedRoute(pathname, settings), null, pathname);
   }
   assert.equal(
-    FrontFilter.getBlockedRoute("/r/italytravel", settings)?.filter,
-    "All Sub Fronts",
+    FrontFilter.getBlockedRoute("/r/italytravel", settings),
+    FrontFilter.SUBREDDIT_FRONTS_ROUTE,
   );
   assert.equal(
     FrontFilter.getBlockedRoute("/r/italytravel/comments/abc/post", settings)?.filter,
@@ -646,9 +632,20 @@ test("serializes block details into the block page query", () => {
   );
   assert.equal(
     FrontFilter.blockPageQuery(FrontFilter.SUBREDDIT_FRONTS_ROUTE),
-    "?page=subhome&filter=All+Sub+Fronts",
+    "?page=subhome",
   );
   assert.equal(FrontFilter.blockPageQuery(null), "");
+});
+
+test("opens the settings page in a tab of its own, for a subreddit", () => {
+  assert.equal(FrontFilter.settingsPagePath(), "popup/index.html?standalone=true");
+  assert.equal(
+    FrontFilter.settingsPagePath("r/Firefox"),
+    "popup/index.html?standalone=true&currentSubreddit=firefox",
+  );
+  for (const invalid of ["fire*", "", "https://example.com/r/firefox", 42]) {
+    assert.equal(FrontFilter.settingsPagePath(invalid), "popup/index.html?standalone=true", invalid);
+  }
 });
 
 test("lists each blockable main page once, with its setting", () => {
@@ -679,12 +676,12 @@ test("normalizes typed scroll settings and resets removed values", () => {
 
 test("normalizes color themes and resets removed themes to system", () => {
   for (const theme of ["system", "dark", "light"]) {
-    assert.equal(FrontFilter.normalizeTheme(theme), theme);
     assert.equal(FrontFilter.coerceSettings({ theme }).theme, theme);
+    assert.deepEqual(plain(FrontFilter.getInvalidSettingKeys({ theme })), []);
   }
   for (const theme of ["white", "auto", "", null, true]) {
-    assert.equal(FrontFilter.normalizeTheme(theme), "system");
     assert.equal(FrontFilter.coerceSettings({ theme }).theme, "system");
+    assert.deepEqual(plain(FrontFilter.getInvalidSettingKeys({ theme })), ["theme"]);
   }
 
   const settings = FrontFilter.coerceSettings(FrontFilter.applyStorageChanges(

@@ -59,7 +59,7 @@ FrontFilter.posts = (() => {
 
   function flair(post) {
     for (const element of ownElements(post, POST.flair)) {
-      const text = FrontFilter.normalizeFlairText(element.textContent);
+      const text = FrontFilter.normalizeText(element.textContent);
       if (text) return text;
     }
     return "";

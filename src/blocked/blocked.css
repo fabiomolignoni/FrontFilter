@@ -28,6 +28,10 @@ body {
   from { opacity: 0; transform: translateY(16px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+  .btn { transition: none; }
+}
 
 /* Accent bar on top */
 .card-stripe {
@@ -55,11 +59,6 @@ body {
 h1 {
   margin: 0; font-size: 22px; font-weight: 700;
   color: var(--text-primary); letter-spacing: -0.3px;
-}
-
-.sub {
-  font-size: 13px; color: var(--text-secondary); margin: 4px 0 16px;
-  line-height: 1.5;
 }
 
 .reason {
@@ -103,6 +102,7 @@ h1 {
 /* The undo button is only shown right after a one-click block. */
 .btn[hidden] { display: none; }
 .btn:active { transform: scale(0.98); }
+.btn:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
 
 .btn-primary {
   background: var(--primary); color: #fff;

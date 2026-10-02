@@ -1,6 +1,6 @@
 /**
- * FrontFilter background event handler.
- * Keeps MV3 declarative navigation rules synchronized with stored settings.
+ * FrontFilter's background script: keeps the declarative navigation rules in
+ * step with the settings, and opens the settings page for other pages.
  */
 
 // These settings belonged to features removed in previous releases. Removing
@@ -27,11 +27,19 @@ async function replaceNavigationRules() {
   });
 }
 
+// Synchronizations run one at a time, so the last one reflects the latest
+// settings even when an earlier one failed.
 function syncNavigationRules() {
   ruleSyncQueue = ruleSyncQueue
     .catch(() => undefined)
     .then(replaceNavigationRules);
   return ruleSyncQueue;
+}
+
+function syncNavigationRulesInBackground() {
+  void syncNavigationRules().catch((error) => {
+    console.error("Could not update FrontFilter navigation rules:", error);
+  });
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -41,52 +49,34 @@ chrome.runtime.onInstalled.addListener(() => {
     .catch((error) => console.error("Could not migrate FrontFilter settings:", error));
 });
 
-chrome.runtime.onStartup.addListener(() => {
-  void syncNavigationRules().catch((error) => {
-    console.error("Could not initialize FrontFilter navigation rules:", error);
-  });
-});
+chrome.runtime.onStartup.addListener(syncNavigationRulesInBackground);
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  if (!Object.keys(changes).some((key) => FrontFilter.NAVIGATION_STORAGE_KEYS.includes(key))) {
-    return;
+  if (Object.keys(changes).some((key) => FrontFilter.NAVIGATION_STORAGE_KEYS.includes(key))) {
+    syncNavigationRulesInBackground();
   }
-
-  void syncNavigationRules().catch((error) => {
-    console.error("Could not update FrontFilter navigation rules:", error);
-  });
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+// Answers a message with whether the operation succeeded.
+function respond(operation, sendResponse) {
+  operation.then(
+    () => sendResponse({ success: true }),
+    (error) => sendResponse({ success: false, error: error.message }),
+  );
+  return true;
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.action === "openSettings") {
-    const params = new URLSearchParams({ standalone: "true" });
-    const [currentSubreddit] = FrontFilter.normalizeAllowedSubreddits([
-      message.currentSubreddit,
-    ]);
-    if (currentSubreddit) params.set("currentSubreddit", currentSubreddit);
-    chrome.tabs
-      .create({
-        url: `${chrome.runtime.getURL("popup/index.html")}?${params.toString()}`,
-      })
-      .then(
-        () => sendResponse({ success: true }),
-        (error) => sendResponse({ success: false, error: error.message }),
-      );
-    return true;
+    const url = chrome.runtime.getURL(FrontFilter.settingsPagePath(message.currentSubreddit));
+    return respond(chrome.tabs.create({ url }), sendResponse);
   }
-
+  // Extension pages wait for the rules before revisiting an unblocked page.
   if (message?.action === "syncNavigationRules") {
-    syncNavigationRules().then(
-      () => sendResponse({ success: true }),
-      (error) => sendResponse({ success: false, error: error.message }),
-    );
-    return true;
+    return respond(syncNavigationRules(), sendResponse);
   }
-
   return false;
 });
 
-void syncNavigationRules().catch((error) => {
-  console.error("Could not initialize FrontFilter navigation rules:", error);
-});
+syncNavigationRulesInBackground();

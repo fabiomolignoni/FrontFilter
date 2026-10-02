@@ -1,5 +1,6 @@
 /**
- * FrontFilter - Shared helpers
+ * FrontFilter's settings, filter matching and page routes, shared by the
+ * background, the content scripts and the extension pages.
  */
 
 var FrontFilter = (() => {
@@ -100,14 +101,12 @@ var FrontFilter = (() => {
   // Main pages that settings can block. Each path is a regular expression
   // source that both the content script and declarativeNetRequest rules use.
   const PAGE_ROUTES = Object.freeze([
-    { key: "blockHomepage", page: "homepage", filter: "Homepage", path: `(/(${LISTING_SORT_PATTERN}))?/?` },
-    { key: "blockPopular", page: "popular", filter: "r/popular", path: "/r/popular(/.*)?" },
-    { key: "blockExplore", page: "explore", filter: "Explore", path: "/explore(/.*)?" },
-    { key: "blockNews", page: "news", filter: "News", path: "/news(/.*)?" },
+    { key: "blockHomepage", page: "homepage", path: `(/(${LISTING_SORT_PATTERN}))?/?` },
+    { key: "blockPopular", page: "popular", path: "/r/popular(/.*)?" },
+    { key: "blockExplore", page: "explore", path: "/explore(/.*)?" },
+    { key: "blockNews", page: "news", path: "/news(/.*)?" },
   ].map((route) => Object.freeze({ type: "page", ...route })));
-  const SUBREDDIT_FRONTS_ROUTE = Object.freeze({
-    type: "page", page: "subhome", filter: "All Sub Fronts",
-  });
+  const SUBREDDIT_FRONTS_ROUTE = Object.freeze({ type: "page", page: "subhome" });
   const PAGE_PATTERNS = new Map(PAGE_ROUTES.map((route) =>
     [route, new RegExp(`^${route.path}$`, "i")]
   ));
@@ -139,18 +138,13 @@ var FrontFilter = (() => {
     if (!name) return "";
 
     let cameFromRedditUrl = false;
-    try {
-      const looksLikeUrl = /^https?:\/\//i.test(name);
-      const looksLikeRedditHost = /^(?:[\w-]+\.)?reddit\.com(?:\/|$)/i.test(name);
-      if (looksLikeUrl || looksLikeRedditHost) {
-        const url = getRedditUrl(looksLikeUrl ? name : `https://${name}`);
-        if (!url) return "";
+    const looksLikeUrl = /^https?:\/\//i.test(name);
+    if (looksLikeUrl || /^(?:[\w-]+\.)?reddit\.com(?:\/|$)/i.test(name)) {
+      const url = getRedditUrl(looksLikeUrl ? name : `https://${name}`);
+      if (!url) return "";
 
-        name = url.pathname;
-        cameFromRedditUrl = true;
-      }
-    } catch {
-      return "";
+      name = url.pathname;
+      cameFromRedditUrl = true;
     }
 
     name = name.split(/[?#]/, 1)[0].replace(/^\/+|\/+$/g, "");
@@ -192,23 +186,6 @@ var FrontFilter = (() => {
 
   function normalizeMode(mode) {
     return mode === "all" ? "all" : "home";
-  }
-
-  function normalizeTheme(theme) {
-    return theme === "dark" || theme === "light" ? theme : "system";
-  }
-
-  // For extension pages. The cached mode lets theme-bootstrap.js apply it
-  // before the next page renders; that script keeps its own copy of the key.
-  function applyTheme(theme) {
-    const normalizedTheme = normalizeTheme(theme);
-    document.documentElement.setAttribute("data-theme", normalizedTheme);
-    try {
-      globalThis.localStorage?.setItem("frontfilter-theme", normalizedTheme);
-    } catch {
-      // The theme still works for this page if local storage is unavailable.
-    }
-    return normalizedTheme;
   }
 
   function normalizeBlockedEntry(entry) {
@@ -288,13 +265,17 @@ var FrontFilter = (() => {
       && normalizeAllowedSubreddits(allowedSubreddits).includes(normalizedName);
   }
 
+  // Typed filters and Reddit's markup both vary in their whitespace.
+  function normalizeText(text) {
+    return typeof text === "string" ? text.trim().replace(/\s+/g, " ") : "";
+  }
+
   function normalizeTitleKeywords(keywords = []) {
     if (!Array.isArray(keywords)) return [];
 
     const deduped = new Map();
     for (const keyword of keywords) {
-      if (typeof keyword !== "string") continue;
-      const normalized = keyword.trim().replace(/\s+/g, " ");
+      const normalized = normalizeText(keyword);
       if (!normalized) continue;
 
       const comparisonKey = normalized.toLowerCase();
@@ -309,12 +290,8 @@ var FrontFilter = (() => {
     return normalizeTitleKeywords(flairs).filter((flair) => flair.length <= 100);
   }
 
-  function normalizeFlairText(text) {
-    return typeof text === "string" ? text.trim().replace(/\s+/g, " ") : "";
-  }
-
   function matchesFlairPattern(pattern, flairText) {
-    const flair = normalizeFlairText(flairText);
+    const flair = normalizeText(flairText);
     if (!flair || !pattern) return false;
     if (!pattern.includes("*")) return pattern.toLowerCase() === flair.toLowerCase();
     return getWildcardPattern(pattern).test(flair);
@@ -325,79 +302,63 @@ var FrontFilter = (() => {
     const normalizedKeywords = normalizeTitleKeywords(keywords)
       .map((keyword) => keyword.toLowerCase());
     return (text) => {
-      if (typeof text !== "string" || !text || normalizedKeywords.length === 0) return false;
-      const normalizedText = text.trim().replace(/\s+/g, " ").toLowerCase();
-      return normalizedKeywords.some((keyword) => normalizedText.includes(keyword));
+      if (normalizedKeywords.length === 0) return false;
+      const normalizedText = normalizeText(text).toLowerCase();
+      return Boolean(normalizedText)
+        && normalizedKeywords.some((keyword) => normalizedText.includes(keyword));
     };
   }
 
+  // Each list setting keeps the entries its normalizer accepts.
+  const LIST_SETTINGS = Object.freeze({
+    blockedSubreddits: normalizeBlockedSubreddits,
+    allowedSubreddits: normalizeAllowedSubreddits,
+    blockedTitleKeywords: normalizeTitleKeywords,
+    blockedFlairs: normalizeBlockedFlairs,
+  });
+  const CHOICE_SETTINGS = Object.freeze({
+    scrollMode: Object.freeze(["fixed", "button"]),
+    theme: Object.freeze(["system", "dark", "light"]),
+  });
+
+  // Any other setting is a switch.
+  function coerceSetting(key, value) {
+    const normalizeList = LIST_SETTINGS[key];
+    if (normalizeList) return normalizeList(value);
+    const choices = CHOICE_SETTINGS[key];
+    if (choices) return choices.includes(value) ? value : DEFAULT_SETTINGS[key];
+    if (key === "scrollLimit") {
+      return Number.isSafeInteger(value) && value > 0 ? value : DEFAULT_SETTINGS.scrollLimit;
+    }
+    return value === true;
+  }
+
+  // Imports are validated strictly: a value is valid when coercing it keeps
+  // it as it is, and a list when coercing keeps each of its entries.
   function isValidSettingValue(key, value) {
-    if (key === "blockedSubreddits") {
-      return Array.isArray(value) && value.every((entry) => {
-        if (typeof entry === "string") return normalizeBlockedEntry(entry) !== null;
-        return Boolean(entry && typeof entry === "object"
-          && normalizeBlockedEntry(entry)
-          && (entry.mode === undefined || entry.mode === "home" || entry.mode === "all"));
-      });
-    }
-    if (key === "allowedSubreddits") {
-      return Array.isArray(value) && value.every((entry) =>
-        typeof entry === "string" && normalizeAllowedSubreddits([entry]).length === 1
-      );
-    }
-    if (key === "blockedTitleKeywords") {
-      return Array.isArray(value) && value.every((entry) =>
-        typeof entry === "string" && normalizeTitleKeywords([entry]).length === 1
-      );
-    }
-    if (key === "blockedFlairs") {
-      return Array.isArray(value) && value.every((entry) =>
-        typeof entry === "string" && normalizeBlockedFlairs([entry]).length === 1
-      );
-    }
-    if (key === "scrollLimit") return Number.isSafeInteger(value) && value > 0;
-    if (key === "scrollMode") return value === "fixed" || value === "button";
-    if (key === "theme") return value === "system" || value === "dark" || value === "light";
-    return typeof value === "boolean";
+    const normalizeList = LIST_SETTINGS[key];
+    if (!normalizeList) return coerceSetting(key, value) === value;
+    return Array.isArray(value) && value.every((entry) =>
+      normalizeList([entry]).length === 1
+      && (typeof entry !== "object" || [undefined, "home", "all"].includes(entry.mode))
+    );
   }
 
   function getInvalidSettingKeys(values = {}) {
     if (!values || typeof values !== "object" || Array.isArray(values)) return [];
     return STORAGE_KEYS.filter((key) =>
-      Object.prototype.hasOwnProperty.call(values, key)
-      && !isValidSettingValue(key, values[key])
+      Object.hasOwn(values, key) && !isValidSettingValue(key, values[key])
     );
   }
 
+  // Settings for stored or imported values: invalid and missing values take
+  // their defaults, and switches that imply their sections turn them on.
   function coerceSettings(values = {}) {
     const source = values && typeof values === "object" ? values : {};
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      blockedSubreddits: [],
-      allowedSubreddits: [],
-      blockedTitleKeywords: [],
-      blockedFlairs: [],
-    };
+    const settings = {};
     for (const key of STORAGE_KEYS) {
-      if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
-      if (key === "blockedSubreddits") {
-        settings[key] = normalizeBlockedSubreddits(source[key]);
-      } else if (key === "allowedSubreddits") {
-        settings[key] = normalizeAllowedSubreddits(source[key]);
-      } else if (key === "blockedTitleKeywords") {
-        settings[key] = normalizeTitleKeywords(source[key]);
-      } else if (key === "blockedFlairs") {
-        settings[key] = normalizeBlockedFlairs(source[key]);
-      } else if (key === "scrollLimit") {
-        settings[key] = Number.isSafeInteger(source[key]) && source[key] > 0
-          ? source[key] : DEFAULT_SETTINGS.scrollLimit;
-      } else if (key === "scrollMode") {
-        settings[key] = source[key] === "button" ? "button" : "fixed";
-      } else if (key === "theme") {
-        settings[key] = normalizeTheme(source[key]);
-      } else {
-        settings[key] = source[key] === true;
-      }
+      const value = Object.hasOwn(source, key) ? source[key] : DEFAULT_SETTINGS[key];
+      settings[key] = coerceSetting(key, value);
     }
     for (const [parent, sections] of Object.entries(SETTING_GROUPS)) {
       if (!settings[parent]) continue;
@@ -412,7 +373,7 @@ var FrontFilter = (() => {
     const source = changes && typeof changes === "object" ? changes : {};
     const values = {};
     for (const key of STORAGE_KEYS) {
-      const value = Object.prototype.hasOwnProperty.call(source, key)
+      const value = Object.hasOwn(source, key)
         ? source[key]?.newValue
         : storedValues?.[key];
       if (value !== undefined) values[key] = value;
@@ -546,6 +507,15 @@ var FrontFilter = (() => {
     return `?${params.toString()}`;
   }
 
+  // The settings page in a tab of its own. Its Add current buttons add the
+  // subreddit given here, as the tab they would read is the settings page.
+  function settingsPagePath(subreddit) {
+    const params = new URLSearchParams({ standalone: "true" });
+    const [name] = normalizeAllowedSubreddits([subreddit]);
+    if (name) params.set("currentSubreddit", name);
+    return `popup/index.html?${params.toString()}`;
+  }
+
   return {
     STORAGE_KEYS,
     SETTING_GROUPS,
@@ -571,12 +541,11 @@ var FrontFilter = (() => {
     normalizeSubredditName,
     normalizeTitleKeywords,
     normalizeBlockedFlairs,
-    normalizeFlairText,
+    normalizeText,
     matchesFlairPattern,
-    normalizeTheme,
-    applyTheme,
     createKeywordMatcher,
     blockPageQuery,
+    settingsPagePath,
     isFeedPath,
     isHomeFeedPath,
   };
