@@ -2,6 +2,19 @@
 
 Notable changes to FrontFilter, newest first.
 
+## 2.3.1 - 2026-10-02
+
+### Changed
+
+- The block page names the rule that blocks a page only when it is a
+  pattern, such as `*news*`, and its buttons read **Go back**, **Open
+  settings** and **Undo block**.
+- In the settings, a subreddit, keyword or flair added twice merges into one
+  row, and entries that cannot be used, such as a blocked subreddit with
+  spaces or a flair over 100 characters, are explained instead of being
+  cleared silently.
+- Screen readers no longer announce the FrontFilter logo next to its name.
+
 ## 2.3.0 - 2026-10-01
 
 ### Added
