@@ -14,6 +14,19 @@ Notable changes to FrontFilter, newest first.
   spaces or a flair over 100 characters, are explained instead of being
   cleared silently.
 - Screen readers no longer announce the FrontFilter logo next to its name.
+- FrontFilter does less work on long feeds: it reads a post again only when
+  the post or the settings change, and changes to timestamps, counters and
+  menus no longer make it go over the page.
+
+### Fixed
+
+- A post that links to a thread in a subreddit blocked in ALL mode is no
+  longer hidden as if it were from that subreddit.
+- A user profile typed as a subreddit rule, such as `u/name`, is reported as
+  invalid instead of blocking or allowing the subreddit r/u, and posts from
+  user profiles no longer count as posts from r/u.
+- **+ Add current** reports that it found no subreddit on tabs outside
+  Reddit, instead of doing nothing.
 
 ## 2.3.0 - 2026-10-01
 
