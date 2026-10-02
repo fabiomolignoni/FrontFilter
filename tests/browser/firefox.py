@@ -55,21 +55,6 @@ class FirefoxSettingsTests(ExtensionTestCase):
         ]
         self.assertEqual(panels, [f"panel-{name}"])
 
-    def toggle_group(self, parent_id, expander_id, child_ids):
-        """Checks a parent switch that implies and locks its child switches."""
-        find = lambda element_id: self.driver.find_element("id", element_id)
-        parent = find(parent_id)
-        children = [find(child_id) for child_id in child_ids]
-        self.assertTrue(all(not child.is_selected() and child.is_enabled() for child in children))
-        self.assertFalse(any(child.is_displayed() for child in children))
-        find(expander_id).click()
-        self.wait_until(lambda: all(child.is_displayed() for child in children))
-        parent.click()
-        self.wait_until(lambda: all(child.is_selected() and not child.is_enabled() for child in children))
-        parent.click()
-        self.wait_until(lambda: all(not child.is_selected() and child.is_enabled() for child in children))
-        return children
-
     def set_theme(self, theme):
         self.js(
             "arguments[0].value = arguments[1];"
@@ -148,48 +133,11 @@ class FirefoxSettingsTests(ExtensionTestCase):
         self.selected("controls")
         self.assertTrue(find("block-explore").is_enabled())
         self.assertTrue(find("block-news").is_enabled())
-        all_comments = find("hide-comments")
-        comment_replies = find("hide-comment-replies")
-        self.assertFalse(all_comments.is_selected())
-        self.assertTrue(not comment_replies.is_selected() and comment_replies.is_enabled())
-        self.assertFalse(comment_replies.is_displayed())
-        find("comments-toggle").click()
-        self.wait_until(lambda: comment_replies.is_displayed())
-        all_comments.click()
-        self.wait_until(lambda: comment_replies.is_selected() and not comment_replies.is_enabled())
-        all_comments.click()
-        self.wait_until(lambda: not comment_replies.is_selected() and comment_replies.is_enabled())
-        # Replies alone leave the parent switch mixed; clicking it hides all.
-        comment_replies.click()
-        self.wait_until(lambda: all_comments.get_property("indeterminate"))
-        all_comments.click()
-        self.wait_until(lambda: all_comments.is_selected() and not all_comments.get_property("indeterminate"))
-        all_comments.click()
-        self.wait_until(lambda: not comment_replies.is_selected())
+        self.check_switch_groups()
         suggested_communities = find("hide-suggested-communities")
         self.assertFalse(suggested_communities.is_selected())
         suggested_communities.click()
         self.wait_until(lambda: suggested_communities.is_selected())
-
-        navbar_sections = self.toggle_group("hide-navbar", "navbar-toggle", [
-            "hide-navbar-menu", "hide-navbar-search", "hide-navbar-chat",
-            "hide-navbar-notifications", "hide-navbar-profile", "hide-navbar-others",
-        ])
-        navbar_sections[1].click()
-        self.wait_until(lambda: navbar_sections[1].is_selected())
-        navbar_sections[1].click()
-        self.wait_until(lambda: all(not toggle.is_selected() for toggle in navbar_sections))
-        sidebar_sections = self.toggle_group("hide-left-sidebar", "left-sidebar-toggle", [
-            "hide-left-sidebar-games", "hide-left-sidebar-custom-feeds", "hide-left-sidebar-recent",
-            "hide-left-sidebar-communities", "hide-left-sidebar-resources",
-        ])
-        sidebar_sections[0].click()
-        self.wait_until(lambda: sidebar_sections[0].is_selected())
-        sidebar_sections[0].click()
-        self.wait_until(lambda: all(not toggle.is_selected() for toggle in sidebar_sections))
-        self.toggle_group("hide-social-signals", "social-toggle", [
-            "hide-votes", "hide-karma", "hide-awards", "hide-avatars", "hide-usernames",
-        ])
 
         find("tab-controls").send_keys(Keys.ARROW_RIGHT)
         self.selected("filters")

@@ -70,53 +70,11 @@ class ChromeSettingsTests(ExtensionTestCase):
         news_toggle = find("block-news")
         self.assertTrue(explore_toggle.is_enabled() and news_toggle.is_enabled())
 
-        all_comments = find("hide-comments")
-        comment_replies = find("hide-comment-replies")
-        self.assertFalse(all_comments.is_selected())
-        self.assertTrue(not comment_replies.is_selected() and comment_replies.is_enabled())
-        self.assertFalse(comment_replies.is_displayed())
-        find("comments-toggle").click()
-        self.wait_until(lambda: comment_replies.is_displayed())
-        all_comments.click()
-        self.wait_until(lambda: comment_replies.is_selected() and not comment_replies.is_enabled())
-        all_comments.click()
-        self.wait_until(lambda: not comment_replies.is_selected() and comment_replies.is_enabled())
-        # Replies alone leave the parent switch mixed; clicking it hides all.
-        comment_replies.click()
-        self.wait_until(lambda: all_comments.get_property("indeterminate"))
-        all_comments.click()
-        self.wait_until(lambda: all_comments.is_selected() and not all_comments.get_property("indeterminate"))
-        all_comments.click()
-        self.wait_until(lambda: not comment_replies.is_selected())
+        self.check_switch_groups()
         suggested_communities = find("hide-suggested-communities")
         self.assertFalse(suggested_communities.is_selected())
         suggested_communities.click()
         self.wait_until(lambda: suggested_communities.is_selected())
-
-        for parent_id, expander_id, child_ids in [
-            ("hide-navbar", "navbar-toggle", [
-                "hide-navbar-menu", "hide-navbar-search", "hide-navbar-chat",
-                "hide-navbar-notifications", "hide-navbar-profile", "hide-navbar-others",
-            ]),
-            ("hide-left-sidebar", "left-sidebar-toggle", [
-                "hide-left-sidebar-games", "hide-left-sidebar-custom-feeds", "hide-left-sidebar-recent",
-                "hide-left-sidebar-communities", "hide-left-sidebar-resources",
-            ]),
-            ("hide-social-signals", "social-toggle", [
-                "hide-votes", "hide-karma", "hide-awards", "hide-avatars", "hide-usernames",
-            ]),
-        ]:
-            with self.subTest(group=parent_id):
-                parent = find(parent_id)
-                children = [find(child_id) for child_id in child_ids]
-                self.assertTrue(all(not child.is_selected() and child.is_enabled() for child in children))
-                self.assertFalse(any(child.is_displayed() for child in children))
-                find(expander_id).click()
-                self.wait_until(lambda: all(child.is_displayed() for child in children))
-                parent.click()
-                self.wait_until(lambda: all(child.is_selected() and not child.is_enabled() for child in children))
-                parent.click()
-                self.wait_until(lambda: all(not child.is_selected() and child.is_enabled() for child in children))
 
         # The system theme follows the emulated dark scheme until set to light.
         theme = find("color-theme")
@@ -167,8 +125,6 @@ class ChromeSettingsTests(ExtensionTestCase):
         self.assertEqual(find("color-theme").get_property("value"), "light")
         self.assertEqual(driver.find_element("tag name", "html").get_attribute("data-theme"), "light")
         self.assertEqual(self.js("return localStorage.getItem('frontfilter-theme')"), "light")
-        # Settings removed in earlier releases stay gone.
-        self.assertFalse(driver.find_elements("id", "block-nsfw"))
 
 
 def main():

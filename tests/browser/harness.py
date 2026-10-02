@@ -62,6 +62,22 @@ chrome.storage.local.set(settings)
 
 FIREFOX_ADDON_ID = browser_manifest("firefox")["browser_specific_settings"]["gecko"]["id"]
 
+# The settings page's switch groups: parent switch, expander and sections.
+SWITCH_GROUPS = [
+    ("hide-comments", "comments-toggle", ["hide-comment-replies"]),
+    ("hide-social-signals", "social-toggle", [
+        "hide-votes", "hide-karma", "hide-awards", "hide-avatars", "hide-usernames",
+    ]),
+    ("hide-navbar", "navbar-toggle", [
+        "hide-navbar-menu", "hide-navbar-search", "hide-navbar-chat",
+        "hide-navbar-notifications", "hide-navbar-profile", "hide-navbar-others",
+    ]),
+    ("hide-left-sidebar", "left-sidebar-toggle", [
+        "hide-left-sidebar-games", "hide-left-sidebar-custom-feeds", "hide-left-sidebar-recent",
+        "hide-left-sidebar-communities", "hide-left-sidebar-resources",
+    ]),
+]
+
 
 def build_extension(destination, browser, fixture_port=None):
     """Writes a test copy of the extension: a Firefox .xpi or a Chrome folder.
@@ -275,6 +291,34 @@ class ExtensionTestCase(unittest.TestCase):
                 " controls: document.querySelector('.frontfilter-feed-controls')?.textContent}"
             )
             self.fail(f"expected {expected}, page state: {state}")
+
+    def check_switch_groups(self):
+        """Checks the settings page's grouped switches, which start collapsed.
+
+        A parent switch turns its sections on and locks them, turns them off
+        with it, and shows a mixed state while only some of them are on.
+        """
+        find = lambda element_id: self.driver.find_element("id", element_id)
+        for parent_id, expander_id, section_ids in SWITCH_GROUPS:
+            with self.subTest(group=parent_id):
+                parent = find(parent_id)
+                sections = [find(section_id) for section_id in section_ids]
+                self.assertFalse(parent.is_selected())
+                self.assertTrue(all(not section.is_selected() and section.is_enabled() for section in sections))
+                self.assertFalse(any(section.is_displayed() for section in sections))
+                find(expander_id).click()
+                self.wait_until(lambda: all(section.is_displayed() for section in sections))
+                parent.click()
+                self.wait_until(lambda: all(section.is_selected() and not section.is_enabled() for section in sections))
+                parent.click()
+                self.wait_until(lambda: all(not section.is_selected() and section.is_enabled() for section in sections))
+                # One section alone leaves the parent mixed; clicking it hides all.
+                sections[-1].click()
+                self.wait_until(lambda: parent.get_property("indeterminate"))
+                parent.click()
+                self.wait_until(lambda: parent.is_selected() and not parent.get_property("indeterminate"))
+                parent.click()
+                self.wait_until(lambda: not any(section.is_selected() for section in sections))
 
     def click_feed_button(self):
         button = ".frontfilter-feed-controls button:not([hidden]):not(:disabled)"
