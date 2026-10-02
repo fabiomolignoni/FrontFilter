@@ -7,6 +7,8 @@ subreddits, filter posts and comments, and limit endless scrolling.
 
 - [Chrome Web Store](https://chromewebstore.google.com/detail/frontfilter-reddit-feed-d/ekjnpdhgghniefiljlfopdjgoegneiie)
   (Chrome 121 or later)
+- [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/frontfilter-reddit-feed/eimajmdhafjkjaomdffniplpgijoemdm)
+  (Edge 121 or later)
 - [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/frontfilter/)
   (Firefox 140 or later, Firefox for Android 142 or later)
 
