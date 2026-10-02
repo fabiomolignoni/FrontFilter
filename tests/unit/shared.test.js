@@ -36,6 +36,21 @@ test("rejects invalid subreddit values and normalizes bare Reddit hosts", () => 
   assert.equal(FrontFilter.normalizeSubredditName(42), "");
 });
 
+test("takes a bare name or an r/ path for a subreddit, never a user profile", () => {
+  for (const [value, expected] of [
+    ["news", "news"],
+    ["/r/News/top/", "news"],
+    ["r/u_spez/comments/abc", "u_spez"],
+    ["u_spez", "u_spez"],
+    ["u/spez", ""],
+    ["/u/spez/", ""],
+    ["user/spez", ""],
+    ["news/comments/abc", ""],
+  ]) {
+    assert.equal(FrontFilter.normalizeSubredditName(value), expected, value);
+  }
+});
+
 test("matches exact names and wildcard patterns", () => {
   assert.equal(FrontFilter.matchesSubredditPattern("firefox", "Firefox"), true);
   assert.equal(FrontFilter.matchesSubredditPattern("*news*", "worldnews"), true);

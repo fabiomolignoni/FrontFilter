@@ -149,10 +149,10 @@ var FrontFilter = (() => {
 
     name = name.split(/[?#]/, 1)[0].replace(/^\/+|\/+$/g, "");
 
-    const pattern = cameFromRedditUrl
-      ? /^r\/([a-z0-9_*]+)(?:\/.*)?$/i
-      : /^(?:r\/)?([a-z0-9_*]+)(?:\/.*)?$/i;
-    const subredditPathMatch = name.match(pattern);
+    // A path names a subreddit after r/. A bare name is one segment, so a
+    // user profile, such as u/name, is not taken for a subreddit named u.
+    const subredditPathMatch = name.match(/^r\/([a-z0-9_*]+)(?:\/.*)?$/i)
+      || (!cameFromRedditUrl && name.match(/^([a-z0-9_*]+)$/i));
     if (!subredditPathMatch) return "";
 
     const normalized = subredditPathMatch[1].replace(/\*+/g, "*");

@@ -658,6 +658,16 @@ test("hides posts from ALL-mode subreddits using post attributes", async () => {
   assert.equal("frontfilterPostHidden" in allowedPost.dataset, false);
 });
 
+test("does not take a profile post's u/name for a subreddit named u", async () => {
+  const profilePost = createPost({ subreddit: "u/alice" });
+  await loadContent({
+    querySelectorAll: (selector) => isPostCollectionSelector(selector) ? [profilePost] : [],
+    settings: { blockedSubreddits: [{ name: "*u", mode: "all" }] },
+    startUrl: "https://www.reddit.com/",
+  });
+  assert.equal("frontfilterPostHidden" in profilePost.dataset, false);
+});
+
 test("keeps allowed subreddit posts despite global and wildcard community blocks", async () => {
   const exceptionPost = createPost({ subreddit: "ItalyPersonalFinance" });
   const blockedPost = createPost({ subreddit: "italytravel" });
