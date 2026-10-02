@@ -25,17 +25,24 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     ...SELECTORS.post.bodyAttributes,
     SELECTORS.post.recommendationAttribute,
   ];
+  const GATE_ATTRIBUTE = "data-frontfilter-feed-gate";
+  const VISIBLE_ATTRIBUTE = "data-frontfilter-limit-visible";
+  const HIDDEN_ATTRIBUTE = "data-frontfilter-limit-hidden";
   const PAUSE_ATTRIBUTE = "data-frontfilter-feed-paused";
   // Reddit loads the next page whenever its loader is within two screens of
   // the viewport. When filters hide whole pages the loader never moves, so
-  // Reddit would keep fetching invisible pages; native loading pauses after
-  // this many pages without a newly visible post.
+  // Reddit would keep fetching invisible pages. Loading stops after this
+  // many pages without a newly visible post, with or without a limit.
   const EMPTY_PAGE_LIMIT = 3;
+  // How long a page may take to load, or its cards to be identified.
+  const LOAD_TIMEOUT = 10000;
+  // How long an empty feed may take to render its first cards.
+  const SETTLE_DELAY = 500;
+  const RETRY_DELAY = 100;
   let ready = false;
   let session = null;
   let guard = null;
   let bridgeReady = false;
-  let disposed = false;
   let navigation = null;
   let requestSequence = 0;
 
@@ -52,7 +59,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
 
   function updateGate() {
     if (document.documentElement) {
-      setAttribute(document.documentElement, "data-frontfilter-feed-gate", enabled());
+      setAttribute(document.documentElement, GATE_ATTRIBUTE, enabled());
     }
   }
 
@@ -104,8 +111,17 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   }
 
   function setVisible(element, value) {
-    setAttribute(element, "data-frontfilter-limit-visible", value);
-    setAttribute(element, "data-frontfilter-limit-hidden", !value);
+    setAttribute(element, VISIBLE_ATTRIBUTE, value);
+    setAttribute(element, HIDDEN_ATTRIBUTE, !value);
+  }
+
+  // Removes the markers from a feed's elements, except those to keep.
+  function clearMarkers(feed, keep = new Set()) {
+    for (const element of feed.querySelectorAll(`[${VISIBLE_ATTRIBUTE}], [${HIDDEN_ATTRIBUTE}]`)) {
+      if (keep.has(element)) continue;
+      element.removeAttribute(VISIBLE_ATTRIBUTE);
+      element.removeAttribute(HIDDEN_ATTRIBUTE);
+    }
   }
 
   function render(current, rows) {
@@ -126,16 +142,11 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       const divider = row.element.nextElementSibling;
       if (divider?.matches("hr")) setVisible(divider, show);
     });
-    // Clearing stale markers must not reveal newly inserted, unclassified cards.
-    const elements = new Set(rows.flatMap(({ element, post }) => [element, post, element.nextElementSibling]));
-    current.feed.querySelectorAll("[data-frontfilter-limit-visible], [data-frontfilter-limit-hidden]")
-      .forEach((element) => {
-        if (!elements.has(element)) {
-          element.removeAttribute("data-frontfilter-limit-visible");
-          element.removeAttribute("data-frontfilter-limit-hidden");
-        }
-      });
-    renderControls(current);
+    // Clearing stale markers must not reveal newly inserted, unclassified
+    // cards: the gate's CSS keeps those hidden.
+    clearMarkers(current.feed, new Set(
+      rows.flatMap(({ element, post }) => [element, post, element.nextElementSibling]),
+    ));
   }
 
   function renderControls(current) {
@@ -176,11 +187,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     session.cancelLoading?.();
     session.intersection.disconnect();
     session.controls.remove();
-    session.feed.querySelectorAll("[data-frontfilter-limit-hidden], [data-frontfilter-limit-visible]")
-      .forEach((element) => {
-        element.removeAttribute("data-frontfilter-limit-hidden");
-        element.removeAttribute("data-frontfilter-limit-visible");
-      });
+    clearMarkers(session.feed);
     session = null;
   }
 
@@ -233,7 +240,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     return current;
   }
 
-  function later(current, delay = 100) {
+  function later(current, delay = RETRY_DELAY) {
     clearTimeout(current.timer);
     current.timer = setTimeout(() => { if (active(current)) update(); }, delay);
   }
@@ -247,7 +254,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     if (document.visibilityState === "hidden" || bounds.top > window.innerHeight + 200
       || bounds.bottom < 0) return;
     if (rows.some((row) => !row.ad && (!row.id || !row.subreddit))) {
-      if (Date.now() - current.waitingSince > 10000) {
+      if (Date.now() - current.waitingSince > LOAD_TIMEOUT) {
         current.error = "Some posts could not be identified. Retry loading.";
       } else later(current);
       return;
@@ -257,7 +264,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     const loader = loaders.at(-1);
     if (!loader) {
       // Wait for the initial render / final continuation to settle.
-      if (document.readyState === "loading" || Date.now() - current.waitingSince < 500) {
+      if (document.readyState === "loading" || Date.now() - current.waitingSince < SETTLE_DELAY) {
         later(current);
       } else if (rows.length) {
         current.window.end();
@@ -268,7 +275,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     }
     const cursor = loader.getAttribute("src");
     if (!bridgeReady || !cursor) {
-      if (Date.now() - current.waitingSince > 10000) {
+      if (Date.now() - current.waitingSince > LOAD_TIMEOUT) {
         current.error = "This feed could not load more posts. Retry loading.";
       } else later(current);
       return;
@@ -277,7 +284,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       current.error = "Reddit did not advance the feed. Retry loading.";
       return;
     }
-    if (current.pages >= 3) {
+    if (current.pages >= EMPTY_PAGE_LIMIT) {
       current.error = "No matching posts found in the last pages. Retry to continue.";
       return;
     }
@@ -320,8 +327,8 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
         || loader.getAttribute("src") !== cursor
         || Array.from(current.feed.querySelectorAll(LOADER)).at(-1) !== loader;
       if (changed) finish();
-      else if (Date.now() - current.waitingSince > 10000) finish(new Error("timeout"));
-      else current.timer = setTimeout(waitForDOM, 100);
+      else if (Date.now() - current.waitingSince > LOAD_TIMEOUT) finish(new Error("timeout"));
+      else current.timer = setTimeout(waitForDOM, RETRY_DELAY);
     };
     current.cancelLoading = () => finish(null, true);
     loader.addEventListener(ERROR_EVENT, onLoadError);
@@ -419,11 +426,10 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     current.loader = loader;
     clearTimeout(current.timer);
     // Page filters classify new cards on the next frame; measure afterwards.
-    current.timer = setTimeout(() => evaluateGuard(current), 100);
+    current.timer = setTimeout(() => evaluateGuard(current), RETRY_DELAY);
   }
 
   function update() {
-    if (disposed) return;
     updateGate();
     detectBridge();
     if (!ready) return;
@@ -475,17 +481,19 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     if (state.allowed.size > visibleBefore) current.pages = 0;
     if (!state.pending) current.error = "";
     render(current, rows);
+    // The controls mark the end of the visible posts, where continueFeed
+    // measures how close the reader is; loading then changes what they say.
+    renderControls(current);
     continueFeed(current, rows);
     renderControls(current);
   }
 
   updateGate();
   detectBridge();
-  const onBridgeReady = () => {
+  document.addEventListener(READY_EVENT, () => {
     bridgeReady = true;
-    if (!disposed) update();
-  };
-  document.addEventListener(READY_EVENT, onBridgeReady);
+    update();
+  });
   const observer = new MutationObserver((mutations) => {
     if (!session || session.key !== key() || !session.feed.isConnected
       || mutations.some(({ target }) => session.feed.contains(target))) update();
@@ -498,17 +506,11 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     attributeFilter: ATTRIBUTES,
   });
   document.addEventListener("visibilitychange", update);
+  // Settings apply once loaded: until then, the gate keeps feeds hidden.
   return {
-    update() { ready = true; update(); },
-    destroy() {
-      disposed = true;
-      observer.disconnect();
-      document.removeEventListener("visibilitychange", update);
-      document.removeEventListener(READY_EVENT, onBridgeReady);
-      stopSession();
-      stopGuard();
-      document.documentElement?.removeAttribute("data-frontfilter-feed-gate");
-      document.dispatchEvent(new Event(RELEASE_EVENT));
+    update() {
+      ready = true;
+      update();
     },
   };
 };
