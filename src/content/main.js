@@ -25,14 +25,8 @@ let observer = null;
 let observerOptionsSignature = "";
 let processingScheduled = false;
 let pageChangedOutsideComments = false;
-// What the last pass applied, so that switching a feature off undoes it.
-let postFilteringActive = false;
-let commentFilteringActive = false;
-let communityFilteringActive = false;
-let commentActionsHidden = false;
-let videoAutoplayDisabled = false;
-let mainPageLinksHidden = false;
-let shadowSignalsHidden = false;
+// The features the last pass applied, so that switching one off undoes it.
+let appliedFeatures = {};
 // Comment text is read and matched once per comment and settings version;
 // the map records the version each comment was last marked for.
 const commentFilterResults = new WeakMap();
@@ -54,13 +48,22 @@ const quickBlock = FrontFilter.createQuickBlock({
   isAllowed: (name) => filterIndex.allowedSubreddits.has(name),
 });
 
+// What filters match against, and which of them scan the page, for the
+// current settings.
 function createFilterIndex(settings) {
+  const blockedAllSubreddits = settings.blockedSubreddits.filter((entry) => entry.mode === "all");
+  const hasKeywords = settings.blockedTitleKeywords.length > 0;
   return {
     allowedSubreddits: new Set(settings.allowedSubreddits),
-    blockedAllSubreddits: settings.blockedSubreddits.filter((entry) => entry.mode === "all"),
+    blockedAllSubreddits,
     blockedFlairs: settings.blockedFlairs,
-    hasKeywords: settings.blockedTitleKeywords.length > 0,
+    hasKeywords,
     matchesKeywords: FrontFilter.createKeywordMatcher(settings.blockedTitleKeywords),
+    filtersPosts: blockedAllSubreddits.length > 0 || hasKeywords || settings.blockedFlairs.length > 0,
+    // Comments already hidden by the comments switch need no text matching.
+    filtersComments: hasKeywords && !settings.hideComments,
+    // Community panels hide subreddits whose front page is blocked.
+    filtersCommunities: settings.blockSubHome || settings.blockedSubreddits.length > 0,
   };
 }
 
@@ -469,7 +472,7 @@ function setupCustomElementMonitors() {
   );
   monitorCustomElement(
     SELECTORS.leftSidebar.topSection,
-    () => mainPageLinksHidden,
+    () => PAGE_STYLE.blocksMainPageLinks(config),
     syncShadowMainPageLinks,
   );
   for (const host of SELECTORS.shadowSignalHosts) {
@@ -508,12 +511,12 @@ async function filterPosts() {
   processFilteredContent();
 }
 
+// Page rules are CSS and cover new elements by themselves; these features
+// must act on the elements Reddit adds.
 function needsDynamicContentProcessing() {
-  return filterIndex.blockedAllSubreddits.length > 0
-    || filterIndex.hasKeywords
-    || filterIndex.blockedFlairs.length > 0
-    || config.blockSubHome
-    || config.blockedSubreddits.length > 0
+  return filterIndex.filtersPosts
+    || filterIndex.filtersComments
+    || filterIndex.filtersCommunities
     || config.hideComments
     || config.disableAutoplay
     || config.showBlockSubredditButton
@@ -523,12 +526,9 @@ function needsDynamicContentProcessing() {
 
 // Attribute and text changes only matter to filters that read them.
 function configureContentObserver() {
-  const observePostAttributes = filterIndex.blockedAllSubreddits.length > 0
-    || filterIndex.hasKeywords;
-  const observeCommunityAttributes = config.blockSubHome
-    || config.blockedSubreddits.length > 0;
-  const observeAttributes = observePostAttributes
-    || observeCommunityAttributes
+  const observeAttributes = filterIndex.blockedAllSubreddits.length > 0
+    || filterIndex.hasKeywords
+    || filterIndex.filtersCommunities
     || config.disableAutoplay;
   const observeCharacterData = filterIndex.hasKeywords;
   const signature = `${observeAttributes}:${observeCharacterData}`;
@@ -572,49 +572,43 @@ function scheduleContentProcessing() {
 // Settings changes and first runs process everything; mutation-driven runs
 // skip page-wide post and community scans when only comments changed.
 function processFilteredContent({ outsideComments = true } = {}) {
-  const shouldFilterPosts = config.blockedTitleKeywords.length > 0
-    || config.blockedFlairs.length > 0
-    || config.blockedSubreddits.some((entry) => entry.mode === "all");
-  // Comments already hidden by the comments switch need no text matching.
-  const shouldFilterComments = config.blockedTitleKeywords.length > 0
-    && !config.hideComments;
-  const shouldFilterCommunities = config.blockSubHome
-    || config.blockedSubreddits.length > 0;
-  const shouldHideMainPageLinks = PAGE_STYLE.blocksMainPageLinks(config);
-  const shouldHideShadowSignals = PAGE_STYLE.hasShadowSignals(config);
+  const features = {
+    posts: filterIndex.filtersPosts,
+    communities: filterIndex.filtersCommunities,
+    comments: filterIndex.filtersComments,
+    commentActions: config.hideComments,
+    autoplay: config.disableAutoplay,
+    mainPageLinks: PAGE_STYLE.blocksMainPageLinks(config),
+    shadowSignals: PAGE_STYLE.hasShadowSignals(config),
+  };
+  const isOrWas = (feature) => features[feature] || appliedFeatures[feature];
 
-  if (shouldFilterPosts) {
+  if (features.posts) {
     if (outsideComments) processPostElements();
-  } else if (postFilteringActive) {
+  } else if (appliedFeatures.posts) {
     clearStaleBlockedElements("post");
   }
 
-  if (shouldFilterCommunities) {
+  if (features.communities) {
     if (outsideComments) processCommunityPanels();
-  } else if (communityFilteringActive) {
+  } else if (appliedFeatures.communities) {
     clearStaleBlockedElements("community");
   }
 
-  if (shouldFilterComments) {
+  if (features.comments) {
     processComments();
-  } else if (commentFilteringActive) {
+  } else if (appliedFeatures.comments) {
     clearStaleBlockedElements("comment");
   }
 
   if (outsideComments) quickBlock.update();
 
-  if (config.hideComments || commentActionsHidden) syncShadowCommentActions();
-  if (config.disableAutoplay || videoAutoplayDisabled) syncVideoAutoplay();
-  if (shouldHideMainPageLinks || mainPageLinksHidden) syncShadowMainPageLinks();
-  if (shouldHideShadowSignals || shadowSignalsHidden) syncShadowSocialSignals();
+  if (isOrWas("commentActions")) syncShadowCommentActions();
+  if (isOrWas("autoplay")) syncVideoAutoplay();
+  if (isOrWas("mainPageLinks")) syncShadowMainPageLinks();
+  if (isOrWas("shadowSignals")) syncShadowSocialSignals();
 
-  postFilteringActive = shouldFilterPosts;
-  communityFilteringActive = shouldFilterCommunities;
-  commentFilteringActive = shouldFilterComments;
-  commentActionsHidden = config.hideComments;
-  videoAutoplayDisabled = config.disableAutoplay;
-  mainPageLinksHidden = shouldHideMainPageLinks;
-  shadowSignalsHidden = shouldHideShadowSignals;
+  appliedFeatures = features;
 }
 
 void checkCurrentPage();

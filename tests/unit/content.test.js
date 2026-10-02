@@ -1,16 +1,7 @@
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
-
-function deferred() {
-  let resolve;
-  const promise = new Promise((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
-}
+const { deferred, runScripts, settle } = require("./helpers");
 
 async function loadContent({ querySelectorAll = () => [], settings, startUrl, body = {} }) {
   const redirects = [];
@@ -74,20 +65,29 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
     }
     observe(_target, options) { observerOptions.push({ ...options }); }
   }
+  const windowListeners = {};
   const window = {
     location,
-    addEventListener() {},
+    addEventListener(type, listener) { windowListeners[type] = listener; },
+  };
+  const intervals = [];
+  // Custom elements are defined when a test calls define(name).
+  const definitions = new Map();
+  const definition = (name) => {
+    if (!definitions.has(name)) definitions.set(name, deferred());
+    return definitions.get(name);
   };
   const context = vm.createContext({
     URL,
     URLSearchParams,
     chrome,
     console,
+    customElements: { whenDefined: (name) => definition(name).promise },
     document,
     Event,
     MutationObserver,
     requestAnimationFrame: (callback) => callback(),
-    setInterval: () => 0,
+    setInterval: (callback) => intervals.push(callback),
     window,
   });
 
@@ -103,8 +103,7 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
     "shared/core.js", "content/selectors.js", "content/posts.js", "content/page-style.js",
     "content/autoplay.js", "content/quick-block.js", "content/main.js",
   ]) {
-    const source = readFileSync(join(__dirname, "..", "..", "src", file), "utf8");
-    vm.runInContext(source, context, { filename: file });
+    runScripts(context, [file]);
     if (file === "shared/core.js") {
       vm.runInContext(`FrontFilter.createFeedLimiter = (options) => {
         FrontFilterFeedStub.options = options;
@@ -112,7 +111,7 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
       };`, context);
     }
   }
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   return {
     checkCurrentPage: context.checkCurrentPage,
@@ -123,7 +122,21 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
     async finishParsing() {
       document.body = {};
       readyListeners.splice(0).forEach((listener) => listener());
-      await new Promise((resolve) => setImmediate(resolve));
+      await settle();
+    },
+    async define(name) {
+      definition(name).resolve();
+      await settle();
+    },
+    // Runs the checks for SPA navigations, which Reddit makes with the
+    // History API: on popstate, and by polling.
+    async poll() {
+      intervals.forEach((callback) => callback());
+      await settle();
+    },
+    async popState() {
+      windowListeners.popstate();
+      await settle();
     },
     location,
     redirects,
@@ -239,7 +252,7 @@ test("observes attributes and text only while a matching filter needs them", asy
   content.storageListeners[0]({
     blockedTitleKeywords: { oldValue: ["news"], newValue: [] },
   }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.deepEqual(
     JSON.parse(JSON.stringify(content.observerOptions.at(-1))),
@@ -254,7 +267,7 @@ test("ignores legacy translation settings on load, storage changes and SPA navig
   });
   assert.deepEqual(content.redirects, []);
   content.storageListeners[0]({ disableAutoTranslation: { newValue: true } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(content.redirects, []);
 
   content.location.href = "https://www.reddit.com/r/javascript/?tl=ja&sort=top";
@@ -263,7 +276,7 @@ test("ignores legacy translation settings on load, storage changes and SPA navig
   assert.deepEqual(content.redirects, []);
 
   content.storageListeners[0]({ disableAutoTranslation: { newValue: false } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(content.redirects, []);
 });
 
@@ -281,6 +294,23 @@ test("updates the feed limiter once when an SPA navigation changes the URL", asy
 
   await content.checkCurrentPage();
   assert.equal(content.getFeedLimiterUpdateCount(), initialUpdateCount + 1);
+});
+
+test("leaves for the block page when the History API reaches a blocked page", async () => {
+  for (const navigate of ["popState", "poll"]) {
+    const content = await loadContent({
+      settings: { blockPopular: true },
+      startUrl: "https://www.reddit.com/r/firefox/",
+    });
+    await content[navigate]();
+    assert.deepEqual(content.redirects, [], navigate);
+
+    content.location.href = "https://www.reddit.com/r/popular/";
+    content.location.pathname = "/r/popular/";
+    await content[navigate]();
+    assert.equal(content.redirects.length, 1, navigate);
+    assert.equal(new URL(content.redirects[0]).searchParams.get("page"), "popular");
+  }
 });
 
 test("blocking rules apply to translated pages", async () => {
@@ -362,7 +392,7 @@ test("page rules toggle live without disturbing each other or active filters", a
       Object.fromEntries(saved.map((key) => [key, { newValue: enabled }])),
       "local",
     );
-    await new Promise((resolve) => setImmediate(resolve));
+    await settle();
   }
 
   const withoutRules = style.textContent;
@@ -429,7 +459,7 @@ test("hides links to blocked main pages from the top left-navigation section", a
     blockNews: { oldValue: true, newValue: false },
     blockExplore: { oldValue: false, newValue: true },
   }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.doesNotMatch(style.textContent, /a\[href="\/news" i\]/);
   assert.match(style.textContent, /a\[href="\/explore" i\]/);
 });
@@ -451,7 +481,7 @@ test("hides global feed-sort links and the navbar logo when the homepage is bloc
   content.storageListeners[0]({
     blockHomepage: { oldValue: true, newValue: false },
   }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.doesNotMatch(style.textContent, /#reddit-logo/);
 });
 
@@ -498,7 +528,7 @@ test("writes shadow-root rules once and empties them when signals show again", a
 
   for (const setting of ["hideAwards", "hideVotes"]) {
     content.storageListeners[0]({ [setting]: { newValue: false } }, "local");
-    await new Promise((resolve) => setImmediate(resolve));
+    await settle();
   }
   for (const host of [post, actionRow]) {
     assert.equal(host.styles.length, 1);
@@ -532,8 +562,23 @@ test("hides suggested posts only in the Home feed, in CSS and in the feed limite
   assert.ok(content.rootAttributes.has("data-frontfilter-home-feed"));
 
   content.storageListeners[0]({ hideSuggestedPosts: { newValue: false } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(content.isFeedRecordBlocked(suggested), false);
+});
+
+test("disables autoplay for players that render once their element is defined", async () => {
+  for (const disableAutoplay of [true, false]) {
+    const media = [];
+    const content = await loadContent({
+      querySelectorAll: (selector) => selector === "shreddit-player, video" ? media : [],
+      settings: { disableAutoplay },
+      startUrl: "https://www.reddit.com/",
+    });
+    const player = createMediaElement({ attributes: ["autoplay"], localName: "shreddit-player" });
+    media.push(player);
+    await content.define("shreddit-player");
+    assert.equal(player.hasAttribute("autoplay"), !disableAutoplay);
+  }
 });
 
 test("disables video autoplay while preserving manual playback and restores it live", async () => {
@@ -580,7 +625,7 @@ test("disables video autoplay while preserving manual playback and restores it l
   assert.equal(playerVideo.pauseCount, 2);
 
   content.storageListeners[0]({ disableAutoplay: { newValue: false } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   for (const attribute of ["autoplay", "autoplay-pref", "muted-autoplay-fallback"]) {
     assert.equal(player.hasAttribute(attribute), true);
   }
@@ -732,14 +777,14 @@ test("filters comments by keyword, reading each comment's text only once", async
 
   // New keywords re-check every comment once.
   content.storageListeners[0]({ blockedTitleKeywords: { newValue: ["photo"] } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal("frontfilterCommentHidden" in blocked.dataset, false);
   assert.equal(allowed.dataset.frontfilterCommentHidden, "true");
   assert.deepEqual([blocked.textReads, allowed.textReads], [2, 2]);
 
   // With every comment hidden, or no keywords, no comment text is read.
   content.storageListeners[0]({ hideComments: { newValue: true } }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   content.processFilteredContent();
   assert.deepEqual([blocked.textReads, allowed.textReads], [2, 2]);
   assert.equal("frontfilterCommentHidden" in allowed.dataset, false);
@@ -748,7 +793,7 @@ test("filters comments by keyword, reading each comment's text only once", async
     hideComments: { newValue: false },
     blockedTitleKeywords: { newValue: [] },
   }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual([blocked.textReads, allowed.textReads], [2, 2]);
   assert.equal("frontfilterCommentHidden" in allowed.dataset, false);
 });
@@ -880,7 +925,7 @@ test("treats post keywords as literal text and reveals posts when removed", asyn
   content.storageListeners[0]({
     blockedTitleKeywords: { oldValue: ["[50%]"], newValue: [] },
   }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal("frontfilterPostHidden" in post.dataset, false);
 });
@@ -971,7 +1016,7 @@ test("reveals posts after the last active feed filter is disabled", async () => 
     { blockedSubreddits: { oldValue: [{ name: "firefox", mode: "all" }], newValue: [] } },
     "local",
   );
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal("frontfilterPostHidden" in hiddenPost.dataset, false);
 });
@@ -1025,7 +1070,7 @@ test("reveals a current post candidate when its blocking entry changes", async (
       newValue: [{ name: "javascript", mode: "all" }],
     },
   }, "local");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.equal("frontfilterPostHidden" in post.dataset, false);
 });
@@ -1043,7 +1088,7 @@ test("merges storage changes received while the initial config is loading", asyn
     "local",
   );
   initialSettings.resolve({ blockPopular: true, blockHomepage: true });
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
 
   assert.deepEqual(content.redirects, []);
 
