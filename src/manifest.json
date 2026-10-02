@@ -2,15 +2,14 @@
   "manifest_version": 3,
   "name": "FrontFilter - Reddit Feed & Distraction Blocker",
   "version": "2.3.1",
-  "description": "Control your Reddit experience by blocking specific subreddits and main pages",
+  "description": "Make Reddit less distracting: block feeds and subreddits, filter posts and comments, and limit endless scrolling.",
   "homepage_url": "https://github.com/fabiomolignoni/FrontFilter",
   "permissions": [
     "storage",
     "declarativeNetRequest"
   ],
   "host_permissions": [
-    "*://*.reddit.com/*",
-    "*://reddit.com/*"
+    "*://*.reddit.com/*"
   ],
   "action": {
     "default_icon": {
@@ -30,8 +29,7 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.reddit.com/*",
-        "*://reddit.com/*"
+        "*://*.reddit.com/*"
       ],
       "js": ["content/feed-bridge.js"],
       "run_at": "document_start",
@@ -39,8 +37,7 @@
     },
     {
       "matches": [
-        "*://*.reddit.com/*",
-        "*://reddit.com/*"
+        "*://*.reddit.com/*"
       ],
       "js": [
         "shared/core.js",
@@ -61,8 +58,7 @@
     {
       "resources": ["blocked/index.html"],
       "matches": [
-        "*://*.reddit.com/*",
-        "*://reddit.com/*"
+        "*://*.reddit.com/*"
       ]
     }
   ],
