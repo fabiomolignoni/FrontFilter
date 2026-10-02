@@ -35,8 +35,7 @@ running the Selenium browser tests.
 Before opening a pull request, run the same checks as CI:
 
 ```bash
-npm test         # unit tests
-npm run build    # source and manifest validation, then packaging
+npm run build    # unit tests and static checks, then packaging
 git diff --check # whitespace errors
 ```
 
@@ -55,7 +54,9 @@ pull request. Run the browser tests yourself when you change page behavior.
 - **No dependencies or remote code.** Everything the extension runs must be in
   its package.
 - **Test the change.** Add unit tests in `tests/unit/` for logic, such as
-  settings, rules and matching. For anything that depends on Reddit's markup,
+  settings, rules and matching; they run the scripts with fake browser APIs,
+  and the settings and block pages with their real markup (see
+  `tests/unit/helpers.js`). For anything that depends on Reddit's markup,
   add a browser test in `tests/browser/page_tests.py` and extend the fixtures
   in `tests/fixtures/`, following Reddit's current markup: only a browser can
   show that a rule hides the right element. Tests must never load reddit.com,
@@ -94,8 +95,8 @@ Never commit snapshots.
 
 ## Releasing
 
-1. Set the new version in `src/manifest.json` and `package.json`, and
-   describe user-facing changes in `CHANGELOG.md`.
+1. Set the new version in `src/manifest.json`, and describe user-facing
+   changes in `CHANGELOG.md`.
 2. On `main`, once CI passes, tag the release (`git tag v<version>`) and run
    `SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) npm run build`, which writes
    both packages to `dist/`.

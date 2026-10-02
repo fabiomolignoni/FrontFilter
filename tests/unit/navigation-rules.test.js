@@ -1,18 +1,11 @@
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const { runScripts } = require("./helpers");
 
 function loadRules() {
   const context = vm.createContext({ URL, URLSearchParams });
-  for (const file of ["shared/core.js", "background/navigation-rules.js"]) {
-    vm.runInContext(
-      readFileSync(join(__dirname, "..", "..", "src", file), "utf8"),
-      context,
-      { filename: file },
-    );
-  }
+  runScripts(context, ["shared/core.js", "background/navigation-rules.js"]);
   return context.FrontFilter;
 }
 

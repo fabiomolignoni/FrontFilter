@@ -1,23 +1,13 @@
 {
   "name": "frontfilter",
-  "version": "2.3.1",
   "private": true,
-  "description": "Validation and packaging tools for the FrontFilter browser extension",
-  "homepage": "https://github.com/fabiomolignoni/FrontFilter#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/fabiomolignoni/FrontFilter.git"
-  },
-  "bugs": {
-    "url": "https://github.com/fabiomolignoni/FrontFilter/issues"
-  },
+  "description": "Tests and packaging for the FrontFilter browser extension",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "npm run check && python3 scripts/package.py",
-    "check": "node scripts/check.js",
     "test": "node --test tests/unit/*.test.js",
+    "build": "npm test && python3 scripts/package.py",
     "test:chrome": "python3 tests/browser/chrome.py",
     "test:firefox": "python3 tests/browser/firefox.py",
     "test:reddit": "python3 tests/reddit/canary.py"

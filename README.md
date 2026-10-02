@@ -68,9 +68,8 @@ FrontFilter has no runtime or npm dependencies. Development requires Node.js
 22 or later; building packages also requires Python 3.
 
 ```bash
-npm test        # unit tests
-npm run check   # validate sources and manifests
-npm run build   # write Chrome and Firefox packages to dist/
+npm test        # unit tests, and checks of the manifests and pages
+npm run build   # the tests, then the Chrome and Firefox packages in dist/
 ```
 
 `SOURCE_DATE_EPOCH` sets the archive timestamps for reproducible builds.

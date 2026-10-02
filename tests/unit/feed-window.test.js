@@ -1,13 +1,10 @@
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const { runScripts } = require("./helpers");
+
 const context = vm.createContext({ FrontFilter: {} });
-vm.runInContext(
-  readFileSync(join(__dirname, "..", "..", "src", "content", "feed-window.js"), "utf8"),
-  context,
-);
+runScripts(context, ["content/feed-window.js"]);
 const create = context.FrontFilter.createFeedWindow;
 const eligible = ({ ad, blocked }) => !ad && !blocked;
 const posts = (start, count) => Array.from({ length: count }, (_, i) => ({ id: String(start + i) }));
