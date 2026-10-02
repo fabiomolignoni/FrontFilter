@@ -431,14 +431,15 @@ test("adds the current tab's subreddit and reports non-subreddit tabs", async ()
     ["firefox"],
   );
 
-  const nonSubreddit = await loadPopup({
-    tabs: [{ url: "https://www.reddit.com/" }],
-  });
-  await nonSubreddit.elements["add-current-subreddit"].click();
-  assert.equal(
-    nonSubreddit.elements["toast"].textContent,
-    "No subreddit found on current tab",
-  );
+  // Outside Reddit, browsers withhold the tab's URL.
+  for (const tab of [{ url: "https://www.reddit.com/" }, { id: 7 }]) {
+    const nonSubreddit = await loadPopup({ tabs: [tab] });
+    await nonSubreddit.elements["add-current-subreddit"].click();
+    assert.equal(
+      nonSubreddit.elements["toast"].textContent,
+      "No subreddit found on current tab",
+    );
+  }
 });
 
 test("adds the originating subreddit from standalone blocked-page settings", async () => {

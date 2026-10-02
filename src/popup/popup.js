@@ -507,9 +507,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.url) return;
-
-      const url = FrontFilter.getRedditUrl(tab.url);
+      // Browsers give only the URLs of tabs FrontFilter can access: Reddit's.
+      const url = FrontFilter.getRedditUrl(tab?.url);
       const subreddit = url && FrontFilter.getSubredditPath(url.pathname);
       if (subreddit) list.add(subreddit.name);
       else showToast("No subreddit found on current tab", "error");
