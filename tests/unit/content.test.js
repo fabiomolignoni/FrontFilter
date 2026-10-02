@@ -979,6 +979,94 @@ test("uses post permalinks when a Reddit layout has no known post selector", asy
   assert.equal(post.dataset.frontfilterPostHidden, "true");
 });
 
+test("does not take a post for one from the subreddit of a thread it links to", async () => {
+  const post = createPost({ subreddit: "r/pics" });
+  const link = {
+    getAttribute: () => "https://www.reddit.com/r/firefox/comments/abc/a-thread",
+    closest: (selector) => selector.includes("shreddit-comment") ? null : post,
+  };
+  await loadContent({
+    querySelectorAll(selector) {
+      if (isPostCollectionSelector(selector)) return [post];
+      if (selector.startsWith('a[href*="/comments/"]:not(')) return [link];
+      return [];
+    },
+    settings: { blockedSubreddits: [{ name: "firefox", mode: "all" }] },
+    startUrl: "https://www.reddit.com/",
+  });
+  assert.equal("frontfilterPostHidden" in post.dataset, false);
+});
+
+// A post whose title can change, counting how often filters read it.
+function createChangingPost(title) {
+  return {
+    dataset: {},
+    title,
+    titleReads: 0,
+    getAttribute(name) {
+      if (name === "data-subreddit") return "pics";
+      if (name !== "post-title") return null;
+      this.titleReads += 1;
+      return this.title;
+    },
+    closest(selector) {
+      return selector.includes("shreddit-post") ? this : null;
+    },
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  };
+}
+
+test("reads a post again only once it or the settings change", async () => {
+  const post = createChangingPost("A calm headline");
+  const content = await loadContent({
+    querySelectorAll: (selector) => isPostCollectionSelector(selector) ? [post] : [],
+    settings: { blockedTitleKeywords: ["breaking"] },
+    startUrl: "https://www.reddit.com/",
+  });
+  const reads = post.titleReads;
+  assert.ok(reads > 0);
+  content.processFilteredContent();
+  assert.equal(post.titleReads, reads);
+
+  post.title = "Breaking: a headline";
+  content.observers[0].callback([{ type: "attributes", target: post }]);
+  assert.equal(post.dataset.frontfilterPostHidden, "true");
+
+  content.storageListeners[0]({
+    blockedTitleKeywords: { oldValue: ["breaking"], newValue: ["calm"] },
+  }, "local");
+  await settle();
+  assert.equal("frontfilterPostHidden" in post.dataset, false);
+});
+
+test("ignores text and class changes where filters do not look", async () => {
+  const post = createChangingPost("A calm headline");
+  const content = await loadContent({
+    querySelectorAll: (selector) => isPostCollectionSelector(selector) ? [post] : [],
+    settings: { blockedTitleKeywords: ["breaking"] },
+    startUrl: "https://www.reddit.com/",
+  });
+  const postScans = () => content.queriedSelectors.filter(isPostCollectionSelector).length;
+  const scans = postScans();
+  const text = (inPostText) => ({
+    type: "characterData",
+    target: { parentElement: { closest: (selector) => inPostText && selector.includes('[slot="title"]') ? post : null } },
+  });
+
+  const classChange = (target) => ({ type: "attributes", attributeName: "class", target });
+
+  // A timestamp ticks and a menu opens: nothing to filter.
+  content.observers[0].callback([text(false), classChange({ closest: () => null })]);
+  assert.equal(postScans(), scans);
+  // A title's text changes.
+  content.observers[0].callback([text(true)]);
+  assert.equal(postScans(), scans + 1);
+  // A post's classes change.
+  content.observers[0].callback([classChange(post)]);
+  assert.equal(postScans(), scans + 2);
+});
+
 test("hides blocked communities but keeps exceptions inside popular panels", async () => {
   const blockedItem = { dataset: {} };
   const allowedItem = { dataset: {} };

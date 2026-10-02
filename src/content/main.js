@@ -27,10 +27,15 @@ let processingScheduled = false;
 let pageChangedOutsideComments = false;
 // The features the last pass applied, so that switching one off undoes it.
 let appliedFeatures = {};
+// Increases with each settings change, which outdates every verdict.
+let filterVersion = 0;
+// Reading every post's text again on each page change is most of the work
+// on long feeds. A known post's verdict holds until the settings, its
+// subreddits or the post itself change (see forgetChangedPost).
+const postVerdicts = new WeakMap();
 // Comment text is read and matched once per comment and settings version;
 // the map records the version each comment was last marked for.
 const commentFilterResults = new WeakMap();
-let commentFilterVersion = 0;
 // Live collections of modern and Old Reddit comments, created on first use.
 let commentCollections = null;
 
@@ -70,7 +75,7 @@ function createFilterIndex(settings) {
 function setConfig(settings) {
   config = settings;
   filterIndex = createFilterIndex(settings);
-  commentFilterVersion += 1;
+  filterVersion += 1;
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -230,29 +235,49 @@ function getLinkedPostContainer(link) {
   return container;
 }
 
-function collectPostCandidates() {
+// Known post elements, and in other layouts the containers of permalinks,
+// with the subreddits they are from. Permalinks name the subreddit only of
+// posts that do not name it: a post is not from the subreddits of the
+// threads it links to.
+function collectPostCandidates(knownPosts) {
   const candidates = new Map();
+  for (const post of knownPosts) candidates.set(post, getPostSubredditNames(post));
 
-  document.querySelectorAll(SELECTORS.post.candidates).forEach((post) => {
-    candidates.set(post, getPostSubredditNames(post));
-  });
+  for (const link of document.querySelectorAll(SELECTORS.post.permalinkOutsideComments)) {
+    const knownPost = link.closest(SELECTORS.post.roots) || link.closest(SELECTORS.post.any);
+    if (candidates.get(knownPost)?.size > 0) continue;
 
-  document.querySelectorAll(SELECTORS.post.permalinkOutsideComments).forEach((link) => {
     const permalink = getPostPermalink(link);
-    if (!permalink) return;
+    if (!permalink) continue;
 
     const post = getLinkedPostContainer(link);
-    if (!post) return;
+    if (!post) continue;
 
     if (!candidates.has(post)) candidates.set(post, new Set());
     candidates.get(post).add(permalink.subreddit);
-  });
+  }
 
   return candidates;
 }
 
+// Only known posts keep their verdicts: changes are traced to them.
+function judgePost(subredditNames, post, known) {
+  const names = Array.from(subredditNames).join(" ");
+  const cached = known && postVerdicts.get(post);
+  if (cached && cached.version === filterVersion && cached.names === names) return cached.blocked;
+
+  const blocked = isPostBlocked(subredditNames, post);
+  if (known) postVerdicts.set(post, { version: filterVersion, names, blocked });
+  return blocked;
+}
+
 function processPostElements() {
-  reconcileCandidateElements("post", collectPostCandidates(), isPostBlocked);
+  const knownPosts = new Set(document.querySelectorAll(SELECTORS.post.candidates));
+  reconcileCandidateElements(
+    "post",
+    collectPostCandidates(knownPosts),
+    (subredditNames, post) => judgePost(subredditNames, post, knownPosts.has(post)),
+  );
 }
 
 // Comments
@@ -282,12 +307,12 @@ function processComments() {
   for (const collection of commentCollections) {
     for (const comment of collection) {
       // Already matched and marked for the current settings.
-      if (commentFilterResults.get(comment) === commentFilterVersion) continue;
+      if (commentFilterResults.get(comment) === filterVersion) continue;
       const text = getCommentText(comment);
       // A comment inserted before its body is checked again on a later pass.
       if (text === null) continue;
       setElementBlocked(comment, containsBlockedText([text]), "comment");
-      commentFilterResults.set(comment, commentFilterVersion);
+      commentFilterResults.set(comment, filterVersion);
     }
   }
 }
@@ -498,10 +523,13 @@ async function filterPosts() {
 
   if (!observer) {
     observer = new MutationObserver((mutations) => {
-      void checkCurrentPage();
+      if (window.location.href !== lastCheckedUrl) void checkCurrentPage();
       if (!needsDynamicContentProcessing()) return;
+      const changes = mutations.filter(affectsFilters);
+      if (changes.length === 0) return;
+      changes.forEach(forgetChangedPost);
       if (!pageChangedOutsideComments) {
-        pageChangedOutsideComments = mutations.some(isOutsideComments);
+        pageChangedOutsideComments = changes.some(isOutsideComments);
       }
       scheduleContentProcessing();
     });
@@ -530,7 +558,7 @@ function configureContentObserver() {
     || filterIndex.hasKeywords
     || filterIndex.filtersCommunities
     || config.disableAutoplay;
-  const observeCharacterData = filterIndex.hasKeywords;
+  const observeCharacterData = filterIndex.hasKeywords || filterIndex.blockedFlairs.length > 0;
   const signature = `${observeAttributes}:${observeCharacterData}`;
   if (signature === observerOptionsSignature) return;
 
@@ -550,6 +578,24 @@ function configureContentObserver() {
 
   observer.observe(document.body, options);
   observerOptionsSignature = signature;
+}
+
+// Classes matter only on posts, which they mark in older layouts:
+// elsewhere, such as in menus, they change all the time.
+function affectsFilters(mutation) {
+  if (POSTS.isUnreadTextChange(mutation)) return false;
+  if (mutation.attributeName === "class") return Boolean(mutation.target.closest(SELECTORS.post.any));
+  return true;
+}
+
+// Forgets the verdicts of the posts a change happened in.
+function forgetChangedPost({ target }) {
+  const element = target.closest ? target : target.parentElement;
+  let post = element?.closest(SELECTORS.post.any);
+  while (post) {
+    postVerdicts.delete(post);
+    post = post.parentElement?.closest(SELECTORS.post.any);
+  }
 }
 
 function isOutsideComments({ target }) {

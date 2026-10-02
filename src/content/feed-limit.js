@@ -25,6 +25,13 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     ...SELECTORS.post.bodyAttributes,
     SELECTORS.post.recommendationAttribute,
   ];
+  // While a session limits a feed, it reads each card once and again after
+  // the card's attributes or text change. Otherwise only added and removed
+  // elements matter: feeds, loaders and cards.
+  const SESSION_CHANGES = {
+    childList: true, subtree: true, attributes: true, characterData: true, attributeFilter: ATTRIBUTES,
+  };
+  const STRUCTURE_CHANGES = { childList: true, subtree: true };
   const GATE_ATTRIBUTE = "data-frontfilter-feed-gate";
   const VISIBLE_ATTRIBUTE = "data-frontfilter-limit-visible";
   const HIDDEN_ATTRIBUTE = "data-frontfilter-limit-hidden";
@@ -40,6 +47,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   const SETTLE_DELAY = 500;
   const RETRY_DELAY = 100;
   let ready = false;
+  let loadsHeld = false;
   let session = null;
   let guard = null;
   let bridgeReady = false;
@@ -58,9 +66,11 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   }
 
   function updateGate() {
-    if (document.documentElement) {
-      setAttribute(document.documentElement, GATE_ATTRIBUTE, enabled());
-    }
+    const gated = enabled();
+    if (document.documentElement) setAttribute(document.documentElement, GATE_ATTRIBUTE, gated);
+    // Loads the gate held back go ahead once, as it opens.
+    if (loadsHeld && !gated) document.dispatchEvent(new Event(RELEASE_EVENT));
+    loadsHeld = gated;
   }
 
   function detectBridge() {
@@ -99,15 +109,28 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     };
   }
 
-  function collect(feed) {
+  // The feed's cards, in order. With a cache, cards read before are reused.
+  function collect(feed, cards = null) {
     const rows = [];
     for (const post of feed.querySelectorAll(CARD)) {
       if (post.closest(FEED) !== feed || post.parentElement?.closest(CARD)) continue;
       const article = post.closest("article");
       const element = article && feed.contains(article) ? article : post;
-      rows.push({ post, element, ...readCard(post) });
+      const card = cards?.get(post) || readCard(post);
+      cards?.set(post, card);
+      rows.push({ post, element, ...card });
     }
     return rows;
+  }
+
+  // Forgets the cards a change happened in, so they are read again.
+  function forgetCard(cards, target) {
+    const element = target.closest ? target : target.parentElement;
+    let card = element?.closest(CARD);
+    while (card) {
+      cards.delete(card);
+      card = card.parentElement?.closest(CARD);
+    }
   }
 
   function setVisible(element, value) {
@@ -189,6 +212,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     session.controls.remove();
     clearMarkers(session.feed);
     session = null;
+    observer.observe(document, STRUCTURE_CHANGES);
   }
 
   function startSession(feed) {
@@ -216,8 +240,9 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       window: FrontFilter.createFeedWindow(config.scrollLimit, config.scrollMode),
       timer: null, loading: null, cancelLoading: null,
       error: "", pages: 0, consumed: new Set(),
-      waitingSince: Date.now(),
+      waitingSince: Date.now(), cards: new WeakMap(),
     };
+    observer.observe(document, SESSION_CHANGES);
     button.addEventListener("click", () => {
       if (!active(current) || button.disabled) return;
       if (!current.window.next()) return;
@@ -436,7 +461,6 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     if (!enabled()) {
       navigation = null;
       stopSession();
-      document.dispatchEvent(new Event(RELEASE_EVENT));
       guardNativeFeed();
       return;
     }
@@ -461,7 +485,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     if (!feed) return;
     if (!session) session = startSession(feed);
     const current = session;
-    const rows = collect(feed);
+    const rows = collect(feed, current.cards);
     const records = new Map();
     for (const {
       id, subreddit, title, bodyTexts, ad, recommended, flair,
@@ -494,17 +518,17 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     bridgeReady = true;
     update();
   });
+  // Only changes in the feed being limited or guarded matter, until it is
+  // gone or the page has moved on.
   const observer = new MutationObserver((mutations) => {
-    if (!session || session.key !== key() || !session.feed.isConnected
-      || mutations.some(({ target }) => session.feed.contains(target))) update();
+    const changes = mutations.filter((mutation) => !POSTS.isUnreadTextChange(mutation));
+    if (session) changes.forEach(({ target }) => forgetCard(session.cards, target));
+    const watched = session || guard;
+    if (watched && watched.key === key() && watched.feed.isConnected
+      && !changes.some(({ target }) => watched.feed.contains(target))) return;
+    update();
   });
-  observer.observe(document, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    characterData: true,
-    attributeFilter: ATTRIBUTES,
-  });
+  observer.observe(document, STRUCTURE_CHANGES);
   document.addEventListener("visibilitychange", update);
   // Settings apply once loaded: until then, the gate keeps feeds hidden.
   return {

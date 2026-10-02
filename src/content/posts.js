@@ -77,5 +77,17 @@ FrontFilter.posts = (() => {
     return Boolean(post.getAttribute(POST.recommendationAttribute));
   }
 
-  return Object.freeze({ subreddits, title, bodyTexts, flair, isAd, isRecommended });
+  // Whether a page change only changes text that filters do not read, such
+  // as a timestamp or a counter: those change all the time.
+  function isUnreadTextChange({ type, target, addedNodes = [], removedNodes = [] }) {
+    const textOnly = type === "characterData" || (type === "childList"
+      && ![...addedNodes, ...removedNodes].some((node) => node.nodeType === Node.ELEMENT_NODE));
+    if (!textOnly) return false;
+    const element = type === "characterData" ? target.parentElement : target;
+    return !element?.closest(POST.text);
+  }
+
+  return Object.freeze({
+    subreddits, title, bodyTexts, flair, isAd, isRecommended, isUnreadTextChange,
+  });
 })();

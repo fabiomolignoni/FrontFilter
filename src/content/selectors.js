@@ -22,6 +22,27 @@ FrontFilter.SELECTORS = (() => {
   ]);
   const POSTS = join([POST_ROOTS, '[data-click-id="body"]', "[data-ks-id]"]);
   const POST_PERMALINK = 'a[href*="/comments/"]';
+  const POST_TITLE = join([
+    '[slot="title"]',
+    '[data-testid="post-title"]',
+    '[data-testid="post-title-text"]',
+    '[data-adclicklocation="title"]',
+    'a[id^="post-title"]',
+    "a.title",
+    'h1[id^="post-title"]',
+    "h2",
+    "h3",
+  ]);
+  const POST_BODY = join([
+    '[slot="text-body"]',
+    '[data-post-click-location="text-body"]',
+    '[data-testid="post-content"]',
+    '[data-testid="post-body"]',
+    '[data-click-id="text"]',
+    "shreddit-post-text-body",
+    ".usertext-body .md",
+  ]);
+  const POST_FLAIR = "shreddit-post-flair, .linkflairlabel";
 
   const COMMENT_LAYOUTS = join([
     "shreddit-comment",
@@ -103,28 +124,13 @@ FrontFilter.SELECTORS = (() => {
         "data-subreddit-prefixed",
       ]),
       titleAttributes: Object.freeze(["post-title", "data-title"]),
-      title: join([
-        '[slot="title"]',
-        '[data-testid="post-title"]',
-        '[data-testid="post-title-text"]',
-        '[data-adclicklocation="title"]',
-        'a[id^="post-title"]',
-        "a.title",
-        'h1[id^="post-title"]',
-        "h2",
-        "h3",
-      ]),
+      title: POST_TITLE,
       bodyAttributes: Object.freeze(["post-body", "data-post-body"]),
-      body: join([
-        '[slot="text-body"]',
-        '[data-post-click-location="text-body"]',
-        '[data-testid="post-content"]',
-        '[data-testid="post-body"]',
-        '[data-click-id="text"]',
-        "shreddit-post-text-body",
-        ".usertext-body .md",
-      ]),
-      flair: "shreddit-post-flair, .linkflairlabel",
+      body: POST_BODY,
+      flair: POST_FLAIR,
+      // The text filters read; other text, such as timestamps, can change
+      // without changing what filters see.
+      text: join([POST_TITLE, POST_BODY, POST_FLAIR]),
       promotedAttributes: PROMOTED_ATTRIBUTES,
       adCards: 'shreddit-ad-post, [data-testid="ad-container"]',
       adMarkers: 'shreddit-ad-post, [data-testid="promoted-label"]',
