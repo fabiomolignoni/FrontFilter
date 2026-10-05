@@ -71,18 +71,23 @@ pull request. Run the browser tests yourself when you change page behavior.
 ## When Reddit changes
 
 The fixtures can only show that FrontFilter works on the markup they
-describe. Every week, a scheduled workflow runs `tests/reddit/canary.py`,
-which loads a few public reddit.com pages, logged out and in English, with
-the published extension, and checks both that Reddit still has the elements
-FrontFilter relies on and that they hide. When a check fails, the workflow
-opens an issue. The log says whether Reddit changed or refused the runner.
+describe. The canary, `tests/reddit/canary.py`, loads a few public
+reddit.com pages, logged out and in English, with the published extension,
+and checks both that Reddit still has the elements FrontFilter relies on and
+that they hide. CI cannot run it, since Reddit refuses logged-out visitors
+from GitHub's runners, so run it before each release and whenever Reddit
+seems to have changed:
 
-To fix a failure:
+```bash
+python3 tests/reddit/canary.py --snapshots reddit-snapshots [--firefox /path/to/firefox]
+```
 
-1. Download the run's `reddit-snapshots` artifact, or run the canary yourself
-   with `python3 tests/reddit/canary.py --snapshots reddit-snapshots`. Each
-   page is saved with its shadow DOM and an inventory of component names,
-   slots and test IDs. Text and user details are redacted.
+A failure says whether Reddit changed or refused the network. To fix a
+change:
+
+1. Look at the pages in `reddit-snapshots/`. Each page is saved with its
+   shadow DOM and an inventory of component names, slots and test IDs. Text
+   and user details are redacted.
 2. Update `tests/fixtures/` to the new markup, so that the browser tests fail
    the way the canary did.
 3. Fix the extension until both pass. Reddit's markup is described in one
@@ -90,14 +95,14 @@ To fix a failure:
 
 The canary cannot sign in, so features shown only to signed-in users and Old
 Reddit, which now requires an account, need checking by hand. Keep it light:
-it should load a handful of pages, and run on demand only when needed.
-Never commit snapshots.
+it should load a handful of pages. Never commit snapshots.
 
 ## Releasing
 
 1. Set the new version in `src/manifest.json`, and describe user-facing
    changes in `CHANGELOG.md`.
-2. On `main`, once CI passes, tag the release (`git tag v<version>`) and run
+2. On `main`, once CI and the [canary](#when-reddit-changes) pass, tag the
+   release (`git tag v<version>`) and run
    `SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) npm run build`, which writes
    both packages to `dist/`.
 3. Upload `dist/frontfilter-firefox-<version>.xpi` to Firefox Add-ons and

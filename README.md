@@ -98,8 +98,9 @@ on, so run the Chrome suite with Chromium or Chrome for Testing, which
 `chromedriver@stable` its driver). Both suites accept unittest options, such
 as `-k navbar` to run only matching tests.
 
-A weekly canary, `tests/reddit/canary.py`, checks the extension on
-reddit.com itself to catch changes in Reddit's markup; see
+A canary, `tests/reddit/canary.py`, checks the extension on reddit.com
+itself to catch changes in Reddit's markup. Reddit refuses CI's runners, so
+it runs by hand before each release; see
 [CONTRIBUTING.md](CONTRIBUTING.md#when-reddit-changes).
 
 ## Contributing

@@ -6,8 +6,9 @@ The fixture tests show that the extension works on the markup the fixtures
 describe. These tests show that reddit.com still uses that markup. In
 Firefox, with an unmodified build, they load a few public pages logged out
 and in English, change settings from the extension's own settings page and
-check what the reader would see. CI does not run them on every push: a
-scheduled workflow runs them once a week.
+check what the reader would see. CI cannot run them, since Reddit refuses
+logged-out visitors from GitHub's runners: run them by hand before each
+release.
 
 Features that only exist for signed-in users (the left navigation sections,
 chat, notifications, karma, suggested Home posts) and Old Reddit, which now
