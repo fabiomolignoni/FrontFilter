@@ -57,17 +57,25 @@ const quickBlock = FrontFilter.createQuickBlock({
 // What filters match against, and which of them scan the page, for the
 // current settings.
 function createFilterIndex(settings) {
-  const blockedAllSubreddits = settings.blockedSubreddits.filter((entry) => entry.mode === "all");
+  const blocked = settings.blockedSubreddits.map(({ name }) => name);
+  const blockedAll = settings.blockedSubreddits
+    .filter(({ mode }) => mode === "all")
+    .map(({ name }) => name);
   const hasKeywords = settings.blockedTitleKeywords.length > 0;
   // Comments already hidden by the comments switch need no text matching.
   const filtersComments = hasKeywords && !settings.hideComments;
   return {
     allowedSubreddits: new Set(settings.allowedSubreddits),
-    blockedAllSubreddits,
+    // ALL rules hide a subreddit's posts; any rule blocks its front page.
+    blocksAllSubreddits: blockedAll.length > 0,
+    matchesBlockedAll: FrontFilter.createSubredditMatcher(blockedAll),
+    matchesBlockedFront: settings.blockSubHome
+      ? () => true
+      : FrontFilter.createSubredditMatcher(blocked),
     blockedFlairs: settings.blockedFlairs,
     hasKeywords,
     matchesKeywords: FrontFilter.createKeywordMatcher(settings.blockedTitleKeywords),
-    filtersPosts: blockedAllSubreddits.length > 0 || hasKeywords || settings.blockedFlairs.length > 0,
+    filtersPosts: blockedAll.length > 0 || hasKeywords || settings.blockedFlairs.length > 0,
     filtersComments,
     // The text whose changes filters read.
     readText: filtersComments
@@ -156,18 +164,13 @@ function syncHomeFeedMarker() {
 function isSubredditNameBlocked(subredditName) {
   const normalizedName = FrontFilter.normalizeSubredditName(subredditName);
   if (!normalizedName || filterIndex.allowedSubreddits.has(normalizedName)) return false;
-  return filterIndex.blockedAllSubreddits.some((entry) =>
-    FrontFilter.matchesSubredditPattern(entry.name, normalizedName)
-  );
+  return filterIndex.matchesBlockedAll(normalizedName);
 }
 
 function isSubredditFrontBlocked(subredditName) {
   const normalizedName = FrontFilter.normalizeSubredditName(subredditName);
   if (!normalizedName || filterIndex.allowedSubreddits.has(normalizedName)) return false;
-  if (config.blockSubHome) return true;
-  return config.blockedSubreddits.some((entry) =>
-    FrontFilter.matchesSubredditPattern(entry.name, normalizedName)
-  );
+  return filterIndex.matchesBlockedFront(normalizedName);
 }
 
 function containsBlockedText(texts) {
@@ -561,7 +564,7 @@ function needsDynamicContentProcessing() {
 
 // Attribute and text changes only matter to filters that read them.
 function configureContentObserver() {
-  const observeAttributes = filterIndex.blockedAllSubreddits.length > 0
+  const observeAttributes = filterIndex.blocksAllSubreddits
     || filterIndex.hasKeywords
     || filterIndex.filtersCommunities
     || config.disableAutoplay;
