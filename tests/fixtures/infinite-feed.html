@@ -476,13 +476,11 @@ article { padding: 10px; }
     const header = document.createElement("div");
     header.id = "subreddit-header";
     header.style.display = "flex";
-    const create = document.createElement("span");
-    const wrapper = document.createElement("create-post-entry-point-wrapper");
+    const create = document.createElement("create-post-entry-point-wrapper");
     const button = document.createElement("button");
     button.dataset.testid = "create-post";
     button.textContent = "Create Post";
-    wrapper.append(button);
-    create.append(wrapper);
+    create.append(button);
     const buttons = document.createElement("shreddit-subreddit-header-buttons");
     buttons.setAttribute("name", name);
     buttons.setAttribute("prefixed-name", `r/${name}`);
