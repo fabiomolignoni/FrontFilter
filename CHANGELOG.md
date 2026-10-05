@@ -27,6 +27,10 @@ Notable changes to FrontFilter, newest first.
   user profiles no longer count as posts from r/u.
 - **+ Add current** reports that it found no subreddit on tabs outside
   Reddit, instead of doing nothing.
+- In Chrome and Edge, a subreddit rule too complex for the browser to check
+  before a page loads, such as a long HOME rule or a pattern with several
+  `*` wildcards, no longer stops every other page block, such as Popular,
+  from applying. That rule blocks its pages once they load.
 
 ## 2.3.0 - 2026-10-01
 

@@ -48,12 +48,14 @@ async function loadBackground({
       },
     },
   };
+  // Each background gets its own console, so tests can read its warnings.
+  const backgroundConsole = { error: console.error, warn: console.warn };
   const context = vm.createContext({
     URL,
     URLSearchParams,
     chrome,
     createdTabs,
-    console,
+    console: backgroundConsole,
   });
 
   runScripts(context, ["shared/core.js", "background/navigation-rules.js", "background/main.js"]);
@@ -62,6 +64,7 @@ async function loadBackground({
 
   return {
     chrome,
+    console: backgroundConsole,
     createdTabs,
     listeners,
     removedKeys,
@@ -209,4 +212,56 @@ test("keeps synchronizing after a failed synchronization, and reports it", async
     { success: true },
   );
   assert.match(background.updates.at(-1).addRules[0].condition.regexFilter, /news/);
+});
+
+test("leaves out only the rules the browser cannot compile", async () => {
+  // As Chrome does, the update fails as a whole over one rule whose regular
+  // expression exceeds the browser's memory budget.
+  const tooComplex = (regex) => regex.includes("a".repeat(40));
+  const background = await loadBackground();
+  const { declarativeNetRequest } = background.chrome;
+  const updateDynamicRules = declarativeNetRequest.updateDynamicRules;
+  declarativeNetRequest.updateDynamicRules = async (update) => {
+    const rule = update.addRules.find(({ condition }) => tooComplex(condition.regexFilter));
+    if (rule) throw new Error(`Rule with id ${rule.id} exceeded the 2KB memory limit`);
+    return updateDynamicRules(update);
+  };
+  declarativeNetRequest.isRegexSupported = async ({ regex, isCaseSensitive }) => {
+    assert.equal(isCaseSensitive, false);
+    return tooComplex(regex) ? { isSupported: false, reason: "memoryLimitExceeded" } : { isSupported: true };
+  };
+  const warnings = [];
+  background.console.warn = (...args) => warnings.push(args);
+
+  background.setSettings({
+    blockPopular: true,
+    blockedSubreddits: [{ name: "a".repeat(40), mode: "home" }, { name: "firefox", mode: "all" }],
+  });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(await sendMessage(
+      background.listeners.message,
+      { action: "syncNavigationRules" },
+    ))),
+    { success: true },
+  );
+  const regexes = background.rules()
+    .filter(({ condition }) => condition)
+    .map(({ condition }) => condition.regexFilter);
+  assert.equal(regexes.length, 2);
+  assert.match(regexes[0], /r\/popular/);
+  assert.match(regexes[1], /r\/firefox/);
+  assert.equal(warnings.length, 1);
+
+  // Other failures are still reported.
+  declarativeNetRequest.updateDynamicRules = async () => {
+    throw new Error("rule limit reached");
+  };
+  background.setSettings({ blockNews: true });
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(await sendMessage(
+      background.listeners.message,
+      { action: "syncNavigationRules" },
+    ))),
+    { success: false, error: "rule limit reached" },
+  );
 });

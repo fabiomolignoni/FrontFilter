@@ -8,6 +8,20 @@
 const OBSOLETE_STORAGE_KEYS = ["blockNsfw", "blockAll", "blockNew", "blockTop"];
 let ruleSyncQueue = Promise.resolve();
 
+// Chrome compiles each rule's regular expression within a small memory
+// budget, which a long HOME rule or a pattern with several wildcards can
+// exceed, and then rejects the whole update. The rules it can compile still
+// apply; the content script blocks the other pages once they load.
+async function compilableRules(rules) {
+  const support = await Promise.all(rules.map(({ condition }) =>
+    chrome.declarativeNetRequest.isRegexSupported({
+      regex: condition.regexFilter,
+      isCaseSensitive: condition.isUrlFilterCaseSensitive,
+    })
+  ));
+  return rules.filter((_, index) => support[index].isSupported);
+}
+
 async function replaceNavigationRules() {
   const [storedSettings, currentRules] = await Promise.all([
     chrome.storage.local.get(FrontFilter.NAVIGATION_STORAGE_KEYS),
@@ -21,10 +35,18 @@ async function replaceNavigationRules() {
     chrome.runtime.getURL("blocked/index.html"),
   );
 
-  await chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds,
-    addRules,
-  });
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+  } catch (error) {
+    if (!chrome.declarativeNetRequest.isRegexSupported) throw error;
+    const compilable = await compilableRules(addRules);
+    if (compilable.length === addRules.length) throw error;
+    console.warn(
+      `FrontFilter left out ${addRules.length - compilable.length} navigation rules`
+      + " the browser cannot compile:", error,
+    );
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules: compilable });
+  }
 }
 
 // Synchronizations run one at a time, so the last one reflects the latest
@@ -62,7 +84,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 function respond(operation, sendResponse) {
   operation.then(
     () => sendResponse({ success: true }),
-    (error) => sendResponse({ success: false, error: error.message }),
+    (error) => sendResponse({ success: false, error: error?.message ?? String(error) }),
   );
   return true;
 }
