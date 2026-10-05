@@ -87,8 +87,8 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     return `${url.origin}${url.pathname.replace(/\/$/, "")}?${params}`;
   }
 
-  // Reads a card as the page filters do (posts.js), plus its identity.
-  function readCard(post) {
+  // A card's identity: its post ID and subreddit, and whether it is an ad.
+  function identifyCard(post) {
     const permalink = post.getAttribute("permalink")
       || post.querySelector(SELECTORS.post.permalink)?.getAttribute("href");
     const url = FrontFilter.getRedditUrl(permalink, window.location.origin);
@@ -98,25 +98,29 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       .find((value) => /^t3_[a-z0-9]+$/i.test(value || ""))?.toLowerCase()
       || (permalinkId ? `t3_${permalinkId.toLowerCase()}` : "");
     const [subreddit = path?.name || ""] = POSTS.subreddits(post);
+    return { id, subreddit, ad: POSTS.isAd(post) };
+  }
+
+  // Reads a card as the page filters do (posts.js), plus its identity.
+  function readCard(post) {
     return {
-      id,
-      subreddit,
+      ...identifyCard(post),
       title: POSTS.title(post),
       bodyTexts: POSTS.bodyTexts(post),
-      ad: POSTS.isAd(post),
       recommended: POSTS.isRecommended(post),
       flair: POSTS.flair(post),
     };
   }
 
-  // The feed's cards, in order. With a cache, cards read before are reused.
-  function collect(feed, cards = null) {
+  // The feed's cards in order, each read by read. With a cache, cards read
+  // before are reused.
+  function collect(feed, { cards = null, read = readCard } = {}) {
     const rows = [];
     for (const post of feed.querySelectorAll(CARD)) {
       if (post.closest(FEED) !== feed || post.parentElement?.closest(CARD)) continue;
       const article = post.closest("article");
       const element = article && feed.contains(article) ? article : post;
-      const card = cards?.get(post) || readCard(post);
+      const card = cards?.get(post) || read(post);
       cards?.set(post, card);
       rows.push({ post, element, ...card });
     }
@@ -379,9 +383,10 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   }
 
   // Identities outlive recycled cards, so removed posts are not re-counted.
+  // Only identities matter here: filters have hidden the posts they match.
   function countNewVisiblePosts(current) {
     let added = 0;
-    for (const row of collect(current.feed)) {
+    for (const row of collect(current.feed, { read: identifyCard })) {
       const identity = row.id || row.post;
       if (row.ad || current.seen.has(identity) || !isShown(row.post)) continue;
       current.seen.add(identity);
@@ -470,11 +475,11 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     if (session && session.key !== key() && session.feed === feed) {
       // The URL can change before React replaces/repopulates the old feed.
       // Do not seed a new result ledger with cards from the previous route.
-      navigation = { feed, rows: collect(feed) };
+      navigation = { feed, rows: collect(feed, { read: identifyCard }) };
       stopSession();
     }
     if (navigation) {
-      const rows = feed ? collect(feed) : [];
+      const rows = feed ? collect(feed, { read: identifyCard }) : [];
       if (feed === navigation.feed && rows.length === navigation.rows.length
         && rows.every((row, index) => row.post === navigation.rows[index].post
           && row.id === navigation.rows[index].id)) return;
@@ -485,7 +490,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     if (!feed) return;
     if (!session) session = startSession(feed);
     const current = session;
-    const rows = collect(feed, current.cards);
+    const rows = collect(feed, { cards: current.cards });
     const records = new Map();
     for (const {
       id, subreddit, title, bodyTexts, ad, recommended, flair,
