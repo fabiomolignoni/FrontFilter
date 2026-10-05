@@ -24,7 +24,8 @@ Notable changes to FrontFilter, newest first.
   longer hidden as if it were from that subreddit.
 - A user profile typed as a subreddit rule, such as `u/name`, is reported as
   invalid instead of blocking or allowing the subreddit r/u, and posts from
-  user profiles no longer count as posts from r/u.
+  user profiles no longer count as posts from r/u. So is a prefix typed
+  alone, such as `r/` or `u/`.
 - **+ Add current** reports that it found no subreddit on tabs outside
   Reddit, instead of doing nothing.
 - In Chrome and Edge, a subreddit rule too complex for the browser to check

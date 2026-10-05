@@ -147,7 +147,10 @@ var FrontFilter = (() => {
       cameFromRedditUrl = true;
     }
 
-    name = name.split(/[?#]/, 1)[0].replace(/^\/+|\/+$/g, "");
+    name = name.split(/[?#]/, 1)[0];
+    // A prefix alone, such as r/ or u/, names no subreddit.
+    if (/^\/*(?:r|u|user)\/+$/i.test(name)) return "";
+    name = name.replace(/^\/+|\/+$/g, "");
 
     // A path names a subreddit after r/. A bare name is one segment, so a
     // user profile, such as u/name, is not taken for a subreddit named u.

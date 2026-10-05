@@ -46,6 +46,13 @@ test("takes a bare name or an r/ path for a subreddit, never a user profile", ()
     ["/u/spez/", ""],
     ["user/spez", ""],
     ["news/comments/abc", ""],
+    // A prefix alone names nothing, though r and u are names.
+    ["r/", ""],
+    ["/R/", ""],
+    ["u/", ""],
+    ["/user//", ""],
+    ["r", "r"],
+    ["/u", "u"],
   ]) {
     assert.equal(FrontFilter.normalizeSubredditName(value), expected, value);
   }
