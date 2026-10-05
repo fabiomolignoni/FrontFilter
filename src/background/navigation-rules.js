@@ -60,10 +60,11 @@ FrontFilter.createNavigationRules = function (settings, blockPageUrl) {
 
   // Global page blocks outrank exceptions. Exceptions apply only to the global
   // subreddit-front rule and user-defined subreddit patterns below.
+  const isBlocked = FrontFilter.createSubredditMatcher(
+    config.blockedSubreddits.map(({ name }) => name),
+  );
   const relevantExceptions = config.allowedSubreddits.filter((name) =>
-    config.blockSubHome || config.blockedSubreddits.some((entry) =>
-      FrontFilter.matchesSubredditPattern(entry.name, name)
-    )
+    config.blockSubHome || isBlocked(name)
   );
   for (const name of relevantExceptions) {
     addRule(

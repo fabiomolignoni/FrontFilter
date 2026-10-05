@@ -187,6 +187,24 @@ var FrontFilter = (() => {
     return getWildcardPattern(normalizedPattern).test(normalizedSubreddit);
   }
 
+  // Whether a subreddit matches any of many patterns, as with
+  // matchesSubredditPattern: the patterns are prepared once, so pages can
+  // test every post against them.
+  function createSubredditMatcher(patterns = []) {
+    const names = new Set();
+    const wildcards = [];
+    for (const pattern of patterns) {
+      const normalized = normalizeSubredditName(pattern);
+      if (!normalized) continue;
+      names.add(normalized);
+      if (normalized.includes("*")) wildcards.push(getWildcardPattern(normalized));
+    }
+    return (subredditName) => {
+      const name = normalizeSubredditName(subredditName);
+      return Boolean(name) && (names.has(name) || wildcards.some((regex) => regex.test(name)));
+    };
+  }
+
   function normalizeMode(mode) {
     return mode === "all" ? "all" : "home";
   }
@@ -536,6 +554,7 @@ var FrontFilter = (() => {
     getSubredditPath,
     getRedditUrl,
     matchesSubredditPattern,
+    createSubredditMatcher,
     isSubredditAllowed,
     normalizeAllowedSubreddits,
     normalizeBlockedSubreddits,

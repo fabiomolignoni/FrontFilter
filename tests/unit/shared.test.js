@@ -66,6 +66,23 @@ test("matches exact names and wildcard patterns", () => {
   assert.equal(FrontFilter.matchesSubredditPattern("", "worldnews"), false);
 });
 
+test("matches many patterns at once as it matches each one", () => {
+  const patterns = ["Firefox", "*news*", "ask*", "r/Pics/", "*", "", null, "u/spez"];
+  const names = [
+    "firefox", "FIREFOX", "r/worldnews", "news", "askreddit", "ask", "pics", "pic",
+    "spez", "u", "", null, "javascript",
+  ];
+  const matches = FrontFilter.createSubredditMatcher(patterns);
+  for (const name of names) {
+    assert.equal(
+      matches(name),
+      patterns.some((pattern) => FrontFilter.matchesSubredditPattern(pattern, name)),
+      String(name),
+    );
+  }
+  assert.equal(FrontFilter.createSubredditMatcher([])("firefox"), false);
+});
+
 test("normalizes, migrates and deduplicates blocked entries", () => {
   // One rule per subreddit, in its first position; ALL wins over HOME.
   assert.deepEqual(
