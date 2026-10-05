@@ -31,6 +31,9 @@ Notable changes to FrontFilter, newest first.
   before a page loads, such as a long HOME rule or a pattern with several
   `*` wildcards, no longer stops every other page block, such as Popular,
   from applying. That rule blocks its pages once they load.
+- The settings page shows changes made elsewhere while it is open, such as
+  with a **Block** button, **Undo block** or another settings window, and
+  saving a list there no longer undoes them.
 
 ## 2.3.0 - 2026-10-01
 
