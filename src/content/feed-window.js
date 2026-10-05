@@ -19,14 +19,14 @@ FrontFilter.createFeedWindow = function (size, mode) {
   }
 
   function snapshot() {
+    const available = eligible().length;
     return {
       allowed: new Set(allowed),
       target,
       pending,
       ended,
-      available: eligible().length,
-      canAdvance: mode === "button" && !pending
-        && (!ended || eligible().length > allowed.size),
+      available,
+      canAdvance: mode === "button" && !pending && (!ended || available > allowed.size),
     };
   }
 
