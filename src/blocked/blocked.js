@@ -84,7 +84,10 @@ document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (Object.hasOwn(changes, "theme")) applyTheme(changes.theme.newValue);
-    void restoreIfUnblocked(returnUrl);
+    // Only navigation settings can unblock the page.
+    if (FrontFilter.NAVIGATION_STORAGE_KEYS.some((key) => Object.hasOwn(changes, key))) {
+      void restoreIfUnblocked(returnUrl);
+    }
   });
 });
 
