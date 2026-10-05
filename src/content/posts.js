@@ -78,13 +78,14 @@ FrontFilter.posts = (() => {
   }
 
   // Whether a page change only changes text that filters do not read, such
-  // as a timestamp or a counter: those change all the time.
-  function isUnreadTextChange({ type, target, addedNodes = [], removedNodes = [] }) {
+  // as a timestamp or a counter: those change all the time. Filters read
+  // the text of posts, and the text that matches readText.
+  function isUnreadTextChange({ type, target, addedNodes = [], removedNodes = [] }, readText = POST.text) {
     const textOnly = type === "characterData" || (type === "childList"
       && ![...addedNodes, ...removedNodes].some((node) => node.nodeType === Node.ELEMENT_NODE));
     if (!textOnly) return false;
     const element = type === "characterData" ? target.parentElement : target;
-    return !element?.closest(POST.text);
+    return !element?.closest(readText);
   }
 
   return Object.freeze({

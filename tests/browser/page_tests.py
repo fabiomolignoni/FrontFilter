@@ -668,6 +668,24 @@ class PageTests:
             "comment-deleted-reply",
         ])
 
+    def test_keyword_filters_read_comment_text_that_changes(self):
+        # Reddit can insert a comment before all of its text has arrived.
+        self.configure(blockedTitleKeywords=["trump"])
+        self.js("resetFilterComments()")
+        self.wait_until(lambda: self.js("return visibleComments()") == [
+            "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
+            "comment-mention", "comment-deleted",
+        ])
+        self.pause(100)
+        self.js("""document.querySelector('#comment-photo [slot="comment"] p').append(' of Trump')""")
+        self.wait_until(lambda: self.js("return visibleComments()") == [
+            "comment-spam", "comment-spam-reply", "comment-mention", "comment-deleted",
+        ])
+        self.js("""document.querySelector('#comment-spam [slot="comment"] p').firstChild.data = 'Buy Trump'""")
+        self.wait_until(lambda: self.js("return visibleComments()") == [
+            "comment-mention", "comment-deleted",
+        ])
+
     def test_comments_linking_to_a_blocked_subreddit_stay_visible(self):
         # Comments are not posts: an ALL rule hides a subreddit's posts, not
         # the comments that mention it.
