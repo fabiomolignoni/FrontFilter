@@ -455,7 +455,7 @@ class SubredditTests(RedditTestCase):
               subreddit: button.dataset.subreddit,
               visible: visible(button),
               next: button.nextElementSibling?.localName,
-              afterCreatePost: !!button.previousElementSibling?.querySelector("create-post-entry-point-wrapper"),
+              afterCreatePost: !!button.previousElementSibling?.querySelector('[data-testid="create-post"]'),
             };
         """, {
             "subreddit": "firefox", "visible": True,
