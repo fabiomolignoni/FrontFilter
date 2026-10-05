@@ -36,6 +36,8 @@ Notable changes to FrontFilter, newest first.
   saving a list there no longer undoes them.
 - Keyword filters check a comment again when its text changes, so a comment
   whose text arrives after it appears is hidden too.
+- Turning **Disable video autoplay** off restores each video's autoplay
+  settings as Reddit set them, values included.
 
 ## 2.3.0 - 2026-10-01
 
