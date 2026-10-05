@@ -1,7 +1,7 @@
 /**
  * Turns Reddit's video autoplay off and back on. The autoplay attributes
- * removed from each element are remembered on it, so turning the setting
- * off restores exactly what Reddit had set.
+ * removed from each element are remembered on it with their values, so
+ * turning the setting off restores exactly what Reddit had set.
  */
 FrontFilter.syncVideoAutoplay = (() => {
   const { media, attributes } = FrontFilter.SELECTORS.autoplay;
@@ -11,8 +11,17 @@ FrontFilter.syncVideoAutoplay = (() => {
   // again, so a video already on screen starts too.
   const RESTORED_EVENT = "frontfilter-autoplay-restored";
 
+  // The autoplay attributes removed from an element, by name.
   function savedAttributes(element) {
-    return new Set((element.getAttribute(STATE_ATTRIBUTE) || "").split(",").filter(Boolean));
+    let saved;
+    try {
+      saved = JSON.parse(element.getAttribute(STATE_ATTRIBUTE) || "{}");
+    } catch {
+      saved = null;
+    }
+    return new Map(attributes
+      .filter((name) => typeof saved?.[name] === "string")
+      .map((name) => [name, saved[name]]));
   }
 
   function isVideo(element) {
@@ -26,13 +35,13 @@ FrontFilter.syncVideoAutoplay = (() => {
 
     for (const attribute of attributes) {
       if (!element.hasAttribute(attribute)) continue;
-      saved.add(attribute);
+      saved.set(attribute, element.getAttribute(attribute));
       element.removeAttribute(attribute);
       autoplaySignalFound = true;
     }
 
     if (!alreadyManaged || autoplaySignalFound) {
-      element.setAttribute(STATE_ATTRIBUTE, Array.from(saved).join(","));
+      element.setAttribute(STATE_ATTRIBUTE, JSON.stringify(Object.fromEntries(saved)));
     }
 
     // Stop automatic playback, but never a video the reader started later.
@@ -59,8 +68,8 @@ FrontFilter.syncVideoAutoplay = (() => {
     const saved = savedAttributes(element);
     if (managed) {
       element.removeAttribute(STATE_ATTRIBUTE);
-      for (const attribute of saved) {
-        element.setAttribute(attribute, "");
+      for (const [attribute, value] of saved) {
+        element.setAttribute(attribute, value);
       }
       if (isVideo(element)) {
         element.autoplay = saved.has("autoplay");

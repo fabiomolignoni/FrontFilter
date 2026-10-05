@@ -639,6 +639,31 @@ test("disables video autoplay while preserving manual playback and restores it l
   assert.deepEqual(nativeVideo.dispatchedEvents, []);
 });
 
+test("restores autoplay attributes with the values Reddit gave them", async () => {
+  const player = createMediaElement({
+    attributes: ["autoplay", "autoplay-pref"],
+    localName: "shreddit-player",
+  });
+  player.setAttribute("autoplay-pref", "false");
+  const content = await loadContent({
+    querySelectorAll: (selector) => selector === "shreddit-player, video" ? [player] : [],
+    settings: { disableAutoplay: true },
+    startUrl: "https://www.reddit.com/",
+  });
+  assert.equal(player.hasAttribute("autoplay-pref"), false);
+  // Reddit setting an attribute again leaves the earlier values remembered.
+  player.setAttribute("muted-autoplay-fallback", "1");
+  content.processFilteredContent();
+
+  content.storageListeners[0]({ disableAutoplay: { newValue: false } }, "local");
+  await settle();
+  assert.deepEqual(
+    ["autoplay", "autoplay-pref", "muted-autoplay-fallback"].map((name) => player.getAttribute(name)),
+    ["", "false", "1"],
+  );
+  assert.equal(player.hasAttribute("data-frontfilter-autoplay-state"), false);
+});
+
 test("hides posts from ALL-mode subreddits using post attributes", async () => {
   const blockedPost = createPost({ subreddit: "r/Firefox" });
   const allowedPost = createPost({ subreddit: "javascript" });
