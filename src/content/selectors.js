@@ -163,6 +163,9 @@ FrontFilter.SELECTORS = (() => {
       modernBody: '[slot="comment"]',
       oldClassName: "thing comment",
       oldBody: ":scope > .entry .usertext-body",
+      // Comments that keyword filters read, and the text they read.
+      filtered: "shreddit-comment, .thing.comment",
+      bodies: '[slot="comment"], .comment .usertext-body',
       // The modern feed action row lives in each post's shadow root.
       actionShadowHost: "shreddit-post",
     }),

@@ -33,8 +33,9 @@ let filterVersion = 0;
 // on long feeds. A known post's verdict holds until the settings, its
 // subreddits or the post itself change (see forgetChangedPost).
 const postVerdicts = new WeakMap();
-// Comment text is read and matched once per comment and settings version;
-// the map records the version each comment was last marked for.
+// Comment text is read and matched once per comment and settings version,
+// and again once the comment changes (see forgetChangedComment); the map
+// records the version each comment was last marked for.
 const commentFilterResults = new WeakMap();
 // Live collections of modern and Old Reddit comments, created on first use.
 let commentCollections = null;
@@ -58,6 +59,8 @@ const quickBlock = FrontFilter.createQuickBlock({
 function createFilterIndex(settings) {
   const blockedAllSubreddits = settings.blockedSubreddits.filter((entry) => entry.mode === "all");
   const hasKeywords = settings.blockedTitleKeywords.length > 0;
+  // Comments already hidden by the comments switch need no text matching.
+  const filtersComments = hasKeywords && !settings.hideComments;
   return {
     allowedSubreddits: new Set(settings.allowedSubreddits),
     blockedAllSubreddits,
@@ -65,8 +68,11 @@ function createFilterIndex(settings) {
     hasKeywords,
     matchesKeywords: FrontFilter.createKeywordMatcher(settings.blockedTitleKeywords),
     filtersPosts: blockedAllSubreddits.length > 0 || hasKeywords || settings.blockedFlairs.length > 0,
-    // Comments already hidden by the comments switch need no text matching.
-    filtersComments: hasKeywords && !settings.hideComments,
+    filtersComments,
+    // The text whose changes filters read.
+    readText: filtersComments
+      ? `${SELECTORS.post.text}, ${SELECTORS.comment.bodies}`
+      : SELECTORS.post.text,
     // Community panels hide subreddits whose front page is blocked.
     filtersCommunities: settings.blockSubHome || settings.blockedSubreddits.length > 0,
   };
@@ -528,6 +534,7 @@ async function filterPosts() {
       const changes = mutations.filter(affectsFilters);
       if (changes.length === 0) return;
       changes.forEach(forgetChangedPost);
+      if (filterIndex.filtersComments) changes.forEach(forgetChangedComment);
       if (!pageChangedOutsideComments) {
         pageChangedOutsideComments = changes.some(isOutsideComments);
       }
@@ -583,7 +590,7 @@ function configureContentObserver() {
 // Classes matter only on posts, which they mark in older layouts:
 // elsewhere, such as in menus, they change all the time.
 function affectsFilters(mutation) {
-  if (POSTS.isUnreadTextChange(mutation)) return false;
+  if (POSTS.isUnreadTextChange(mutation, filterIndex.readText)) return false;
   if (mutation.attributeName === "class") return Boolean(mutation.target.closest(SELECTORS.post.any));
   return true;
 }
@@ -596,6 +603,15 @@ function forgetChangedPost({ target }) {
     postVerdicts.delete(post);
     post = post.parentElement?.closest(SELECTORS.post.any);
   }
+}
+
+// Forgets the verdict of the comment a change happened in: its text may
+// have been arriving still when it was read, or it may have been edited.
+// A comment reads only its own text, so its replies keep theirs.
+function forgetChangedComment({ target }) {
+  const element = target.closest ? target : target.parentElement;
+  const comment = element?.closest(SELECTORS.comment.filtered);
+  if (comment) commentFilterResults.delete(comment);
 }
 
 function isOutsideComments({ target }) {

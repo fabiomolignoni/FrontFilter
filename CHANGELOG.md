@@ -34,6 +34,8 @@ Notable changes to FrontFilter, newest first.
 - The settings page shows changes made elsewhere while it is open, such as
   with a **Block** button, **Undo block** or another settings window, and
   saving a list there no longer undoes them.
+- Keyword filters check a comment again when its text changes, so a comment
+  whose text arrives after it appears is hidden too.
 
 ## 2.3.0 - 2026-10-01
 

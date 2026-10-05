@@ -808,6 +808,53 @@ test("filters comments by keyword, reading each comment's text only once", async
   assert.equal("frontfilterCommentHidden" in allowed.dataset, false);
 });
 
+test("reads a comment again once its text changes", async () => {
+  // Reddit can insert a comment before all of its text has arrived.
+  const comment = createComment("Breaking");
+  const reply = createComment("Nice photo");
+  let text = "Breaking";
+  comment.querySelector('[slot="comment"]').closest = () => comment;
+  Object.defineProperty(comment.querySelector('[slot="comment"]'), "textContent", {
+    get: () => {
+      comment.textReads += 1;
+      return text;
+    },
+  });
+  const content = await loadContent({
+    querySelectorAll: (selector) => ({
+      "shreddit-comment": [comment, reply],
+      '[data-frontfilter-comment-hidden="true"]': [comment, reply].filter(
+        (element) => element.dataset.frontfilterCommentHidden === "true",
+      ),
+    })[selector] || [],
+    settings: { blockedTitleKeywords: ["Trump"] },
+    startUrl: "https://www.reddit.com/r/test/comments/abc/post/",
+  });
+  assert.equal("frontfilterCommentHidden" in comment.dataset, false);
+  assert.deepEqual([comment.textReads, reply.textReads], [1, 1]);
+
+  // Text inside a comment's body is read; the comment's replies keep their
+  // verdicts.
+  const inComment = (selector) => {
+    if (selector.includes('[slot="comment"]') || selector.includes("shreddit-comment")) return comment;
+    return null;
+  };
+  text = "Breaking: Trump wins";
+  content.observers[0].callback([{
+    type: "characterData",
+    target: { parentElement: { closest: inComment } },
+  }]);
+  assert.equal(comment.dataset.frontfilterCommentHidden, "true");
+  assert.deepEqual([comment.textReads, reply.textReads], [2, 1]);
+
+  // Text elsewhere, such as a timestamp, is not.
+  content.observers[0].callback([{
+    type: "characterData",
+    target: { parentElement: { closest: () => null } },
+  }]);
+  assert.deepEqual([comment.textReads, reply.textReads], [2, 1]);
+});
+
 test("skips page-wide post scans when only comments change", async () => {
   const comment = createComment("Nice photo");
   const content = await loadContent({
