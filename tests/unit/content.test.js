@@ -280,6 +280,22 @@ test("ignores legacy translation settings on load, storage changes and SPA navig
   assert.deepEqual(content.redirects, []);
 });
 
+test("filters the page again only when a setting changes", async () => {
+  const post = createChangingPost("A calm headline");
+  const content = await loadContent({
+    querySelectorAll: (selector) => isPostCollectionSelector(selector) ? [post] : [],
+    settings: { blockedTitleKeywords: ["breaking"] },
+    startUrl: "https://www.reddit.com/",
+  });
+  const reads = post.titleReads;
+  content.storageListeners[0]({ quickBlockUndo: { newValue: undefined } }, "local");
+  await settle();
+  assert.equal(post.titleReads, reads);
+  content.storageListeners[0]({ blockedTitleKeywords: { newValue: ["calm"] } }, "local");
+  await settle();
+  assert.equal(post.dataset.frontfilterPostHidden, "true");
+});
+
 test("updates the feed limiter once when an SPA navigation changes the URL", async () => {
   const content = await loadContent({
     settings: { limitInfiniteScroll: true },

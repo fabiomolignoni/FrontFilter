@@ -93,7 +93,11 @@ function setConfig(settings) {
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== "local") return;
+  // Other stored values, such as the block page's undo marker, change no
+  // setting.
+  if (area !== "local" || !FrontFilter.STORAGE_KEYS.some((key) => Object.hasOwn(changes, key))) {
+    return;
+  }
   setConfig(settingsStore.applyChanges(changes));
   if (configLoaded) feedLimiter.update();
 

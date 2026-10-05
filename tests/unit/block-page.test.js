@@ -218,11 +218,16 @@ test("restores the original Reddit URL after a local setting unblocks it", async
     storedSettings: {},
   });
 
-  page.storageListener({}, "sync");
+  page.storageListener({ blockNews: { oldValue: true } }, "sync");
   await settle();
   assert.deepEqual(page.redirects, []);
 
-  page.storageListener({}, "local");
+  // Only navigation settings can unblock it.
+  page.storageListener({ theme: { newValue: "dark" }, quickBlockUndo: {} }, "local");
+  await settle();
+  assert.deepEqual(page.redirects, []);
+
+  page.storageListener({ blockNews: { oldValue: true } }, "local");
   await settle();
   assert.deepEqual(page.redirects, [returnUrl]);
 });
@@ -236,7 +241,7 @@ test("does not restore a URL that remains blocked by route settings", async () =
       blockedSubreddits: [{ name: "firefox", mode: "home" }],
     },
   });
-  routeBlocked.storageListener({}, "local");
+  routeBlocked.storageListener({ blockSubHome: { oldValue: true } }, "local");
   await settle();
   assert.deepEqual(routeBlocked.redirects, []);
 });
