@@ -283,6 +283,17 @@ class PageTests:
                 self.wait_for_block_page(message)
                 self.assertEqual(self.driver.current_url.split("#", 1)[1], original_url)
 
+    def test_declarative_redirects_survive_a_rule_too_complex_for_the_browser(self):
+        # Chrome cannot compile this rule's regular expression in its memory
+        # budget, and rejects any update that includes it.
+        self.session.store(
+            blockPopular=True,
+            blockedSubreddits=[{"name": "*" + "ab*" * 6, "mode": "home"}],
+        )
+        original_url = self.server.url("/r/popular/", "localhost")
+        self.driver.get(original_url)
+        self.wait_for_block_page("Popular page is blocked")
+
     def test_subreddit_exceptions_take_precedence_in_declarative_rules(self):
         self.session.store(
             blockSubHome=True,
