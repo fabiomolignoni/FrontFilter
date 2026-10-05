@@ -187,6 +187,37 @@ class FirefoxSettingsTests(ExtensionTestCase):
         self.assertIn("italypersonalfinance", values(".allowed-item input"))
         self.assertIn("Trump", values(".keyword-item input"))
 
+    def test_settings_page_keeps_rules_added_elsewhere(self):
+        # A Block button adds a rule while the settings page is open in
+        # another window; a rule added there afterwards keeps it.
+        driver = self.driver
+        fixture_window = driver.current_window_handle
+        self.configure(showBlockSubredditButton=True)
+        self.js("resetFeed([post('one', 'alpha', {credit: true})])")
+        driver.switch_to.new_window("window")
+        self.session.open_settings_page()
+        settings_window = driver.current_window_handle
+        driver.find_element("id", "tab-filters").click()
+        values = lambda: [
+            field.get_property("value") for field in driver.find_elements("css selector", ".blocked-item input")
+        ]
+        self.assertEqual(values(), [])
+
+        driver.switch_to.window(fixture_window)
+        self.wait_until(lambda: self.js("return !!document.querySelector('.frontfilter-block-subreddit')"))
+        self.js("document.querySelector('.frontfilter-block-subreddit').click()")
+        driver.switch_to.window(settings_window)
+        self.wait_until(lambda: values() == ["alpha"])
+
+        driver.find_element("id", "add-subreddit").click()
+        driver.switch_to.active_element.send_keys("beta", Keys.TAB)
+        self.wait_until(lambda: driver.find_element("id", "save-indicator").text == "Saved")
+        stored = driver.execute_async_script(
+            "chrome.storage.local.get('blockedSubreddits')"
+            ".then((stored) => arguments[0](stored.blockedSubreddits))"
+        )
+        self.assertCountEqual(stored, [{"name": "alpha", "mode": "all"}, {"name": "beta", "mode": "all"}])
+
     def test_long_lists_independent_scroll_and_narrow_layout(self):
         driver = self.driver
         self.session.store(blockedSubreddits=[

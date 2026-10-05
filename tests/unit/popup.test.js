@@ -14,7 +14,15 @@ async function loadPopup({
   const page = loadPage("popup/index.html");
   const writes = [];
   const themeCache = new Map([["frontfilter-theme", cachedTheme]]);
+  const storageListeners = [];
   let currentSettings = storedSettings;
+  // Stores values and, like browsers, reports them to every page.
+  function store(settings) {
+    const changes = Object.fromEntries(Object.entries(settings).map(([key, newValue]) =>
+      [key, { oldValue: currentSettings[key], newValue }]));
+    currentSettings = { ...currentSettings, ...settings };
+    setImmediate(() => storageListeners.forEach((listener) => listener(changes, "local")));
+  }
   const chrome = {
     storage: {
       local: {
@@ -23,12 +31,13 @@ async function loadPopup({
           const completion = deferred();
           writes.push({ settings, completion });
           if (autoResolveWrites) {
-            currentSettings = { ...currentSettings, ...settings };
+            store(settings);
             completion.resolve();
           }
           return completion.promise;
         },
       },
+      onChanged: { addListener: (listener) => storageListeners.push(listener) },
     },
     runtime: { getManifest: () => ({ version: "9.8.7" }) },
     tabs: { query: async () => tabs },
@@ -57,6 +66,12 @@ async function loadPopup({
     createdElements: page.created,
     documentElement: page.document.documentElement,
     elements: page.elements,
+    // Changes settings as another page would, and lets this page catch up.
+    async storeElsewhere(settings) {
+      store(settings);
+      await settle();
+      await settle();
+    },
     themeCache,
     writes,
   };
@@ -1062,4 +1077,124 @@ test("saves the scroll mode and opens the file picker for imports", async () => 
 
   elements["import-config"].click();
   assert.equal(elements["import-file"].clickCount, 1);
+});
+
+test("shows settings changed elsewhere, and saves lists without undoing them", async () => {
+  const { documentElement, elements, storeElsewhere, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedSubreddits: [{ name: "firefox", mode: "home" }] },
+  });
+
+  // A Block button on Reddit adds a rule while this page is open.
+  await storeElsewhere({
+    blockedSubreddits: [{ name: "firefox", mode: "home" }, { name: "pics", mode: "all" }],
+  });
+  let items = getRenderedItems(elements);
+  assert.deepEqual(items.map((item) => item.querySelector("input").value), ["firefox", "pics"]);
+  assert.equal(elements["blocked-count"].textContent, "2 rules");
+
+  // Removing another rule here keeps the one added there.
+  items[0].children[2].click();
+  await settle();
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(writes.at(-1).settings.blockedSubreddits)),
+    [{ name: "pics", mode: "all" }],
+  );
+
+  // Switches, implied sections and the theme follow too.
+  await storeElsewhere({ blockPopular: true, hideComments: true, theme: "dark" });
+  assert.equal(elements["block-popular"].checked, true);
+  assert.equal(elements["hide-comment-replies"].checked, true);
+  assert.equal(elements["hide-comment-replies"].disabled, true);
+  assert.equal(elements["color-theme"].value, "dark");
+  assert.equal(documentElement.getAttribute("data-theme"), "dark");
+  await storeElsewhere({ hideComments: false });
+  assert.equal(elements["hide-comment-replies"].checked, false);
+  assert.equal(elements["hide-comment-replies"].disabled, false);
+  // Changes to other keys, such as the undo marker, need no reload.
+  await storeElsewhere({ quickBlockUndo: { subreddit: "pics" } });
+  assert.equal(writes.length, 1);
+});
+
+test("keeps edits that are not saved yet when settings change elsewhere", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { elements, storeElsewhere, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedTitleKeywords: ["spoilers"], scrollLimit: 10 },
+  });
+  elements["add-title-keyword"].click();
+  const input = getRenderedKeywords(elements)[0].querySelector("input");
+  input.value = "trailer";
+  input.dispatch("input");
+  elements["scroll-limit"].value = "3";
+
+  await storeElsewhere({
+    blockedSubreddits: [{ name: "pics", mode: "all" }], blockNews: true, theme: "light",
+  });
+  assert.equal(getRenderedKeywords(elements)[0].querySelector("input"), input);
+  assert.equal(input.value, "trailer");
+  assert.equal(elements["scroll-limit"].value, "3");
+  assert.equal(elements["block-news"].checked, true);
+  assert.equal(getRenderedItems(elements)[0].querySelector("input").value, "pics");
+
+  // The edit is saved once typing pauses, without the stored values it
+  // did not change.
+  t.mock.timers.tick(700);
+  await settle();
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(writes.at(-1).settings)),
+    { blockedTitleKeywords: ["trailer", "spoilers"] },
+  );
+});
+
+test("leaves rows as they are when settings are saved, here or elsewhere", async () => {
+  const { elements, storeElsewhere } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedSubreddits: [{ name: "zeta", mode: "home" }, { name: "alpha", mode: "all" }] },
+  });
+  const inputs = () => getRenderedItems(elements).map((item) => item.querySelector("input"));
+  const before = inputs();
+
+  // This page's own save, and a list stored in another order.
+  before[0].dispatch("blur");
+  await settle();
+  await settle();
+  await storeElsewhere({
+    blockedSubreddits: [{ name: "zeta", mode: "home" }, { name: "alpha", mode: "all" }],
+  });
+  assert.deepEqual(inputs(), before);
+
+  // A new, still empty row stays while another rule arrives.
+  elements["add-subreddit"].click();
+  await storeElsewhere({
+    blockedSubreddits: [{ name: "alpha", mode: "all" }, { name: "beta", mode: "all" }],
+  });
+  assert.deepEqual(inputs().map((input) => input.value), ["", "alpha", "beta"]);
+});
+
+test("never shows a read older than this page's own save", async () => {
+  const reads = [];
+  const { elements, storeElsewhere, writes } = await loadPopup({
+    getSettings: () => {
+      const read = deferred();
+      reads.push(read);
+      return read.promise;
+    },
+  });
+  reads[0].resolve({});
+  await settle();
+
+  // Another page changes a setting, so this page starts reading...
+  await storeElsewhere({ blockNews: true });
+  assert.equal(reads.length, 2);
+  // ...and finishes only after saving a change of its own.
+  elements["block-popular"].checked = true;
+  elements["block-popular"].dispatch("change");
+  await settle();
+  writes[0].completion.resolve();
+  await settle();
+  reads[1].resolve({ blockNews: true });
+  await settle();
+  assert.equal(elements["block-popular"].checked, true);
+  assert.equal(elements["block-news"].checked, true);
 });

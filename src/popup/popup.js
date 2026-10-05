@@ -64,7 +64,13 @@ document.addEventListener("DOMContentLoaded", () => {
   let indicatorTimer = null;
   let debounceTimer = null;
   const pendingSaveKeys = new Set();
+  // Settings being written, with the number of their writes in progress,
+  // and for written settings, the last read started before their write ended.
+  const savingKeys = new Map();
+  const lastReadBeforeSave = new Map();
   let saveQueue = Promise.resolve();
+  let lastRead = 0;
+  let lastShownRead = 0;
   let latestSaveId = 0;
   let controlsDisabled = false;
   let lastScrollLimit = FrontFilter.DEFAULT_SETTINGS.scrollLimit;
@@ -156,15 +162,35 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const list of entryLists) list.updateCount();
     showSaving();
 
+    for (const key of keys) savingKeys.set(key, (savingKeys.get(key) || 0) + 1);
+    const saved = () => {
+      for (const key of keys) {
+        const count = savingKeys.get(key) - 1;
+        if (count > 0) savingKeys.set(key, count);
+        else savingKeys.delete(key);
+        lastReadBeforeSave.set(key, lastRead);
+      }
+    };
     enqueueStorageOperation(() => chrome.storage.local.set(settings));
     saveQueue.then(
-      () => showSaved(saveId),
+      () => {
+        saved();
+        showSaved(saveId);
+      },
       (error) => {
+        saved();
         showSaveFailed(saveId);
         showToast(`Save failed: ${error.message}`, "error");
       },
     );
     return saveQueue;
+  }
+
+  // Whether a read may lack an edit of the setting made on this page: one
+  // not written yet, or written after the read started.
+  function mayLackEdit(key, read) {
+    return pendingSaveKeys.has(key) || savingKeys.has(key)
+      || (lastReadBeforeSave.get(key) ?? 0) >= read;
   }
 
   // Writes run one at a time, so an older write cannot finish last.
@@ -215,6 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const listEl = document.getElementById(listId);
     const countEl = document.getElementById(countId);
     let entries = [];
+    let shown = false;
 
     function normalize(value) {
       const [normalized] = normalizeList([value]);
@@ -355,16 +382,29 @@ document.addEventListener("DOMContentLoaded", () => {
       if (normalized) save();
     }
 
+    // Shows stored rules. A list that already shows them, in any order,
+    // stays as it is; new rows that are still empty stay in any case.
+    function show(list) {
+      const ruleKey = (rule) => JSON.stringify(rule);
+      const current = new Set(values().map(ruleKey));
+      if (shown && list.length === current.size && list.every((rule) => current.has(ruleKey(rule)))) {
+        return;
+      }
+      shown = true;
+      entries = [
+        ...entries.filter((entry) => !entry.value),
+        ...list.map((rule) => (modes ? { value: rule.name, mode: rule.mode } : { value: rule })),
+      ];
+      render();
+    }
+
     document.getElementById(addId).addEventListener("click", () => add());
     return {
       key,
       add,
+      show,
       values,
       updateCount,
-      load(list) {
-        entries = list.map((rule) => (modes ? { value: rule.name, mode: rule.mode } : { value: rule }));
-        render();
-      },
     };
   }
 
@@ -429,17 +469,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }),
   ];
 
+  // Shows the settings a storage read returned, except those the read may
+  // predate an edit of: the page already shows that edit.
+  function showSettings(settings, read) {
+    const showSetting = (key, update) => {
+      if (!mayLackEdit(key, read)) update(settings[key]);
+    };
+    for (const [key, input] of Object.entries(switches)) {
+      showSetting(key, (checked) => { input.checked = checked; });
+    }
+    for (const list of entryLists) showSetting(list.key, list.show);
+    showSetting("scrollLimit", (limit) => {
+      // A number still being typed stays unless the stored limit changed.
+      if (limit !== lastScrollLimit) scrollLimit.value = String(limit);
+      lastScrollLimit = limit;
+    });
+    showSetting("scrollMode", (mode) => { scrollMode.value = mode; });
+    showSetting("theme", (theme) => { colorTheme.value = applyTheme(theme); });
+    updateScrollControls();
+    updateGroupControls();
+  }
+
+  // Reads can finish out of order: an older one never replaces a newer one.
   async function loadSettings() {
+    const read = ++lastRead;
     const settings = FrontFilter.coerceSettings(
       await chrome.storage.local.get(FrontFilter.STORAGE_KEYS),
     );
-
-    for (const [key, input] of Object.entries(switches)) input.checked = settings[key];
-    for (const list of entryLists) list.load(settings[list.key]);
-    scrollLimit.value = String(settings.scrollLimit);
-    lastScrollLimit = settings.scrollLimit;
-    scrollMode.value = settings.scrollMode;
-    colorTheme.value = applyTheme(settings.theme);
+    if (read < lastShownRead) return;
+    lastShownRead = read;
+    showSettings(settings, read);
   }
 
   async function exportConfig() {
@@ -554,6 +613,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const [file] = importFile.files;
     if (file) void importConfig(file);
     importFile.value = "";
+  });
+
+  // Settings changed elsewhere, such as by a Block button on Reddit, the
+  // block page or another settings page, show here too. Otherwise a list
+  // saved here would put back rules removed elsewhere and drop rules added.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !FrontFilter.STORAGE_KEYS.some((key) => Object.hasOwn(changes, key))) {
+      return;
+    }
+    loadSettings().catch((error) => console.error("Could not reload FrontFilter settings:", error));
   });
 
   setControlsDisabled(true);
