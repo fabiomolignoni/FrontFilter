@@ -11,9 +11,7 @@ SOURCE = ROOT / "src"
 DIST = ROOT / "dist"
 CHROME_MANIFEST = json.loads((SOURCE / "manifest.json").read_text())
 FIREFOX_OVERRIDES = json.loads((ROOT / "manifests/firefox.json").read_text())
-# Development versions carry a -SNAPSHOT name, so their packages are told
-# apart from released ones.
-VERSION = CHROME_MANIFEST.get("version_name", CHROME_MANIFEST["version"])
+VERSION = CHROME_MANIFEST["version"]
 
 
 def source_files():

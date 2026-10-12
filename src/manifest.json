@@ -1,8 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FrontFilter - Reddit Feed & Distraction Blocker",
-  "version": "2.4.0",
-  "version_name": "2.4.0-SNAPSHOT",
+  "version": "2.3.1",
   "description": "Make Reddit less distracting: block feeds and subreddits, filter posts and comments, and limit endless scrolling.",
   "homepage_url": "https://github.com/fabiomolignoni/FrontFilter",
   "permissions": [

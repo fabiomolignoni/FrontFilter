@@ -2,7 +2,7 @@
 
 Notable changes to FrontFilter, newest first.
 
-## 2.4.0-SNAPSHOT - Unreleased
+## Unreleased
 
 ### Added
 
