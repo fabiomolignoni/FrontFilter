@@ -95,12 +95,22 @@ change:
 
 The canary cannot sign in, so features shown only to signed-in users and Old
 Reddit, which now requires an account, need checking by hand. Keep it light:
-it should load a handful of pages. Never commit snapshots.
+it should load a handful of pages. Never commit `reddit-snapshots/`.
 
-## Releasing
+## Versions and releases
 
-1. Set the new version in `src/manifest.json`, and describe user-facing
-   changes in `CHANGELOG.md`.
+Between releases, `src/manifest.json` describes a development snapshot of the
+next version. Browsers and stores accept only numeric versions, so `version`
+is the version being prepared, such as `2.4.0`, and `version_name` names it
+with a `-SNAPSHOT` suffix, such as `2.4.0-SNAPSHOT`. The settings page and
+the package names show the snapshot's name, so development builds are never
+taken for released ones. Describe user-facing changes in `CHANGELOG.md`,
+under the snapshot's heading, as they are made.
+
+To release:
+
+1. Remove `version_name` from `src/manifest.json`, and give the changelog
+   heading the version and the release date, such as `2.4.0 - 2026-10-20`.
 2. On `main`, once CI and the [canary](#when-reddit-changes) pass, tag the
    release (`git tag v<version>`) and run
    `SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) npm run build`, which writes
@@ -108,6 +118,9 @@ it should load a handful of pages. Never commit snapshots.
 3. Upload `dist/frontfilter-firefox-<version>.xpi` to Firefox Add-ons and
    `dist/frontfilter-chrome-<version>.zip` to the Chrome Web Store and to
    Microsoft Edge Add-ons, with the changelog entry as release notes.
+4. Open the next snapshot: set `version` to the next version, such as
+   `2.4.1`, `version_name` to `2.4.1-SNAPSHOT`, and add a
+   `2.4.1-SNAPSHOT - Unreleased` heading to the changelog.
 
 ## Pull requests
 
