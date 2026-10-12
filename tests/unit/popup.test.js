@@ -357,6 +357,48 @@ test("renders, edits and removes exact subreddit exceptions", async () => {
   );
 });
 
+test("blocks users by name, u/name or profile URL, each once", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedUsers: ["Spez", "u/spez", "kn0thing", "not a user"] },
+  });
+  const items = () => elements["blocked-user-list"].querySelectorAll(".user-item");
+  const values = () => items().map((item) => item.querySelector("input").value);
+  assert.deepEqual(values(), ["kn0thing", "spez"]);
+  assert.equal(elements["blocked-user-count"].textContent, "2 users");
+
+  elements["add-blocked-user"].click();
+  const input = items()[0].querySelector("input");
+  assert.equal(input.focused, true);
+  input.value = " https://www.reddit.com/user/AutoModerator/ ";
+  input.dispatch("input");
+  input.dispatch("blur");
+  await settle();
+  assert.equal(input.value, "automoderator");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(writes.at(-1).settings)),
+    { blockedUsers: ["automoderator", "kn0thing", "spez"] },
+  );
+  assert.equal(elements["blocked-user-count"].textContent, "3 users");
+
+  // A user added again merges into the existing row.
+  elements["add-blocked-user"].click();
+  const duplicate = items()[0].querySelector("input");
+  duplicate.value = "U/SPEZ";
+  duplicate.dispatch("input");
+  duplicate.dispatch("blur");
+  await settle();
+  assert.deepEqual(values(), ["automoderator", "kn0thing", "spez"]);
+
+  items().find((item) => item.querySelector("input").value === "kn0thing").children[1].click();
+  await settle();
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(writes.at(-1).settings)),
+    { blockedUsers: ["automoderator", "spez"] },
+  );
+  assert.equal(elements["blocked-user-count"].textContent, "2 users");
+});
+
 test("edits blocked flairs with normalization and a live count", async () => {
   const { elements, writes } = await loadPopup({
     autoResolveWrites: true,
@@ -1032,6 +1074,7 @@ test("explains entries that cannot be used, and clears them", async () => {
   const { elements, writes } = await loadPopup({ autoResolveWrites: true });
   for (const [addId, list, value, message] of [
     ["add-subreddit", "blocked-list", "not a subreddit!", "Enter a subreddit name, a pattern with *, or a Reddit URL"],
+    ["add-blocked-user", "blocked-user-list", "r/firefox", "Enter a username, such as u/name, or a profile URL"],
     ["add-blocked-flair", "blocked-flair-list", "x".repeat(101), "Flairs can be at most 100 characters long"],
   ]) {
     elements[addId].click();
@@ -1072,6 +1115,8 @@ test("tells empty lists apart and counts their rules", async () => {
   assert.equal(elements["blocked-list"].textContent, "No subreddits blocked yet");
   assert.equal(elements["blocked-count"].textContent, "0 rules");
   assert.equal(elements["allowed-list"].textContent, "No subreddit exceptions yet");
+  assert.equal(elements["blocked-user-list"].textContent, "No users blocked yet");
+  assert.equal(elements["blocked-user-count"].textContent, "0 users");
   assert.equal(elements["title-keyword-list"].textContent, "No keywords filtered yet");
   assert.equal(elements["blocked-flair-count"].textContent, "1 flair");
 });

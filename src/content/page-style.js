@@ -24,6 +24,16 @@ FrontFilter.pageStyle = (() => {
       .flatMap(([, selectors]) => [].concat(selectors).map(hide));
   }
 
+  // Posts and comments by blocked users. Usernames hold only letters,
+  // digits, _ and -, so they need no escaping; Reddit keeps the case each
+  // user chose, which matching ignores.
+  function blockedUserRules(users) {
+    if (users.length === 0) return [];
+    return SELECTORS.byAuthors((attribute) =>
+      `:is(${users.map((user) => `[${attribute}="${user}" i]`).join(", ")})`
+    ).map(hide);
+  }
+
   // Links to blocked main pages, and the list items that hold them.
   function mainPageLinkRule(settings, scope = "") {
     const links = Object.entries(SELECTORS.mainPageLinks)
@@ -52,6 +62,7 @@ FrontFilter.pageStyle = (() => {
       hide(Object.values(markers).map(({ selector }) => selector).join(", ")),
       hide(markedArticle),
       hide(`shreddit-feed :is(${markedPost}, ${markedArticle}) + hr`),
+      ...blockedUserRules(settings.blockedUsers),
       ...(comments ? [hide(comments)] : []),
       ...(settings.hideSuggestedCommunities ? [hide(SELECTORS.suggestedCommunities)] : []),
       ...(settings.hideAds ? SELECTORS.ads.map(hide) : []),

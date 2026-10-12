@@ -131,6 +131,43 @@ test("reads the subreddit from the blocked URL when navigation rules redirect", 
   assert.equal(elements["block-reason"].querySelector("strong").textContent, "fire*");
 });
 
+test("names the blocked user, from the query or from the blocked profile URL", async () => {
+  const named = await loadBlockPage({
+    hash: "#https://www.reddit.com/user/Spez/submitted/",
+    search: "?target=user&user=spez",
+  });
+  assert.equal(named.elements["block-message"].textContent, "u/spez is blocked");
+  assert.equal(named.elements["block-reason"].hidden, true);
+
+  const fromUrl = await loadBlockPage({
+    hash: "#https://www.reddit.com/r/u_Spez/",
+    search: "?target=user",
+  });
+  assert.equal(fromUrl.elements["block-message"].textContent, "u/spez is blocked");
+
+  const unknown = await loadBlockPage({ search: "?target=user&user=not%20a%20user" });
+  assert.equal(unknown.elements["block-message"].textContent, "This content is blocked");
+});
+
+test("returns to a profile once its user is unblocked", async () => {
+  const returnUrl = "https://www.reddit.com/user/spez/";
+  const page = await loadBlockPage({
+    hash: `#${returnUrl}`,
+    search: "?target=user&user=spez",
+    storedSettings: { blockedUsers: ["spez", "kn0thing"] },
+  });
+
+  page.storedSettings.blockedUsers = ["spez"];
+  page.storageListener({ blockedUsers: { newValue: ["spez"] } }, "local");
+  await settle();
+  assert.deepEqual(page.redirects, []);
+
+  page.storedSettings.blockedUsers = ["kn0thing"];
+  page.storageListener({ blockedUsers: { newValue: ["kn0thing"] } }, "local");
+  await settle();
+  assert.deepEqual(page.redirects, [returnUrl]);
+});
+
 test("renders known page messages and a safe fallback for unknown pages", async () => {
   const popular = await loadBlockPage({ search: "?page=popular" });
   const explore = await loadBlockPage({ search: "?page=explore" });

@@ -7,6 +7,7 @@ var FrontFilter = (() => {
   const DEFAULT_SETTINGS = Object.freeze({
     blockedSubreddits: Object.freeze([]),
     allowedSubreddits: Object.freeze([]),
+    blockedUsers: Object.freeze([]),
     // Keep the original key so existing title-filter settings and backups now
     // apply to both post titles and text previews without a migration.
     blockedTitleKeywords: Object.freeze([]),
@@ -82,6 +83,7 @@ var FrontFilter = (() => {
   const NAVIGATION_STORAGE_KEYS = Object.freeze([
     "blockedSubreddits",
     "allowedSubreddits",
+    "blockedUsers",
     "blockHomepage",
     "blockPopular",
     "blockExplore",
@@ -131,31 +133,35 @@ var FrontFilter = (() => {
     }
   }
 
-  function normalizeSubredditName(value) {
-    if (typeof value !== "string") return "";
+  // A typed subreddit or user as a lowercase path, without its query or
+  // fragment, and whether it came from a URL: a Reddit URL gives its path,
+  // and any other URL gives null.
+  function parseTypedPath(value) {
+    if (typeof value !== "string") return null;
 
-    let name = value.trim().toLowerCase();
-    if (!name) return "";
-
-    let cameFromRedditUrl = false;
-    const looksLikeUrl = /^https?:\/\//i.test(name);
-    if (looksLikeUrl || /^(?:[\w-]+\.)?reddit\.com(?:\/|$)/i.test(name)) {
-      const url = getRedditUrl(looksLikeUrl ? name : `https://${name}`);
-      if (!url) return "";
-
-      name = url.pathname;
-      cameFromRedditUrl = true;
+    const text = value.trim().toLowerCase();
+    const looksLikeUrl = /^https?:\/\//i.test(text);
+    if (looksLikeUrl || /^(?:[\w-]+\.)?reddit\.com(?:\/|$)/i.test(text)) {
+      const url = getRedditUrl(looksLikeUrl ? text : `https://${text}`);
+      return url && { path: url.pathname, fromUrl: true };
     }
+    return { path: text.split(/[?#]/, 1)[0], fromUrl: false };
+  }
 
-    name = name.split(/[?#]/, 1)[0];
-    // A prefix alone, such as r/ or u/, names no subreddit.
-    if (/^\/*(?:r|u|user)\/+$/i.test(name)) return "";
-    name = name.replace(/^\/+|\/+$/g, "");
+  // A prefix alone, such as r/ or u/, names no subreddit and no user.
+  function isPrefixAlone(path) {
+    return /^\/*(?:r|u|user)\/+$/i.test(path);
+  }
+
+  function normalizeSubredditName(value) {
+    const typed = parseTypedPath(value);
+    if (!typed?.path || isPrefixAlone(typed.path)) return "";
+    const name = typed.path.replace(/^\/+|\/+$/g, "");
 
     // A path names a subreddit after r/. A bare name is one segment, so a
     // user profile, such as u/name, is not taken for a subreddit named u.
     const subredditPathMatch = name.match(/^r\/([a-z0-9_*]+)(?:\/.*)?$/i)
-      || (!cameFromRedditUrl && name.match(/^([a-z0-9_*]+)$/i));
+      || (!typed.fromUrl && name.match(/^([a-z0-9_*]+)$/i));
     if (!subredditPathMatch) return "";
 
     const normalized = subredditPathMatch[1].replace(/\*+/g, "*");
@@ -280,6 +286,30 @@ var FrontFilter = (() => {
     return Array.from(deduped);
   }
 
+  // Reddit usernames hold up to 20 letters, digits, _ and -, and compare
+  // ignoring case. A name is typed alone, after u/ or user/, or as the URL
+  // of a profile.
+  function normalizeUserName(value) {
+    const typed = parseTypedPath(value);
+    if (!typed?.path || isPrefixAlone(typed.path)) return "";
+    const path = typed.path.replace(/^\/+|\/+$/g, "");
+
+    const userMatch = path.match(/^(?:u|user)\/+([a-z0-9_-]+)(?:\/.*)?$/)
+      || (!typed.fromUrl && path.match(/^([a-z0-9_-]+)$/));
+    return userMatch && userMatch[1].length <= 20 ? userMatch[1] : "";
+  }
+
+  function normalizeBlockedUsers(entries = []) {
+    if (!Array.isArray(entries)) return [];
+
+    const deduped = new Set();
+    for (const entry of entries) {
+      const name = normalizeUserName(entry);
+      if (name) deduped.add(name);
+    }
+    return Array.from(deduped);
+  }
+
   function isSubredditAllowed(subredditName, allowedSubreddits = []) {
     const normalizedName = normalizeSubredditName(subredditName);
     return Boolean(normalizedName)
@@ -334,6 +364,7 @@ var FrontFilter = (() => {
   const LIST_SETTINGS = Object.freeze({
     blockedSubreddits: normalizeBlockedSubreddits,
     allowedSubreddits: normalizeAllowedSubreddits,
+    blockedUsers: normalizeBlockedUsers,
     blockedTitleKeywords: normalizeTitleKeywords,
     blockedFlairs: normalizeBlockedFlairs,
   });
@@ -471,6 +502,16 @@ var FrontFilter = (() => {
     };
   }
 
+  // The user a page belongs to: their profile, under /user/ or /u/, or
+  // their profile's subreddit, r/u_name.
+  function getProfileUser(pathname) {
+    if (typeof pathname !== "string") return "";
+
+    const match = pathname.match(/^\/(?:u|user)\/([^/]+)(?:\/.*)?$/i)
+      || pathname.match(/^\/r\/u_([^/]+)(?:\/.*)?$/i);
+    return match ? normalizeUserName(match[1]) : "";
+  }
+
   function isSubredditFrontPath(pathname) {
     const subreddit = getSubredditPath(pathname);
     if (!subreddit) return false;
@@ -485,6 +526,10 @@ var FrontFilter = (() => {
     for (const route of PAGE_ROUTES) {
       if (config[route.key] && PAGE_PATTERNS.get(route).test(pathname)) return route;
     }
+
+    // Subreddit exceptions do not apply to a blocked user's profile.
+    const user = getProfileUser(pathname);
+    if (user && config.blockedUsers.includes(user)) return { type: "user", user };
 
     if (!subreddit) return null;
     if (isSubredditAllowed(subreddit.name, config.allowedSubreddits)) return null;
@@ -520,6 +565,9 @@ var FrontFilter = (() => {
     const params = new URLSearchParams();
     if (route.type === "page") {
       params.set("page", route.page);
+    } else if (route.type === "user") {
+      params.set("target", "user");
+      params.set("user", route.user);
     } else {
       params.set("target", "subreddit");
       if (route.subreddit) params.set("subreddit", route.subreddit);
@@ -552,6 +600,7 @@ var FrontFilter = (() => {
     getBlockedRoute,
     getInvalidSettingKeys,
     getSubredditPath,
+    getProfileUser,
     getRedditUrl,
     matchesSubredditPattern,
     createSubredditMatcher,
@@ -561,6 +610,8 @@ var FrontFilter = (() => {
     addBlockedSubreddit,
     undoBlockedSubreddit,
     normalizeSubredditName,
+    normalizeUserName,
+    normalizeBlockedUsers,
     normalizeTitleKeywords,
     normalizeBlockedFlairs,
     normalizeText,

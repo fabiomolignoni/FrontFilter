@@ -221,6 +221,7 @@ class FeedTests(RedditTestCase):
               id: post.id,
               subreddit: post.getAttribute("subreddit-name"),
               title: post.getAttribute("post-title") || "",
+              author: post.getAttribute("author") || "",
             }));
         """)
 
@@ -263,6 +264,18 @@ class FeedTests(RedditTestCase):
             const isTarget = (post) => post.getAttribute("subreddit-name").toLowerCase() === arguments[0].toLowerCase();
             return {target: posts.filter(isTarget).some(shown), others: posts.some((post) => !isTarget(post) && shown(post))};
         """, {"target": False, "others": True}, f"posts from r/{subreddit} stayed visible", subreddit)
+
+    def test_blocked_users_posts_hide(self):
+        posts = self.visible_posts()
+        author = next((post["author"] for post in posts if re.fullmatch(r"[\w-]{1,20}", post["author"])), None)
+        self.assertIsNotNone(author, f"no post names its author: {posts}")
+        self.configure(blockedUsers=[author])
+        self.expect("""
+            const posts = feedPosts();
+            const shown = (post) => visible(post) || visible(post.closest("article"));
+            const isTarget = (post) => post.getAttribute("author")?.toLowerCase() === arguments[0].toLowerCase();
+            return {target: posts.filter(isTarget).some(shown), others: posts.some((post) => !isTarget(post) && shown(post))};
+        """, {"target": False, "others": True}, f"posts by u/{author} stayed visible", author)
 
     def test_keywords_hide_posts_by_title(self):
         posts = self.visible_posts()
@@ -575,6 +588,20 @@ class CommentsTests(RedditTestCase):
             return {target: visible(comment), others: countVisible('shreddit-comment[depth="0"]') > 0};
         """, {"target": False, "others": True}, f"the comment containing {word!r} stayed visible", target["id"])
 
+    def test_blocked_users_comments_hide(self):
+        authors = self.js("""
+            return Array.from(document.querySelectorAll('shreddit-comment[depth="0"]'))
+              .filter(visible).map((comment) => comment.getAttribute("author") || "");
+        """)
+        author = next((name for name in authors if re.fullmatch(r"[\w-]{1,20}", name)), None)
+        self.assertIsNotNone(author, f"no top-level comment names its author: {authors}")
+        self.configure(blockedUsers=[author])
+        self.expect("""
+            const comments = Array.from(document.querySelectorAll('shreddit-comment[depth="0"]'));
+            const isTarget = (comment) => comment.getAttribute("author")?.toLowerCase() === arguments[0].toLowerCase();
+            return {target: comments.filter(isTarget).some(visible), others: comments.some((comment) => !isTarget(comment) && visible(comment))};
+        """, {"target": False, "others": True}, f"comments by u/{author} stayed visible", author)
+
     def test_votes_awards_avatars_and_usernames_hide(self):
         # Vote buttons live in shadow roots, which countVisible also searches.
         signals = {
@@ -644,6 +671,10 @@ class RedirectTests(RedditTestCase):
     def test_home_mode_rules_redirect_a_subreddits_front_page(self):
         self.configure(blockedSubreddits=[{"name": "firefox", "mode": "home"}])
         self.assert_redirected("/r/firefox/top/", "target=subreddit")
+
+    def test_blocked_users_profiles_redirect(self):
+        self.configure(blockedUsers=["spez"])
+        self.assert_redirected("/user/spez/", "target=user&user=spez")
 
 
 def main():

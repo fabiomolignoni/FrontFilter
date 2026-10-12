@@ -3,6 +3,7 @@
 Each test starts from default settings on a freshly loaded fixture page, so
 tests can run alone and in any order.
 """
+from selenium.webdriver.common.keys import Keys
 
 
 def visible_navbar(**hidden):
@@ -60,6 +61,20 @@ AD_PLACEMENTS = [
     "comments-page-ad", "comment-tree-ad", "sidebar-ad", "tracked-promoted",
     "tracked-organic", "legacy-ad", "old-promoted", "old-placeholder",
 ]
+# The fixture's feed posts, comments and Old Reddit things, all visible.
+ALL_COMMENTS = [
+    "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
+    "comment-mention", "comment-politics", "comment-politics-reply", "comment-deleted",
+    "comment-deleted-reply",
+]
+EVERY_AUTHOR_SHOWN = {
+    "feed": {f"t3_{post_id}": [True, True] for post_id in "abcd"},
+    "comments": ALL_COMMENTS,
+    "old": dict.fromkeys(["old-post", "old-other-post", "old-comment", "old-reply"], True),
+}
+AUTHOR_VISIBILITY = (
+    "return {feed: adVisibility().feed, comments: visibleComments(), old: oldRedditVisibility()}"
+)
 COMMENT_ACTION_DISPLAY = """
   return getComputedStyle(document.querySelector('main shreddit-post')
     .shadowRoot.querySelector('[data-action-bar-action="comments"]')).display
@@ -239,7 +254,7 @@ class PageTests:
         # Browsers drop a rule whose selector they reject, which would then
         # hide nothing without any error.
         self.js("resetFeed([post('a')])")
-        self.configure(**dict.fromkeys(PAGE_RULE_SETTINGS, True))
+        self.configure(**dict.fromkeys(PAGE_RULE_SETTINGS, True), blockedUsers=["spez", "some-user_1"])
         rules = """
           const hosts = document.querySelectorAll('shreddit-post, shreddit-comment-action-row, left-nav-top-section');
           const styles = [
@@ -662,11 +677,7 @@ class PageTests:
             "comment-mention", "comment-deleted",
         ])
         self.configure(blockedTitleKeywords=[])
-        self.wait_until(lambda: self.js("return visibleComments()") == [
-            "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
-            "comment-mention", "comment-politics", "comment-politics-reply", "comment-deleted",
-            "comment-deleted-reply",
-        ])
+        self.wait_until(lambda: self.js("return visibleComments()") == ALL_COMMENTS)
 
     def test_keyword_filters_read_comment_text_that_changes(self):
         # Reddit can insert a comment before all of its text has arrived.
@@ -696,6 +707,75 @@ class PageTests:
         self.assertTrue(self.js(
             "return document.querySelector('#comment-mention [slot=\"comment\"]').getClientRects().length > 0"
         ))
+
+    # Blocked users
+
+    def test_blocked_users_posts_and_comments_hide_everywhere(self):
+        # Reddit spells each author as their user chose, and blocking ignores
+        # case. Feed posts take their wrapper and divider, comments their
+        # replies, in current, older and Old Reddit markup alike.
+        self.js(
+            "resetFeed([post('a'), post('b', 'safe', {author: 'Spez'}),"
+            " post('c', 'safe', {author: 'carol'}), post('d')]); resetFilterComments()"
+        )
+        self.wait_until(lambda: self.js(AUTHOR_VISIBILITY) == EVERY_AUTHOR_SHOWN)
+        self.configure(blockedUsers=["spez", "carol", "bob", "spammer"])
+        self.wait_until(lambda: self.js(AUTHOR_VISIBILITY) == {
+            "feed": {**EVERY_AUTHOR_SHOWN["feed"], "t3_b": [False, False], "t3_c": [False, False]},
+            "comments": ["comment-photo", "comment-mention", "comment-deleted", "comment-deleted-reply"],
+            "old": {"old-post": False, "old-other-post": True, "old-comment": False, "old-reply": False},
+        })
+        self.configure(blockedUsers=[])
+        self.wait_until(lambda: self.js(AUTHOR_VISIBILITY) == EVERY_AUTHOR_SHOWN)
+
+    def test_blocked_users_never_count_toward_the_scroll_limit(self):
+        self.configure(
+            limitInfiniteScroll=True, scrollLimit=3, scrollMode="fixed", blockedUsers=["spez"],
+        )
+        self.js(
+            "resetFeed([post('a', 'safe', {author: 'Spez'}), post('b'),"
+            " post('c', 'safe', {author: 'spez'}), post('d'), post('e'), post('f')])"
+        )
+        self.expect("bde")
+        # An author named once the card is in the feed is read again.
+        self.js("document.querySelector('#t3_d').setAttribute('author', 'SPEZ')")
+        self.expect("bef")
+
+    def test_blocked_user_profiles_lead_to_the_block_page(self):
+        # Before they load, under each path Reddit gives a profile...
+        self.session.store(blockedUsers=["spez"])
+        for path in ["/user/Spez/", "/u/spez/comments/", "/r/u_spez/"]:
+            with self.subTest(path=path):
+                original_url = self.server.url(path, "localhost")
+                self.driver.get(original_url)
+                self.wait_for_block_page("u/spez is blocked")
+                self.assertIn("?target=user&user=spez#", self.driver.current_url)
+                self.assertEqual(self.driver.current_url.split("#", 1)[1], original_url)
+        other_url = self.server.url("/user/kn0thing/", "localhost")
+        self.driver.get(other_url)
+        self.assertEqual(self.driver.current_url, other_url)
+        # ...and once Reddit navigates to one within the page.
+        self.open_fixture()
+        self.js("history.pushState({}, '', '/user/spez/submitted/')")
+        self.wait_for_block_page("u/spez is blocked")
+
+    def test_users_blocked_in_the_settings_page_hide_at_once(self):
+        driver = self.driver
+        find = lambda element_id: driver.find_element("id", element_id)
+        self.js("resetFeed([post('a', 'safe', {author: 'Spez'}), post('b')])")
+        self.expect("ab")
+        fixture_window = driver.current_window_handle
+        driver.switch_to.new_window("window")
+        self.session.open_settings_page()
+        find("tab-filters").click()
+        self.assertEqual(find("blocked-user-list").text, "No users blocked yet")
+        find("add-blocked-user").click()
+        driver.switch_to.active_element.send_keys("https://www.reddit.com/user/Spez/", Keys.TAB)
+        self.wait_until(lambda: find("save-indicator").text == "Saved")
+        self.assertEqual(driver.find_element("css selector", ".user-item input").get_property("value"), "spez")
+        self.assertEqual(find("blocked-user-count").text, "1 user")
+        driver.switch_to.window(fixture_window)
+        self.expect("b")
 
     # One-click Block buttons
 

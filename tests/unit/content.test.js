@@ -437,7 +437,10 @@ test("page rules toggle live without disturbing each other or active filters", a
 
 test("page rules match structure, never translated text", async () => {
   const content = await loadContent({
-    settings: Object.fromEntries(Object.keys(PAGE_RULE_SETTINGS).map((key) => [key, true])),
+    settings: {
+      ...Object.fromEntries(Object.keys(PAGE_RULE_SETTINGS).map((key) => [key, true])),
+      blockedUsers: ["spez"],
+    },
     startUrl: POST_PAGE,
   });
   const rules = Array.from(
@@ -454,6 +457,53 @@ test("page rules match structure, never translated text", async () => {
       selector,
     );
   }
+});
+
+test("hides blocked users' posts and comments with page rules, ignoring case", async () => {
+  const content = await loadContent({
+    settings: { blockedUsers: ["u/Spez", "some-user_1"] },
+    startUrl: POST_PAGE,
+  });
+  const style = content.injectedStyles[0];
+  const authors = '[author="spez" i], [author="some-user_1" i]';
+  for (const selector of [
+    `shreddit-post:is(${authors})`,
+    `article:has(> shreddit-post:is(${authors}))`,
+    `shreddit-feed :is(shreddit-post:is(${authors}), article:has(> shreddit-post:is(${authors}))) + hr`,
+    `shreddit-comment:is(${authors})`,
+    '.thing:is([data-author="spez" i], [data-author="some-user_1" i])',
+  ]) {
+    assert.ok(style.textContent.includes(`${selector} { display: none !important; }`), selector);
+  }
+  // CSS covers what Reddit adds later: no page scans, wider observation or
+  // redirects of the user's posts.
+  assert.deepEqual(content.queriedSelectors, []);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(content.observerOptions.at(-1))),
+    { childList: true, subtree: true },
+  );
+  assert.deepEqual(content.redirects, []);
+
+  content.storageListeners[0]({ blockedUsers: { newValue: [] } }, "local");
+  await settle();
+  assert.doesNotMatch(style.textContent, /author/);
+});
+
+test("leaves a blocked user's profile for the block page", async () => {
+  const content = await loadContent({
+    settings: { blockedUsers: ["spez"] },
+    startUrl: "https://www.reddit.com/user/kn0thing/",
+  });
+  assert.deepEqual(content.redirects, []);
+
+  content.location.href = "https://www.reddit.com/user/Spez/comments/";
+  content.location.pathname = "/user/Spez/comments/";
+  await content.popState();
+  assert.equal(content.redirects.length, 1);
+  const redirect = new URL(content.redirects[0]);
+  assert.equal(redirect.searchParams.get("target"), "user");
+  assert.equal(redirect.searchParams.get("user"), "spez");
+  assert.equal(redirect.hash.slice(1), "https://www.reddit.com/user/Spez/comments/");
 });
 
 test("hides links to blocked main pages from the top left-navigation section", async () => {
@@ -580,6 +630,23 @@ test("hides suggested posts only in the Home feed, in CSS and in the feed limite
   content.storageListeners[0]({ hideSuggestedPosts: { newValue: false } }, "local");
   await settle();
   assert.equal(content.isFeedRecordBlocked(suggested), false);
+});
+
+test("leaves blocked users' posts out of the scroll limit, whatever the case of their name", async () => {
+  const content = await loadContent({
+    settings: { blockedUsers: ["spez"] },
+    startUrl: "https://www.reddit.com/",
+  });
+  const record = (author) => ({ subreddit: "safe", title: "", bodyTexts: [], recommended: false, author });
+
+  assert.equal(content.isFeedRecordBlocked(record("spez")), true);
+  assert.equal(content.isFeedRecordBlocked(record("Spez")), true);
+  assert.equal(content.isFeedRecordBlocked(record("spezz")), false);
+  assert.equal(content.isFeedRecordBlocked(record("")), false);
+
+  content.storageListeners[0]({ blockedUsers: { newValue: [] } }, "local");
+  await settle();
+  assert.equal(content.isFeedRecordBlocked(record("spez")), false);
 });
 
 test("disables autoplay for players that render once their element is defined", async () => {

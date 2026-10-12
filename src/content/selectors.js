@@ -43,6 +43,11 @@ FrontFilter.SELECTORS = (() => {
     ".usertext-body .md",
   ]);
   const POST_FLAIR = "shreddit-post-flair, .linkflairlabel";
+  // Posts and comments name their author, spelled as the user chose:
+  // modern Reddit on each post and comment, Old Reddit on each .thing, its
+  // posts and comments alike.
+  const AUTHOR = "author";
+  const OLD_AUTHOR = "data-author";
 
   const COMMENT_LAYOUTS = join([
     "shreddit-comment",
@@ -95,6 +100,21 @@ FrontFilter.SELECTORS = (() => {
   const inNavbar = (selectors) =>
     join(NAVBAR_SCOPES.flatMap((scope) => selectors.map((selector) => `${scope} ${selector}`)));
 
+  // Posts and comments by some authors, given a test of an author
+  // attribute, such as [author="name" i]. Feed posts take their article
+  // wrapper and the divider after it.
+  function byAuthors(test) {
+    const posts = `shreddit-post${test(AUTHOR)}`;
+    const articles = `article:has(> ${posts})`;
+    return Object.freeze([
+      posts,
+      articles,
+      `shreddit-feed :is(${posts}, ${articles}) + hr`,
+      `shreddit-comment${test(AUTHOR)}`,
+      `.thing${test(OLD_AUTHOR)}`,
+    ]);
+  }
+
   // Links to a main page, by path or full URL, with optional sorts and query.
   function linksTo(path) {
     return ["", "https://www.reddit.com"].flatMap((origin) => [
@@ -128,6 +148,7 @@ FrontFilter.SELECTORS = (() => {
       bodyAttributes: Object.freeze(["post-body", "data-post-body"]),
       body: POST_BODY,
       flair: POST_FLAIR,
+      authorAttributes: Object.freeze([AUTHOR, OLD_AUTHOR]),
       // The text filters read; other text, such as timestamps, can change
       // without changing what filters see.
       text: join([POST_TITLE, POST_BODY, POST_FLAIR]),
@@ -193,6 +214,7 @@ FrontFilter.SELECTORS = (() => {
       `:is(${SUGGESTED_POSTS}, ${SUGGESTED_ARTICLES}) + hr`,
     ].map((selector) => `shreddit-feed ${selector}`)),
     suggestedCommunities: "in-feed-community-recommendations",
+    byAuthors,
 
     // Identifiers come from Reddit's component markup (slots, tracking nouns
     // and test IDs). Subreddit icons are not user avatars.

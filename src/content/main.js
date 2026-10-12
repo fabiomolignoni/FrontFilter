@@ -42,11 +42,12 @@ let commentCollections = null;
 
 const feedLimiter = FrontFilter.createFeedLimiter({
   getSettings: () => config,
-  isBlocked: ({ subreddit, title, bodyTexts, recommended, flair }) =>
+  isBlocked: ({ subreddit, title, bodyTexts, recommended, flair, author }) =>
     isSubredditNameBlocked(subreddit)
     || containsBlockedText([title, ...bodyTexts])
     || (recommended && areSuggestedPostsHidden())
-    || isFlairBlocked(flair),
+    || isFlairBlocked(flair)
+    || isUserBlocked(author),
 });
 
 const quickBlock = FrontFilter.createQuickBlock({
@@ -73,6 +74,8 @@ function createFilterIndex(settings) {
       ? () => true
       : FrontFilter.createSubredditMatcher(blocked),
     blockedFlairs: settings.blockedFlairs,
+    // Page rules hide their posts and comments; the scroll limit skips them.
+    blockedUsers: new Set(settings.blockedUsers),
     hasKeywords,
     matchesKeywords: FrontFilter.createKeywordMatcher(settings.blockedTitleKeywords),
     filtersPosts: blockedAll.length > 0 || hasKeywords || settings.blockedFlairs.length > 0,
@@ -179,6 +182,11 @@ function isSubredditFrontBlocked(subredditName) {
 
 function containsBlockedText(texts) {
   return texts.some(filterIndex.matchesKeywords);
+}
+
+// Authors are spelled as each user chose; blocked usernames are lowercase.
+function isUserBlocked(author) {
+  return Boolean(author) && filterIndex.blockedUsers.has(author.toLowerCase());
 }
 
 function isFlairBlocked(flair) {

@@ -110,6 +110,14 @@ test("resynchronizes only for relevant local setting changes", async () => {
   await settle();
   assert.equal(background.updates.length, 2);
   assert.match(background.updates[1].addRules[0].condition.regexFilter, /r\/popular/);
+
+  // Blocking a user blocks their profile before it loads.
+  background.setSettings({ blockedUsers: ["spez"] });
+  background.listeners.storageChanged({ blockedUsers: { newValue: ["spez"] } }, "local");
+  await settle();
+  await settle();
+  assert.equal(background.updates.length, 3);
+  assert.match(background.updates[2].addRules[0].condition.regexFilter, /r\/u_\)spez/);
 });
 
 test("removes obsolete settings when the extension is installed or updated", async () => {

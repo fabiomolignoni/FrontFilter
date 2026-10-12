@@ -92,5 +92,16 @@ FrontFilter.createNavigationRules = function (settings, blockPageUrl) {
     )) break;
   }
 
+  // A blocked user's profile, also reached through its subreddit, r/u_name.
+  // Like page blocks, these outrank subreddit exceptions. Usernames hold no
+  // regular expression syntax.
+  for (const user of config.blockedUsers) {
+    if (!addRedirect(
+      `${reddit}/(u/|user/|r/u_)${user}(/.*)?${query}`,
+      { type: "user", user },
+      30,
+    )) break;
+  }
+
   return rules;
 };

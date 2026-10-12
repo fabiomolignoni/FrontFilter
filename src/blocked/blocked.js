@@ -18,16 +18,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   // The blocked URL follows in the fragment (see FrontFilter.blockPageQuery).
   const returnUrl = getSafeReturnUrl(window.location.hash.slice(1));
-  const returnSubreddit = returnUrl
-    ? FrontFilter.getSubredditPath(new URL(returnUrl).pathname)?.name
-    : "";
-  const sub = params.get("target") === "subreddit"
+  const returnPath = returnUrl ? new URL(returnUrl).pathname : "";
+  const returnSubreddit = FrontFilter.getSubredditPath(returnPath)?.name || "";
+  const target = params.get("target");
+  const sub = target === "subreddit"
     ? FrontFilter.normalizeSubredditName(params.get("subreddit")) || returnSubreddit
     : "";
+  const user = target === "user"
+    ? FrontFilter.normalizeUserName(params.get("user")) || FrontFilter.getProfileUser(returnPath)
+    : "";
 
-  document.getElementById("block-message").textContent = sub
-    ? `r/${sub} is blocked`
-    : PAGE_MESSAGES[params.get("page")] ?? "This content is blocked";
+  let message = PAGE_MESSAGES[params.get("page")] ?? "This content is blocked";
+  if (sub) message = `r/${sub} is blocked`;
+  else if (user) message = `u/${user} is blocked`;
+  document.getElementById("block-message").textContent = message;
 
   // The rule is worth naming when it is a pattern rather than the name.
   const filter = params.get("filter");
