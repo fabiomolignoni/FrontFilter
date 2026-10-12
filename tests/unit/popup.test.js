@@ -10,6 +10,7 @@ async function loadPopup({
   locationSearch = "",
   tabs = [],
   cachedTheme = "system",
+  manifest = { version: "9.8.7" },
 } = {}) {
   const page = loadPage("popup/index.html");
   const writes = [];
@@ -39,7 +40,7 @@ async function loadPopup({
       },
       onChanged: { addListener: (listener) => storageListeners.push(listener) },
     },
-    runtime: { getManifest: () => ({ version: "9.8.7" }) },
+    runtime: { getManifest: () => manifest },
     tabs: { query: async () => tabs },
   };
   const context = vm.createContext({
@@ -92,6 +93,13 @@ function getRenderedKeywords(elements) {
 test("shows the extension version from its manifest", async () => {
   const { elements } = await loadPopup();
   assert.equal(elements["app-version"].textContent, "FrontFilter v9.8.7");
+});
+
+test("shows a development version by its -SNAPSHOT name", async () => {
+  const { elements } = await loadPopup({
+    manifest: { version: "9.9.0", version_name: "9.9.0-SNAPSHOT" },
+  });
+  assert.equal(elements["app-version"].textContent, "FrontFilter v9.9.0-SNAPSHOT");
 });
 
 test("navigates settings tabs with arrows, Home and End without saving configuration", async () => {

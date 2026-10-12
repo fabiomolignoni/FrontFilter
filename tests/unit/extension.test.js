@@ -39,6 +39,15 @@ test("keeps the source manifest directly loadable by Chrome", () => {
   assert.ok(manifest.description.length <= 132);
 });
 
+// Browsers and stores take only numeric versions. A development version
+// names the version it leads to, with a -SNAPSHOT suffix, until its release.
+test("names a numeric version, and a development one with -SNAPSHOT", () => {
+  assert.match(manifest.version, /^(0|[1-9]\d{0,8})(\.(0|[1-9]\d{0,8})){0,3}$/);
+  if ("version_name" in manifest) {
+    assert.equal(manifest.version_name, `${manifest.version}-SNAPSHOT`);
+  }
+});
+
 test("builds the Firefox manifest from browser-specific overrides only", () => {
   assert.deepEqual(Object.keys(firefoxOverrides).sort(), ["background", "browser_specific_settings", "name"]);
   assert.equal("service_worker" in firefoxManifest.background, false);
