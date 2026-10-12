@@ -27,6 +27,7 @@ import sys
 import tempfile
 import unittest
 
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "browser"))
@@ -498,16 +499,31 @@ class CommentsTests(RedditTestCase):
         cls.reset_settings()
         cls.load("/r/popular/")
         FeedTests.page_ready()
-        permalink = cls.js("""
-            const posts = feedPosts().filter((post) => Number(post.getAttribute("comment-count")) >= 50);
-            return posts[0]?.getAttribute("permalink");
+        permalinks = cls.js("""
+            return feedPosts().filter((post) => Number(post.getAttribute("comment-count")) >= 50)
+              .map((post) => post.getAttribute("permalink")).slice(0, 5);
         """)
-        assert permalink, "no post with 50 comments on r/popular"
-        cls.load(permalink)
-        cls.wait_until(lambda: cls.js("""
-            const comments = Array.from(document.querySelectorAll("shreddit-comment")).filter(visible);
-            return comments.length >= 5 && comments.some((comment) => comment.getAttribute("depth") !== "0");
-        """), "no comments with visible replies", PAGE_TIMEOUT)
+        assert permalinks, "no post with 50 comments on r/popular"
+        # Reddit serves some threads without their replies: try the next one.
+        for permalink in permalinks:
+            cls.load(permalink)
+            try:
+                cls.wait_until(lambda: cls.js("""
+                    const comments = Array.from(document.querySelectorAll("shreddit-comment")).filter(visible);
+                    return comments.length >= 5 && comments.some((comment) => comment.getAttribute("depth") !== "0");
+                """), "")
+                break
+            except TimeoutException:
+                pass
+        else:
+            raise AssertionError(f"no comments with visible replies in {len(permalinks)} threads from r/popular")
+
+        # Reddit renders a comment's votes and actions once it scrolls into view.
+        def rendered():
+            cls.js("window.scrollBy(0, innerHeight / 2)")
+            return cls.js("return document.querySelectorAll('shreddit-comment-action-row').length") >= 5
+        cls.wait_until(rendered, "fewer than 5 comment action rows rendered", PAGE_TIMEOUT)
+        cls.js("window.scrollTo(0, 0)")
         cls.save_snapshot(cls.__name__)
 
     def comment_bodies(self):
