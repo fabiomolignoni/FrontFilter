@@ -4,6 +4,13 @@ Notable changes to FrontFilter, newest first.
 
 ## 2.4.0-SNAPSHOT - Unreleased
 
+### Added
+
+- Block users from the **Filters** tab, by name, `u/name` or profile URL.
+  Their posts and comments, with the replies to those comments, are hidden
+  on every Reddit page, Old Reddit included, their posts never count toward
+  the scroll limit, and their profile pages are blocked.
+
 ## 2.3.1 - 2026-10-02
 
 ### Changed

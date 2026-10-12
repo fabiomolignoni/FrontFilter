@@ -58,6 +58,49 @@ test("takes a bare name or an r/ path for a subreddit, never a user profile", ()
   }
 });
 
+test("takes a username alone, after u/ or user/, or from a profile URL", () => {
+  for (const [value, expected] of [
+    ["spez", "spez"],
+    [" AutoModerator ", "automoderator"],
+    ["u/Spez", "spez"],
+    ["/u/spez/", "spez"],
+    ["user/Some-User_1", "some-user_1"],
+    ["/user/spez/submitted/?sort=top", "spez"],
+    ["https://www.reddit.com/user/Spez/", "spez"],
+    ["https://old.reddit.com/u/spez/comments", "spez"],
+    ["reddit.com/user/spez", "spez"],
+    ["a".repeat(20), "a".repeat(20)],
+    // Not usernames, or not a user's profile.
+    ["a".repeat(21), ""],
+    ["u/", ""],
+    ["/user//", ""],
+    ["r/spez", ""],
+    ["spez/comments", ""],
+    ["https://www.reddit.com/r/spez/", ""],
+    ["https://www.reddit.com/spez", ""],
+    ["https://example.com/user/spez", ""],
+    ["spez*", ""],
+    ["two words", ""],
+    ["[deleted]", ""],
+    ["", ""],
+    [null, ""],
+    [42, ""],
+  ]) {
+    assert.equal(FrontFilter.normalizeUserName(value), expected, String(value));
+  }
+});
+
+test("normalizes and deduplicates blocked users, and validates them on import", () => {
+  assert.deepEqual(
+    plain(FrontFilter.normalizeBlockedUsers(["u/Spez", "spez", "", "r/news", "kn0thing", 42])),
+    ["spez", "kn0thing"],
+  );
+  assert.deepEqual(plain(FrontFilter.normalizeBlockedUsers("spez")), []);
+  assert.deepEqual(plain(FrontFilter.coerceSettings({ blockedUsers: ["/u/Spez/"] }).blockedUsers), ["spez"]);
+  assert.deepEqual(plain(FrontFilter.getInvalidSettingKeys({ blockedUsers: ["Spez", "u/kn0thing"] })), []);
+  assert.deepEqual(plain(FrontFilter.getInvalidSettingKeys({ blockedUsers: "spez" })), ["blockedUsers"]);
+});
+
 test("matches exact names and wildcard patterns", () => {
   assert.equal(FrontFilter.matchesSubredditPattern("firefox", "Firefox"), true);
   assert.equal(FrontFilter.matchesSubredditPattern("*news*", "worldnews"), true);
@@ -172,6 +215,7 @@ test("reports malformed recognized settings for strict import validation", () =>
       blockHomepage: "true",
       blockedSubreddits: [{ name: "firefox", mode: "invalid" }],
       allowedSubreddits: ["*news*"],
+      blockedUsers: ["u/spez", "not a user"],
       blockedTitleKeywords: [""],
       scrollLimit: 0,
       theme: "auto",
@@ -180,6 +224,7 @@ test("reports malformed recognized settings for strict import validation", () =>
     [
       "blockedSubreddits",
       "allowedSubreddits",
+      "blockedUsers",
       "blockedTitleKeywords",
       "blockHomepage",
       "scrollLimit",
@@ -224,6 +269,7 @@ test("rejects malformed stored values instead of throwing or enabling flags", ()
     {
       blockedSubreddits: [],
       allowedSubreddits: [],
+      blockedUsers: [],
       blockedTitleKeywords: [],
       blockedFlairs: [],
       blockHomepage: false,
@@ -316,6 +362,7 @@ test("settings store preserves changes received during its initial load", async 
     {
       blockedSubreddits: [],
       allowedSubreddits: [],
+      blockedUsers: [],
       blockedTitleKeywords: [],
       blockedFlairs: [],
       blockHomepage: false,
@@ -580,6 +627,39 @@ test("recognizes page and subreddit blocking routes", () => {
   );
 });
 
+test("finds the user a profile page belongs to", () => {
+  for (const [pathname, user] of [
+    ["/user/Spez", "spez"],
+    ["/user/spez/", "spez"],
+    ["/u/spez/comments/", "spez"],
+    ["/user/spez/comments/abc/title/", "spez"],
+    ["/r/u_Spez/", "spez"],
+    ["/r/u_spez/comments/abc/title", "spez"],
+    ["/r/spez/", ""],
+    ["/user/", ""],
+    ["/users/spez", ""],
+    ["/r/firefox/comments/abc/title", ""],
+    [null, ""],
+  ]) {
+    assert.equal(FrontFilter.getProfileUser(pathname), user, String(pathname));
+  }
+});
+
+test("blocks the profile pages of blocked users", () => {
+  const settings = { blockedUsers: ["spez"] };
+  for (const pathname of ["/user/spez", "/u/Spez/submitted/", "/r/u_spez/", "/user/spez/comments/abc/t"]) {
+    assert.deepEqual(plain(FrontFilter.getBlockedRoute(pathname, settings)), { type: "user", user: "spez" }, pathname);
+  }
+  for (const pathname of ["/user/spezz", "/user/kn0thing", "/r/spez", "/", "/r/firefox/comments/abc/t"]) {
+    assert.equal(FrontFilter.getBlockedRoute(pathname, settings), null, pathname);
+  }
+  // Subreddit exceptions are for subreddits, not for users' profiles.
+  assert.equal(
+    FrontFilter.getBlockedRoute("/r/u_spez", { ...settings, allowedSubreddits: ["u_spez"] })?.type,
+    "user",
+  );
+});
+
 test("subreddit exceptions override global fronts and wildcard block rules", () => {
   const settings = {
     blockSubHome: true,
@@ -673,6 +753,7 @@ test("serializes block details into the block page query", () => {
     FrontFilter.blockPageQuery(FrontFilter.SUBREDDIT_FRONTS_ROUTE),
     "?page=subhome",
   );
+  assert.equal(FrontFilter.blockPageQuery({ type: "user", user: "spez" }), "?target=user&user=spez");
   assert.equal(FrontFilter.blockPageQuery(null), "");
 });
 

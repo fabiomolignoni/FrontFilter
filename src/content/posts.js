@@ -1,8 +1,8 @@
 /**
- * Reads what filters match in a post: its subreddits, title, text, flair
- * and whether it is an ad. Page filters and the scroll limit both use these
- * readers, so they judge a post the same way. A crosspost embeds the
- * original post, whose title, text and flair are not its own.
+ * Reads what filters match in a post: its subreddits, title, text, flair,
+ * author and whether it is an ad. Page filters and the scroll limit both
+ * use these readers, so they judge a post the same way. A crosspost embeds
+ * the original post, whose title, text, flair and author are not its own.
  */
 FrontFilter.posts = (() => {
   const { post: POST, comment: COMMENT } = FrontFilter.SELECTORS;
@@ -65,6 +65,10 @@ FrontFilter.posts = (() => {
     return "";
   }
 
+  function author(post) {
+    return firstAttribute(post, POST.authorAttributes);
+  }
+
   function isAd(post) {
     return post.matches(POST.adCards)
       || POST.promotedAttributes.some((name) => post.hasAttribute(name)
@@ -89,6 +93,6 @@ FrontFilter.posts = (() => {
   }
 
   return Object.freeze({
-    subreddits, title, bodyTexts, flair, isAd, isRecommended, isUnreadTextChange,
+    subreddits, title, bodyTexts, flair, author, isAd, isRecommended, isUnreadTextChange,
   });
 })();

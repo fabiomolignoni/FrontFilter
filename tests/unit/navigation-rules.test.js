@@ -146,6 +146,39 @@ test("emits allow rules only for exceptions that overlap a subreddit block", () 
   assert.match(allowRules[0].condition.regexFilter, /worldnews/);
 });
 
+test("redirects blocked users' profiles, whatever exceptions say", () => {
+  const FrontFilter = loadRules();
+  const rules = FrontFilter.createNavigationRules({
+    blockSubHome: true,
+    blockedUsers: ["spez", "some-user_1"],
+    allowedSubreddits: ["u_spez"],
+  }, "chrome-extension://id/blocked/index.html");
+  const redirect = (url) => {
+    const rule = matchingRule(rules, url);
+    return rule?.action.type === "redirect" ? new URL(applyRedirect(rule, url)) : null;
+  };
+
+  for (const [url, user] of [
+    ["https://www.reddit.com/user/spez/", "spez"],
+    ["https://www.reddit.com/user/Spez", "spez"],
+    ["https://old.reddit.com/u/spez/submitted/?sort=top", "spez"],
+    ["https://www.reddit.com/r/u_spez/", "spez"],
+    ["https://www.reddit.com/user/some-user_1/comments/abc/title", "some-user_1"],
+  ]) {
+    assert.equal(matchingRule(rules, url).priority, 30, url);
+    assert.equal(redirect(url).searchParams.get("target"), "user", url);
+    assert.equal(redirect(url).searchParams.get("user"), user, url);
+    assert.equal(redirect(url).hash.slice(1), url);
+  }
+  for (const url of [
+    "https://www.reddit.com/user/spezz/",
+    "https://www.reddit.com/user/some-user",
+    "https://www.reddit.com/r/spez/comments/abc/title",
+  ]) {
+    assert.equal(redirect(url), null, url);
+  }
+});
+
 test("gives global page rules precedence and recognizes owned rule IDs", () => {
   const FrontFilter = loadRules();
   const rules = FrontFilter.createNavigationRules({
@@ -183,6 +216,8 @@ test("matches the shared route model across network-navigation cases", () => {
       blockedSubreddits: [{ name: "*fire*", mode: "all" }],
       allowedSubreddits: ["firefox"],
     },
+    { blockedUsers: ["spez"] },
+    { blockSubHome: true, blockedUsers: ["spez"], allowedSubreddits: ["u_spez", "u_kn0thing"] },
   ];
   const urls = [
     "https://www.reddit.com/",
@@ -200,6 +235,12 @@ test("matches the shared route model across network-navigation cases", () => {
     "https://www.reddit.com/r/firefox/comments/abc/title",
     "https://www.reddit.com/r/worldnews/comments/abc/title?tl=it",
     "https://www.reddit.com/r/pics",
+    "https://www.reddit.com/user/spez/",
+    "https://www.reddit.com/u/Spez/comments",
+    "https://www.reddit.com/r/u_spez/",
+    "https://www.reddit.com/r/u_kn0thing/",
+    "https://www.reddit.com/user/spezz",
+    "https://www.reddit.com/user/kn0thing/",
   ];
 
   for (const settings of configurations) {
@@ -236,4 +277,16 @@ test("caps declarative rules while leaving overflow entries to the content fallb
     FrontFilter.getBlockedRoute("/r/community1019/comments/a/title", { blockedSubreddits })?.type,
     "subreddit",
   );
+
+  // Profiles come last, after every rule that existed before them.
+  const blockedUsers = Array.from({ length: FrontFilter.NAVIGATION_RULE_LIMIT + 20 }, (_, index) => `user${index}`);
+  const userRules = FrontFilter.createNavigationRules(
+    { blockedSubreddits: blockedSubreddits.slice(0, 10), blockedUsers },
+    "chrome-extension://id/blocked/index.html",
+  );
+  assert.equal(userRules.length, FrontFilter.NAVIGATION_RULE_LIMIT);
+  assert.ok(matchingRule(userRules, "https://www.reddit.com/r/community9/"));
+  assert.ok(matchingRule(userRules, "https://www.reddit.com/user/user0/"));
+  assert.equal(matchingRule(userRules, "https://www.reddit.com/user/user1019/"), null);
+  assert.equal(FrontFilter.getBlockedRoute("/user/user1019/", { blockedUsers })?.type, "user");
 });

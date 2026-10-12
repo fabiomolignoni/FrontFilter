@@ -153,6 +153,17 @@ article { padding: 10px; }
   </faceplate-hovercard>
   <div id="profile-karma"><p><span data-testid="karma-number">1</span></p><p>Post Karma</p></div>
 </section>
+<!-- Old Reddit names each post's and comment's author on its .thing. -->
+<section id="old-reddit">
+  <div class="thing link" id="old-post" data-author="Spez">Old Reddit post</div>
+  <div class="thing link" id="old-other-post" data-author="frank">Another Old Reddit post</div>
+  <div class="thing comment" id="old-comment" data-author="spez">
+    <div class="entry">Old Reddit comment</div>
+    <div class="child">
+      <div class="thing comment" id="old-reply" data-author="frank"><div class="entry">Reply</div></div>
+    </div>
+  </div>
+</section>
 <aside><article><shreddit-post id="t3_sidebar" subreddit-name="safe">Sidebar post</shreddit-post></article></aside>
 <script>
   window.loadCalls = 0;
@@ -272,6 +283,7 @@ article { padding: 10px; }
       const card = document.createElement(row.adPost ? "shreddit-ad-post" : "shreddit-post");
       card.id = `t3_${row.id}`;
       card.setAttribute("subreddit-name", row.subreddit);
+      card.setAttribute("author", row.author || "poster");
       card.setAttribute("permalink", `/r/${row.subreddit}/comments/${row.id}/title`);
       card.setAttribute("post-title", row.title || `Post ${row.id}`);
       if (row.ad) card.setAttribute("is-promoted", "");
@@ -534,6 +546,11 @@ article { padding: 10px; }
       )),
     };
   };
+  window.oldRedditVisibility = () => Object.fromEntries(Array.from(
+    document.querySelectorAll("#old-reddit .thing"),
+    (element) => [element.id, Boolean(element.getClientRects().length)
+      && getComputedStyle(element).display !== "none"],
+  ));
   window.suggestedCommunitiesVisible = () => {
     const element = document.querySelector("#suggested-communities");
     return Boolean(element?.getClientRects().length)

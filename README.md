@@ -30,6 +30,8 @@ To install from source, see [Development](#development). The
 ### Filter
 
 - Hide posts and comments that contain your keywords.
+- Block users by name, `u/name` or profile URL: their posts and comments
+  disappear from every Reddit page, and their profiles are blocked.
 - Hide posts by flair, with `*` wildcards.
 - Hide suggested posts in the Home feed, and ads and promoted posts.
 
@@ -52,7 +54,7 @@ system theme or use a light or dark one.
 
 Open FrontFilter from the browser toolbar or extensions menu. The
 **Controls** tab turns features on and off, **Filters** holds subreddit,
-keyword, and flair rules, and **Settings** covers the theme, the Block
+user, keyword, and flair rules, and **Settings** covers the theme, the Block
 buttons, and backups. Changes are saved automatically and apply right away.
 
 ## Privacy

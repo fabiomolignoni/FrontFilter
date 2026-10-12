@@ -1,6 +1,6 @@
 # FrontFilter Privacy Policy
 
-**Last updated: October 1, 2026**
+**Last updated: October 12, 2026**
 
 FrontFilter is a browser extension that helps you use Reddit with fewer
 distractions. This policy explains what data the extension handles and what it
@@ -25,7 +25,7 @@ and to unmodified builds of its
 FrontFilter saves the choices you make in its settings, or with its optional
 Block buttons on Reddit:
 
-- blocked and allowed subreddits;
+- blocked and allowed subreddits, and blocked users;
 - keywords and post flairs you filter;
 - the pages, page elements, and features you choose to hide or limit; and
 - your color theme.
@@ -44,9 +44,10 @@ browsing history or any page outside Reddit.
 
 To apply the features you turn on, FrontFilter reads parts of the Reddit
 pages you open: subreddit names, post links, titles, text previews, comment
-text, flairs, markers that identify ads or suggested posts, and the page
-elements you choose to hide or change. This happens in memory, on your device,
-and nothing is kept once you leave the page.
+text, flairs, the usernames of post and comment authors, markers that
+identify ads or suggested posts, and the page elements you choose to hide or
+change. This happens in memory, on your device, and nothing is kept once you
+leave the page.
 
 FrontFilter never accesses your passwords or cookies, is not designed to read
 private messages or what you type, and does not use your location.

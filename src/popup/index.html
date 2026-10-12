@@ -305,6 +305,24 @@
 
           <div class="card">
             <div class="card-header">
+              <h2 class="card-title">Blocked users</h2>
+              <span id="blocked-user-count" class="count"></span>
+            </div>
+            <div class="card-body">
+              <p class="filter-help">Hide posts and comments by these users everywhere on
+                Reddit, and block their profile pages. Enter a username, such as
+                <strong>spez</strong> or <strong>u/spez</strong>, or a profile URL. Replies to
+                a hidden comment are hidden too.</p>
+              <div class="add-row">
+                <button type="button" id="add-blocked-user"
+                  class="btn btn-primary">+ Add user</button>
+              </div>
+              <div id="blocked-user-list" class="entry-list"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
               <h2 class="card-title">Keywords</h2>
               <span id="title-keyword-count" class="count"></span>
             </div>

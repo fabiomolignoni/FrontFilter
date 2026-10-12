@@ -23,6 +23,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     ...SELECTORS.post.promotedAttributes,
     ...SELECTORS.post.titleAttributes,
     ...SELECTORS.post.bodyAttributes,
+    ...SELECTORS.post.authorAttributes,
     SELECTORS.post.recommendationAttribute,
   ];
   // While a session limits a feed, it reads each card once and again after
@@ -109,6 +110,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       bodyTexts: POSTS.bodyTexts(post),
       recommended: POSTS.isRecommended(post),
       flair: POSTS.flair(post),
+      author: POSTS.author(post),
     };
   }
 
@@ -493,7 +495,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     const rows = collect(feed, { cards: current.cards });
     const records = new Map();
     for (const {
-      id, subreddit, title, bodyTexts, ad, recommended, flair,
+      id, subreddit, title, bodyTexts, ad, recommended, flair, author,
     } of rows) {
       // A partially hydrated card may precede complete cards. Wait for its
       // identity before admitting later results, preserving feed order.
@@ -501,7 +503,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       // A promoted copy must not override the organic card with the same ID.
       if (id && (!records.has(id) || !ad)) {
         records.set(id, {
-          id, subreddit, title, bodyTexts, ad, recommended, flair,
+          id, subreddit, title, bodyTexts, ad, recommended, flair, author,
         });
       }
     }
