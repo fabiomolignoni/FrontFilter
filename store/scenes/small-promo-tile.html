@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Small promo tile</title>
+    <link rel="stylesheet" href="scene.css" />
+    <style>
+      body { width: 440px; height: 280px; display: flex; align-items: center; padding: 0 36px; }
+      .lockup { display: flex; align-items: center; gap: 22px; }
+      .lockup canvas { height: 104px; }
+      .name { font-size: 44px; }
+      .tagline { margin-top: 10px; font-size: 21px; }
+      .watermark { position: absolute; right: -60px; bottom: -70px; height: 300px; opacity: 0.1; }
+    </style>
+  </head>
+  <body class="tile">
+    <canvas class="watermark" aria-hidden="true"></canvas>
+    <div class="lockup">
+      <canvas aria-hidden="true"></canvas>
+      <div>
+        <p class="name">FrontFilter</p>
+        <p class="tagline">Reddit without<br />the distractions</p>
+      </div>
+    </div>
+    <script src="scene.js"></script>
+    <script>
+      for (const canvas of document.querySelectorAll("canvas")) Scene.drawGlyph(canvas);
+    </script>
+  </body>
+</html>

@@ -108,6 +108,8 @@ it should load a handful of pages. Never commit snapshots.
 3. Upload `dist/frontfilter-firefox-<version>.xpi` to Firefox Add-ons and
    `dist/frontfilter-chrome-<version>.zip` to the Chrome Web Store and to
    Microsoft Edge Add-ons, with the changelog entry as release notes.
+4. If the settings page or the block page changed visibly, render the store
+   images again and upload them too (see [store/README.md](store/README.md)).
 
 ## Pull requests
 

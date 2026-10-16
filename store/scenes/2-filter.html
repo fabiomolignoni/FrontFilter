@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Filter</title>
+    <link rel="stylesheet" href="scene.css" />
+  </head>
+  <body class="shot">
+    <div class="copy">
+      <div class="brand"><img src="/src/icons/icon-48.png" alt="" />FrontFilter</div>
+      <p class="eyebrow">Filter</p>
+      <h1>Filter out<br /><em>the noise</em></h1>
+      <p class="lede">Hide posts and comments by keyword, user or flair, on every
+        Reddit page.</p>
+    </div>
+    <div class="browser" data-url="reddit.com">
+      <div class="page"><div class="feed" id="feed"></div></div>
+    </div>
+    <div class="crop" style="left: 72px; bottom: 56px">
+      <iframe id="settings" title="Settings"></iframe>
+    </div>
+    <script src="scene.js"></script>
+    <script>
+      Scene.feed(document.getElementById("feed"), [
+        {
+          sub: "space", color: "#4f46e5", time: "3 hr. ago", votes: "8.4k", comments: "412",
+          title: "Webb's sharpest look yet at a distant star nursery",
+          image: ["#1e1b4b", "#7c3aed", "stars"],
+        },
+        {
+          sub: "television", color: "#0891b2", time: "1 hr. ago", hiddenBy: "keyword “spoiler”",
+          title: "Finale spoiler discussion: what that last scene means",
+        },
+        {
+          sub: "Cooking", color: "#16a34a", time: "5 hr. ago", votes: "2.1k", comments: "186",
+          title: "After six attempts, my sourdough finally has an open crumb",
+        },
+        {
+          sub: "pics", color: "#db2777", time: "6 hr. ago", hiddenBy: "user u/RepostBot3000",
+          title: "Found this amazing view (not my photo)",
+        },
+        {
+          sub: "gardening", color: "#65a30d", time: "8 hr. ago", votes: "964", comments: "73",
+          title: "My balcony tomatoes made it through the heatwave",
+        },
+      ]);
+      Scene.embed(document.getElementById("settings"), {
+        page: "popup/index.html",
+        settings: {
+          blockedUsers: ["RepostBot3000"],
+          blockedTitleKeywords: ["spoiler", "crypto", "giveaway"],
+          blockedFlairs: ["Meme"],
+        },
+        setup(doc) {
+          doc.getElementById("tab-filters").click();
+          Scene.scrollTo(doc.getElementById("title-keyword-list").closest(".card"));
+        },
+        crop: (doc) => doc.getElementById("title-keyword-list").closest(".card"),
+      });
+    </script>
+  </body>
+</html>

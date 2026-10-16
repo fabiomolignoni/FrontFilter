@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Simplify</title>
+    <link rel="stylesheet" href="scene.css" />
+  </head>
+  <body class="shot">
+    <div class="copy">
+      <div class="brand"><img src="/src/icons/icon-48.png" alt="" />FrontFilter</div>
+      <p class="eyebrow">Simplify</p>
+      <h1>A calmer, <em>cleaner</em> Reddit</h1>
+      <p class="lede">Hide sidebars, votes, karma, awards and ads, and stop videos
+        from playing on their own.</p>
+    </div>
+
+    <div class="browser before" data-url="reddit.com"
+      style="left: 500px; top: 64px; width: 640px; height: 500px">
+      <div class="page light">
+        <div class="reddit">
+          <div class="navbar">
+            <span class="logo"></span><span class="search">Search Reddit</span>
+            <span class="round"></span><span class="round"></span><span class="round"></span>
+          </div>
+          <div class="reddit-columns">
+            <nav class="left-nav">
+              <p>Home</p><p>Popular</p><p>Explore</p><p>All</p>
+              <h4>CUSTOM FEEDS</h4><p>Weekend reads</p>
+              <h4>RECENT</h4>
+              <p style="--dot: #2563eb">r/askscience</p><p style="--dot: #ea580c">r/memes</p>
+              <h4>COMMUNITIES</h4>
+              <p style="--dot: #16a34a">r/Cooking</p><p style="--dot: #65a30d">r/gardening</p>
+            </nav>
+            <div class="feed" id="before-feed"></div>
+            <aside class="right-rail">
+              <section>
+                <h4>POPULAR COMMUNITIES</h4>
+                <p style="--dot: #db2777">r/funny<small>66M</small></p>
+                <p style="--dot: #0891b2">r/gaming<small>45M</small></p>
+                <p style="--dot: #ca8a04">r/movies<small>34M</small></p>
+                <p style="--dot: #7c3aed">r/music<small>33M</small></p>
+              </section>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="window-label" style="left: 524px; top: 46px">Before</span>
+
+    <div class="browser after" data-url="reddit.com"
+      style="left: 700px; top: 286px; width: 620px; height: 560px">
+      <div class="page light">
+        <div class="reddit simplified"><div class="feed" id="after-feed"></div></div>
+      </div>
+    </div>
+    <span class="window-label after" style="left: 724px; top: 268px">After</span>
+
+    <div class="crop light" style="--scale: 1.15; left: 72px; bottom: 56px">
+      <iframe id="settings" title="Settings"></iframe>
+    </div>
+    <script src="scene.js"></script>
+    <script>
+      const posts = [
+        {
+          sub: "Cooking", color: "#16a34a", time: "5 hr. ago", votes: "2.1k", comments: "186",
+          award: 4, title: "After six attempts, my sourdough finally has an open crumb",
+          image: ["#fde68a", "#d97706", "bubbles"],
+        },
+        {
+          sub: "ShoeDeals", color: "#64748b", time: "Sponsored", promoted: true,
+          title: "Run further this spring with 30% off our new trainers",
+        },
+        {
+          sub: "gardening", color: "#65a30d", time: "8 hr. ago", votes: "964", comments: "73",
+          award: 2, title: "My balcony tomatoes made it through the heatwave",
+        },
+        {
+          sub: "askscience", color: "#2563eb", time: "2 hr. ago", votes: "3.6k", comments: "521",
+          title: "Why does the Moon look bigger near the horizon?",
+        },
+      ];
+      Scene.feed(document.getElementById("before-feed"), posts);
+      Scene.feed(document.getElementById("after-feed"), posts.filter((post) => !post.promoted));
+      Scene.embed(document.getElementById("settings"), {
+        page: "popup/index.html",
+        theme: "light",
+        settings: {
+          hideNavbar: true, hideLeftSidebar: true, hideRelatedPosts: true,
+          hideSocialSignals: true, hideAds: true, disableAutoplay: true,
+        },
+        setup(doc) {
+          Scene.scrollTo(doc.getElementById("hide-navbar").closest(".card"));
+        },
+        crop: (doc) => doc.getElementById("hide-navbar").closest(".card"),
+      });
+    </script>
+  </body>
+</html>

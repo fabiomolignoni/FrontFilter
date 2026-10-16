@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Limit scrolling</title>
+    <link rel="stylesheet" href="scene.css" />
+    <link rel="stylesheet" href="/src/content/feed-limit.css" />
+  </head>
+  <body class="shot">
+    <div class="copy">
+      <div class="brand"><img src="/src/icons/icon-48.png" alt="" />FrontFilter</div>
+      <p class="eyebrow">Limit scrolling</p>
+      <h1>Put an end to <em>endless scrolling</em></h1>
+      <p class="lede">Show a set number of posts, or reveal them in batches you
+        choose.</p>
+      <ul class="chips">
+        <li>Free and open source</li>
+        <li>No tracking</li>
+      </ul>
+    </div>
+    <div class="browser" data-url="reddit.com">
+      <div class="page">
+        <div class="feed" id="feed" style="margin-top: -150px"></div>
+        <!-- As feed-limit.js shows them in button mode. -->
+        <div class="frontfilter-feed-controls" style="width: 552px; margin-left: 72px">
+          <div role="status">10 posts shown</div>
+          <button type="button" class="frontfilter-feed-next">Show next 10</button>
+        </div>
+      </div>
+    </div>
+    <div class="crop" style="--scale: 1.2; left: 72px; bottom: 56px">
+      <iframe id="settings" title="Settings"></iframe>
+    </div>
+    <script src="scene.js"></script>
+    <script>
+      Scene.feed(document.getElementById("feed"), [
+        {
+          sub: "travel", color: "#0d9488", time: "9 hr. ago", votes: "12k", comments: "204",
+          title: "First light over the Dolomites, Italy",
+          image: ["#0f766e", "#f59e0b", "mountains"],
+        },
+        {
+          sub: "books", color: "#9333ea", time: "10 hr. ago", votes: "2.7k", comments: "640",
+          title: "What's a book you finished in one sitting?",
+        },
+        {
+          sub: "todayilearned", color: "#0284c7", time: "11 hr. ago", votes: "5.3k", comments: "377",
+          title: "TIL octopuses taste what they touch with their suckers",
+        },
+      ]);
+      Scene.embed(document.getElementById("settings"), {
+        page: "popup/index.html",
+        settings: { limitInfiniteScroll: true, scrollMode: "button", scrollLimit: 10 },
+        setup(doc) {
+          Scene.scrollTo(doc.getElementById("limit-infinite-scroll").closest(".card"));
+        },
+        crop: (doc) => doc.getElementById("limit-infinite-scroll").closest(".card"),
+      });
+    </script>
+  </body>
+</html>
