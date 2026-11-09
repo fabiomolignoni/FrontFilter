@@ -14,6 +14,24 @@ Notable changes to FrontFilter, newest first.
   own page still shows the block page, which offers **Undo block**, and so
   does any blocked page while the chosen website is a blocked Reddit page
   itself.
+- Keywords written between slashes, such as `/colou?r/`, are regular
+  expressions, matched ignoring case.
+- **Allowed keywords**, in the **Filters** tab: keyword filters never hide a
+  post or comment that contains one of them.
+
+### Changed
+
+- Keywords match whole words and ignore accents: `ai` no longer hides
+  "said", and `perche` hides "Perché". A `*` at an end lets a keyword match
+  inside words there, as in `spoiler*` or `*ai*`. In Chinese, Japanese,
+  Korean and Thai text, keywords still match inside words. Keywords that
+  differ only in their accents, such as `perche` and `perché`, are one
+  keyword.
+- Keywords you already have keep hiding what they hid: on update, FrontFilter
+  adds `*` to their ends, so `ai` becomes `*ai*`. Remove the stars to match
+  whole words only. Configurations exported by earlier versions import the
+  same way. A keyword that was text between slashes or with a `*` at an end,
+  such as `/r/`, becomes a regular expression that finds that text.
 
 ## 2.4.0 - 2026-10-12
 

@@ -460,6 +460,61 @@ test("renders, edits and removes case-insensitive post keywords", async () => {
   );
 });
 
+test("merges keywords that match alike, and keeps regular expressions as written", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedTitleKeywords: ["Perché", "/\\d+/"] },
+  });
+  const values = () => Array.from(getRenderedKeywords(elements), (item) => item.querySelector("input").value);
+  const type = async (value) => {
+    elements["add-title-keyword"].click();
+    const input = getRenderedKeywords(elements)[0].querySelector("input");
+    input.value = value;
+    input.dispatch("input");
+    input.dispatch("blur");
+    await settle();
+  };
+
+  await type("perche");
+  assert.deepEqual(values(), ["/\\d+/", "perche"]);
+  await type("/\\D+/");
+  assert.deepEqual(values(), ["/\\D+/", "/\\d+/", "perche"]);
+  assert.equal(elements["title-keyword-count"].textContent, "3 keywords");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(writes.at(-1).settings.blockedTitleKeywords)),
+    ["/\\D+/", "/\\d+/", "perche"],
+  );
+});
+
+test("edits allowed keywords as keywords are edited", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { allowedKeywords: ["Biden", "biden"] },
+  });
+  const items = () => elements["allowed-keyword-list"].querySelectorAll(".allowed-keyword-item");
+  assert.equal(items().length, 1);
+  assert.equal(elements["allowed-keyword-count"].textContent, "1 exception");
+
+  elements["add-allowed-keyword"].click();
+  const input = items()[0].querySelector("input");
+  assert.equal(input.focused, true);
+  input.value = "  /ukrain(e|ian)/ ";
+  input.dispatch("input");
+  input.dispatch("blur");
+  await settle();
+  assert.equal(input.value, "/ukrain(e|ian)/");
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    allowedKeywords: ["/ukrain(e|ian)/", "Biden"],
+  });
+  assert.equal(elements["allowed-keyword-count"].textContent, "2 exceptions");
+
+  items().find((item) => item.querySelector("input").value === "Biden").children[1].click();
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    allowedKeywords: ["/ukrain(e|ian)/"],
+  });
+});
+
 test("adds the current tab's subreddit and reports non-subreddit tabs", async () => {
   const currentSubreddit = await loadPopup({
     autoResolveWrites: true,
@@ -550,6 +605,7 @@ test("exports the normalized stored configuration as a JSON download", async () 
   assert.equal(exported.hideAds, true);
   assert.deepEqual(exported.allowedSubreddits, ["italypersonalfinance"]);
   assert.deepEqual(exported.blockedTitleKeywords, ["Trump"]);
+  assert.equal(exported.settingsVersion, 2);
   assert.equal(exported.theme, "system");
   assert.equal("disableAutoTranslation" in exported, false);
   assert.equal("blockAll" in exported, false);
@@ -909,10 +965,13 @@ test("preserves current settings during a partial import", async () => {
   assert.equal(elements["disable-autoplay"].checked, true);
   assert.equal(writes[0].settings.hideSuggestedCommunities, true);
   assert.equal(elements["hide-suggested-communities"].checked, true);
+  // A file without a settings version is from before keywords matched whole
+  // words: its keywords keep matching inside words.
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes[0].settings.blockedTitleKeywords)),
-    ["Trump"],
+    ["*Trump*"],
   );
+  assert.equal(writes[0].settings.settingsVersion, 2);
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes[0].settings.allowedSubreddits)),
     ["italypersonalfinance"],
@@ -923,7 +982,7 @@ test("preserves current settings during a partial import", async () => {
   );
   assert.equal(
     getRenderedKeywords(elements)[0].querySelector("input").value,
-    "Trump",
+    "*Trump*",
   );
   assert.equal(writes[0].settings.theme, "light");
   assert.equal(elements["color-theme"].value, "light");
@@ -933,6 +992,49 @@ test("preserves current settings during a partial import", async () => {
   assert.equal(elements["hide-right-sidebar"].checked, true);
   assert.equal("blockNsfw" in writes[0].settings, false);
   assert.equal("disableAutoTranslation" in writes[0].settings, false);
+});
+
+test("imports keywords as the version that exported them wrote them", async () => {
+  const importKeywords = async (file, storedSettings = {}) => {
+    const { elements, writes } = await loadPopup({ autoResolveWrites: true, storedSettings });
+    elements["import-file"].files = [{ text: async () => JSON.stringify(file) }];
+    elements["import-file"].dispatch("change");
+    await settle();
+    await settle();
+    return JSON.parse(JSON.stringify(writes[0].settings));
+  };
+
+  const current = await importKeywords({
+    settingsVersion: 2,
+    blockedTitleKeywords: ["ai", "spoiler*"],
+    allowedKeywords: ["biden"],
+  });
+  assert.deepEqual(current.blockedTitleKeywords, ["ai", "spoiler*"]);
+  assert.deepEqual(current.allowedKeywords, ["biden"]);
+  assert.equal(current.settingsVersion, 2);
+
+  // Earlier files, whose keywords between slashes or with stars were text,
+  // and which never had allowed keywords.
+  const legacy = await importKeywords({
+    blockedTitleKeywords: ["ai", "/r/", "*", "f*ck", "/(/"],
+    allowedKeywords: ["biden"],
+  });
+  assert.deepEqual(
+    legacy.blockedTitleKeywords,
+    ["*ai*", "/\\/r\\//", "/\\*/", "*f*ck*", "/\\/\\(\\//"],
+  );
+  assert.deepEqual(legacy.allowedKeywords, ["biden"]);
+
+  // Stored keywords not yet upgraded are upgraded with a partial import.
+  const partial = await importKeywords({ settingsVersion: 2, blockPopular: true }, {
+    blockedTitleKeywords: ["ai"],
+  });
+  assert.deepEqual(partial.blockedTitleKeywords, ["*ai*"]);
+  const upgraded = await importKeywords({ settingsVersion: 2, blockPopular: true }, {
+    blockedTitleKeywords: ["ai"],
+    settingsVersion: 2,
+  });
+  assert.deepEqual(upgraded.blockedTitleKeywords, ["ai"]);
 });
 
 test("rejects imports without recognized configuration keys", async () => {
@@ -1124,6 +1226,8 @@ test("explains entries that cannot be used, and clears them", async () => {
     ["add-subreddit", "blocked-list", "not a subreddit!", "Enter a subreddit name, a pattern with *, or a Reddit URL"],
     ["add-blocked-user", "blocked-user-list", "r/firefox", "Enter a username, such as u/name, or a profile URL"],
     ["add-blocked-flair", "blocked-flair-list", "x".repeat(101), "Flairs can be at most 100 characters long"],
+    ["add-title-keyword", "title-keyword-list", "/(unclosed/", "Enter a keyword, or a valid regular expression between slashes"],
+    ["add-allowed-keyword", "allowed-keyword-list", "/[a/", "Enter a keyword, or a valid regular expression between slashes"],
   ]) {
     elements[addId].click();
     const input = elements[list].querySelector("input");
@@ -1134,7 +1238,7 @@ test("explains entries that cannot be used, and clears them", async () => {
     assert.equal(input.value, "");
     assert.equal(elements["toast"].textContent, message);
   }
-  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), { blockedFlairs: [] });
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), { allowedKeywords: [] });
 });
 
 test("merges a row into an earlier one for the same rule", async () => {
@@ -1166,6 +1270,8 @@ test("tells empty lists apart and counts their rules", async () => {
   assert.equal(elements["blocked-user-list"].textContent, "No users blocked yet");
   assert.equal(elements["blocked-user-count"].textContent, "0 users");
   assert.equal(elements["title-keyword-list"].textContent, "No keywords filtered yet");
+  assert.equal(elements["allowed-keyword-list"].textContent, "No keyword exceptions yet");
+  assert.equal(elements["allowed-keyword-count"].textContent, "0 exceptions");
   assert.equal(elements["blocked-flair-count"].textContent, "1 flair");
 });
 

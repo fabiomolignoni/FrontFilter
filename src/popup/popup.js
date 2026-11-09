@@ -243,6 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // normalized list. With modes, each rule is blocked in HOME or ALL mode.
   function createEntryList({
     key, listId, countId, addId, itemClass, normalizeList, modes = false,
+    getRuleKey = (value) => value.toLowerCase(),
     placeholder, label, removeLabel, emptyMessage, invalidMessage, countNouns,
   }) {
     const listEl = document.getElementById(listId);
@@ -268,12 +269,13 @@ document.addEventListener("DOMContentLoaded", () => {
       scheduleAutoSave([key], immediate);
     }
 
-    // Rules compare case-insensitively; a merged row is in ALL mode if
-    // either row was. Returns whether a row was merged.
+    // Rules compare as their list does, case-insensitively unless it says
+    // otherwise; a merged row is in ALL mode if either row was. Returns
+    // whether a row was merged.
     function mergeDuplicates() {
       const byRule = new Map();
       const merged = entries.filter((entry) => {
-        const rule = entry.value.toLowerCase();
+        const rule = getRuleKey(entry.value);
         const first = rule && byRule.get(rule);
         if (!first) {
           if (rule) byRule.set(rule, entry);
@@ -444,6 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
     invalidMessage: "Allowed subreddits must be exact names, without *",
     countNouns: ["exception", "exceptions"],
   });
+  const KEYWORD_INVALID_MESSAGE = "Enter a keyword, or a valid regular expression between slashes";
   const entryLists = [
     blockedList,
     allowedList,
@@ -468,11 +471,28 @@ document.addEventListener("DOMContentLoaded", () => {
       addId: "add-title-keyword",
       itemClass: "keyword-item",
       normalizeList: FrontFilter.normalizeTitleKeywords,
-      placeholder: "Keyword or phrase",
-      label: "Keyword or phrase",
+      getRuleKey: FrontFilter.getKeywordKey,
+      placeholder: "Keyword, phrase, or /regex/",
+      label: "Keyword, phrase, or regular expression",
       removeLabel: "Remove keyword",
       emptyMessage: "No keywords filtered yet",
+      invalidMessage: KEYWORD_INVALID_MESSAGE,
       countNouns: ["keyword", "keywords"],
+    }),
+    createEntryList({
+      key: "allowedKeywords",
+      listId: "allowed-keyword-list",
+      countId: "allowed-keyword-count",
+      addId: "add-allowed-keyword",
+      itemClass: "allowed-keyword-item",
+      normalizeList: FrontFilter.normalizeTitleKeywords,
+      getRuleKey: FrontFilter.getKeywordKey,
+      placeholder: "Keyword, phrase, or /regex/",
+      label: "Allowed keyword, phrase, or regular expression",
+      removeLabel: "Remove keyword exception",
+      emptyMessage: "No keyword exceptions yet",
+      invalidMessage: KEYWORD_INVALID_MESSAGE,
+      countNouns: ["exception", "exceptions"],
     }),
     createEntryList({
       key: "blockedFlairs",
@@ -530,9 +550,11 @@ document.addEventListener("DOMContentLoaded", () => {
   async function exportConfig() {
     try {
       await flushPendingSave();
-      const data = FrontFilter.coerceSettings(
-        await chrome.storage.local.get(FrontFilter.STORAGE_KEYS),
-      );
+      const data = {
+        // Imports read the file's keywords as this version wrote them.
+        [FrontFilter.SETTINGS_VERSION_KEY]: FrontFilter.SETTINGS_VERSION,
+        ...FrontFilter.coerceSettings(await chrome.storage.local.get(FrontFilter.STORAGE_KEYS)),
+      };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -556,8 +578,10 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // Files exported by earlier versions keep their meaning.
       const imported = Object.fromEntries(
-        Object.entries(data).filter(([key]) => FrontFilter.STORAGE_KEYS.includes(key)),
+        Object.entries(FrontFilter.upgradeSettings(data))
+          .filter(([key]) => FrontFilter.STORAGE_KEYS.includes(key)),
       );
       if (Object.keys(imported).length === 0) {
         showToast("Invalid config: no recognized keys", "error");
@@ -572,8 +596,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
       await flushPendingSave();
       await enqueueStorageOperation(async () => {
-        const current = await chrome.storage.local.get(FrontFilter.STORAGE_KEYS);
-        await chrome.storage.local.set(FrontFilter.coerceSettings({ ...current, ...imported }));
+        // Stored settings not yet upgraded are upgraded with the import.
+        const current = FrontFilter.upgradeSettings(await chrome.storage.local.get([
+          ...FrontFilter.STORAGE_KEYS,
+          FrontFilter.SETTINGS_VERSION_KEY,
+        ]));
+        await chrome.storage.local.set({
+          ...FrontFilter.coerceSettings({ ...current, ...imported }),
+          [FrontFilter.SETTINGS_VERSION_KEY]: FrontFilter.SETTINGS_VERSION,
+        });
       });
       await loadSettings();
       showToast("Configuration imported!", "success");

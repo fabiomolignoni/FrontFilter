@@ -26,7 +26,7 @@ FrontFilter saves the choices you make in its settings, or with its optional
 Block buttons on Reddit:
 
 - blocked and allowed subreddits, and blocked users;
-- keywords and post flairs you filter;
+- keywords and post flairs you filter, and keywords you allow;
 - the pages, page elements, and features you choose to hide or limit;
 - the website blocked pages lead to, if you choose one; and
 - your color theme.

@@ -56,7 +56,8 @@ const countVisible = (selector) => deep(selector).filter(visible).length;
 const feedPosts = () => Array.from(document.querySelectorAll("main shreddit-feed shreddit-post"))
   .filter((post) => !post.parentElement.closest("shreddit-post"));
 """
-WORD = re.compile(r"[^\W\d_]{5,}")
+# Whole words, as keywords match them: no letter or digit next to them.
+WORD = re.compile(r"(?<![^\W_])[^\W\d_]{5,}(?![^\W_])")
 
 
 class Browser:

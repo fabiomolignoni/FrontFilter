@@ -328,13 +328,34 @@
             </div>
             <div class="card-body">
               <p class="filter-help">Hide posts and comments when their title, text preview
-                or comment text contains one of these keywords. Matching is
-                case-insensitive. Replies to a hidden comment are hidden too.</p>
+                or comment text contains one of these keywords as whole words:
+                <strong>ai</strong> hides “AI art”, not “said”. Add <strong>*</strong> to an
+                end to match inside words too, as in <strong>spoiler*</strong> or
+                <strong>*ai*</strong>. Matching ignores case and accents. For other matches,
+                write a regular expression between slashes, as in
+                <strong>/colou?r/</strong>. Replies to a hidden comment are hidden too.</p>
               <div class="add-row">
                 <button type="button" id="add-title-keyword"
                   class="btn btn-primary">+ Add keyword</button>
               </div>
               <div id="title-keyword-list" class="entry-list"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Allowed keywords</h2>
+              <span id="allowed-keyword-count" class="count"></span>
+            </div>
+            <div class="card-body">
+              <p class="filter-help">Keyword filters never hide a post or comment that
+                contains one of these, and they match as keywords do. Other filters still
+                apply.</p>
+              <div class="add-row">
+                <button type="button" id="add-allowed-keyword"
+                  class="btn btn-primary">+ Add</button>
+              </div>
+              <div id="allowed-keyword-list" class="entry-list"></div>
             </div>
           </div>
 

@@ -706,7 +706,13 @@ class PageTests:
             "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
             "comment-mention", "comment-deleted",
         ])
-        self.configure(blockedTitleKeywords=[])
+        # An allowed keyword keeps its comment, and so its replies.
+        self.configure(allowedKeywords=["rally"])
+        self.wait_until(lambda: self.js("return visibleComments()") == [
+            comment for comment in ALL_COMMENTS if comment != "comment-deleted-reply"
+        ])
+        # Keywords match whole words only.
+        self.configure(blockedTitleKeywords=["trum"], allowedKeywords=[])
         self.wait_until(lambda: self.js("return visibleComments()") == ALL_COMMENTS)
 
     def test_keyword_filters_read_comment_text_that_changes(self):

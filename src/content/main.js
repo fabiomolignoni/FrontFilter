@@ -79,6 +79,7 @@ function createFilterIndex(settings) {
     blockedUsers: new Set(settings.blockedUsers),
     hasKeywords,
     matchesKeywords: FrontFilter.createKeywordMatcher(settings.blockedTitleKeywords),
+    matchesAllowedKeywords: FrontFilter.createKeywordMatcher(settings.allowedKeywords),
     filtersPosts: blockedAll.length > 0 || hasKeywords || settings.blockedFlairs.length > 0,
     filtersComments,
     // The text whose changes filters read.
@@ -184,8 +185,11 @@ function isSubredditFrontBlocked(subredditName) {
   return filterIndex.matchesBlockedFront(normalizedName);
 }
 
+// The texts of one post, or of one comment: an allowed keyword in any of
+// them keeps it.
 function containsBlockedText(texts) {
-  return texts.some(filterIndex.matchesKeywords);
+  return texts.some(filterIndex.matchesKeywords)
+    && !texts.some(filterIndex.matchesAllowedKeywords);
 }
 
 // Authors are spelled as each user chose; blocked usernames are lowercase.
