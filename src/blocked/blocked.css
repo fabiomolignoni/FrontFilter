@@ -99,7 +99,8 @@ h1 {
   transition: background 0.15s, transform 0.1s;
   text-decoration: none;
 }
-/* The undo button is only shown right after a one-click block. */
+/* The undo button is only shown right after a one-click block, and the
+   settings button unless the settings hide it. */
 .btn[hidden] { display: none; }
 .btn:active { transform: scale(0.98); }
 .btn:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }

@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const vm = require("node:vm");
-const { loadPage, readSource, runScripts, settle } = require("./helpers");
+const { deferred, loadPage, readSource, runScripts, settle } = require("./helpers");
 
 async function loadBlockPage({
   historyLength = 1,
@@ -9,8 +9,11 @@ async function loadBlockPage({
   search = "",
   sendMessage = async () => ({ success: true }),
   storedSettings = {},
+  // Replaces storage reads; the page then logs its errors to errors.
+  getSettings,
 } = {}) {
   const page = loadPage("blocked/index.html");
+  const errors = [];
   const writes = [];
   const removals = [];
   const replacedUrls = [];
@@ -31,7 +34,7 @@ async function loadBlockPage({
     },
     storage: {
       local: {
-        get: async () => storedSettings,
+        get: getSettings ?? (async () => storedSettings),
         async set(values) {
           writes.push(JSON.parse(JSON.stringify(values)));
           Object.assign(storedSettings, values);
@@ -56,7 +59,7 @@ async function loadBlockPage({
     URL,
     URLSearchParams,
     chrome,
-    console,
+    console: getSettings ? { error: (...args) => errors.push(args) } : console,
     document: page.document,
     localStorage: {
       getItem: (key) => themeCache.get(key) ?? null,
@@ -73,6 +76,7 @@ async function loadBlockPage({
     context,
     documentElement: page.document.documentElement,
     elements: page.elements,
+    errors,
     get historyBackCount() { return historyBackCount; },
     location,
     redirects,
@@ -223,6 +227,48 @@ test("keeps the block page open when settings open successfully", async () => {
   }]);
 });
 
+test("shows the settings button unless the settings hide it, and follows them", async () => {
+  for (const hideBlockPageSettingsButton of [undefined, false, "true"]) {
+    const page = await loadBlockPage({ storedSettings: { hideBlockPageSettingsButton } });
+    assert.equal(page.elements["go-to-settings"].hidden, false, String(hideBlockPageSettingsButton));
+  }
+
+  const page = await loadBlockPage({ storedSettings: { hideBlockPageSettingsButton: true } });
+  const button = page.elements["go-to-settings"];
+  assert.equal(button.hidden, true);
+  assert.equal(page.elements["go-back"].hidden, false);
+
+  page.storageListener({ hideBlockPageSettingsButton: { newValue: false } }, "sync");
+  assert.equal(button.hidden, true);
+  page.storageListener({ hideBlockPageSettingsButton: { oldValue: true, newValue: false } }, "local");
+  assert.equal(button.hidden, false);
+  page.storageListener({ hideBlockPageSettingsButton: { newValue: true } }, "local");
+  assert.equal(button.hidden, true);
+  // A setting removed from storage takes its default.
+  page.storageListener({ hideBlockPageSettingsButton: { oldValue: true } }, "local");
+  assert.equal(button.hidden, false);
+});
+
+test("shows the settings button when the settings cannot be read", async () => {
+  const page = await loadBlockPage({
+    getSettings: async () => { throw new Error("Storage unavailable"); },
+  });
+  assert.equal(page.elements["go-to-settings"].hidden, false);
+  assert.ok(page.errors.some(([message]) => message.includes("settings button")));
+});
+
+test("keeps a settings button change received while the setting loads", async () => {
+  const read = deferred();
+  const page = await loadBlockPage({ getSettings: () => read.promise });
+  assert.equal(page.elements["go-to-settings"].hidden, true);
+
+  page.storageListener({ hideBlockPageSettingsButton: { oldValue: true, newValue: false } }, "local");
+  assert.equal(page.elements["go-to-settings"].hidden, false);
+  read.resolve({ hideBlockPageSettingsButton: true });
+  await settle();
+  assert.equal(page.elements["go-to-settings"].hidden, false);
+});
+
 test("goes back when history exists and otherwise returns to Reddit", async () => {
   const withHistory = await loadBlockPage({ historyLength: 2 });
   await withHistory.elements["go-back"].click();
@@ -359,5 +405,8 @@ test("keeps hidden action buttons out of the layout", () => {
   // .btn sets display, which would otherwise override the hidden attribute
   // and show the undo button on every block page.
   assert.match(readSource("blocked/blocked.css"), /\.btn\[hidden\]\s*\{\s*display:\s*none;?\s*\}/);
-  assert.equal(loadPage("blocked/index.html").elements["undo-block"].hidden, true);
+  const { elements } = loadPage("blocked/index.html");
+  assert.equal(elements["undo-block"].hidden, true);
+  // Until the settings are read, so it never flashes when they hide it.
+  assert.equal(elements["go-to-settings"].hidden, true);
 });

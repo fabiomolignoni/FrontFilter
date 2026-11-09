@@ -1,7 +1,7 @@
 /**
  * The page that replaces a blocked Reddit page. It names what is blocked,
- * leads back or to the settings, and returns to the blocked page as soon as
- * a settings change unblocks it.
+ * leads back or, unless the settings hide that button, to the settings, and
+ * returns to the blocked page as soon as a settings change unblocks it.
  */
 
 const PAGE_MESSAGES = {
@@ -14,6 +14,7 @@ const PAGE_MESSAGES = {
 
 document.addEventListener("DOMContentLoaded", () => {
   void loadTheme();
+  void loadSettingsButton();
 
   const params = new URLSearchParams(window.location.search);
   // The blocked URL follows in the fragment (see FrontFilter.blockPageQuery).
@@ -88,6 +89,10 @@ document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (Object.hasOwn(changes, "theme")) applyTheme(changes.theme.newValue);
+    if (Object.hasOwn(changes, "hideBlockPageSettingsButton")) {
+      settingsButtonChanged = true;
+      showSettingsButton(changes.hideBlockPageSettingsButton.newValue);
+    }
     // Only navigation settings can unblock the page.
     if (FrontFilter.NAVIGATION_STORAGE_KEYS.some((key) => Object.hasOwn(changes, key))) {
       void restoreIfUnblocked(returnUrl);
@@ -144,6 +149,26 @@ async function loadTheme() {
   } catch (error) {
     console.error("Could not load FrontFilter theme:", error);
   }
+}
+
+// The settings button starts hidden, so it never shows on a page whose
+// settings hide it, and shows once they are read, or cannot be, as by
+// default. A change received meanwhile is newer than that read.
+let settingsButtonChanged = false;
+
+async function loadSettingsButton() {
+  let stored = {};
+  try {
+    stored = await chrome.storage.local.get("hideBlockPageSettingsButton");
+  } catch (error) {
+    console.error("Could not load the settings button setting:", error);
+  }
+  if (!settingsButtonChanged) showSettingsButton(stored.hideBlockPageSettingsButton);
+}
+
+// Like every switch, the setting is on only when it is true.
+function showSettingsButton(hideSetting) {
+  document.getElementById("go-to-settings").hidden = hideSetting === true;
 }
 
 function getSafeReturnUrl(value) {

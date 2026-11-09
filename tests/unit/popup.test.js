@@ -810,6 +810,7 @@ test("maps every checkbox to the matching storage setting", async () => {
     "hide-left-sidebar-resources": "hideLeftSidebarResources",
     "hide-right-sidebar": "hideRelatedPosts",
     "show-block-subreddit-button": "showBlockSubredditButton",
+    "hide-block-page-settings-button": "hideBlockPageSettingsButton",
     "limit-infinite-scroll": "limitInfiniteScroll",
   };
   const storedSettings = Object.fromEntries(

@@ -2,6 +2,14 @@
 
 Notable changes to FrontFilter, newest first.
 
+## Unreleased
+
+### Added
+
+- The **Settings** tab can hide the block page's **Open settings** button,
+  so a blocked page offers only **Go back**, and **Undo block** after a
+  one-click block.
+
 ## 2.4.0 - 2026-10-12
 
 ### Added

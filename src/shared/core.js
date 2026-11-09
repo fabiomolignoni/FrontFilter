@@ -45,6 +45,7 @@ var FrontFilter = (() => {
     // Keep the legacy storage key for the right sidebar toggle and older exports.
     hideRelatedPosts: false,
     showBlockSubredditButton: false,
+    hideBlockPageSettingsButton: false,
     limitInfiniteScroll: false,
     scrollLimit: 25,
     scrollMode: "fixed",
