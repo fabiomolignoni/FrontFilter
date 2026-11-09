@@ -138,6 +138,8 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
       windowListeners.popstate();
       await settle();
     },
+    // Runs code in the content script's scope, to stand in for its modules.
+    run: (source) => vm.runInContext(source, context),
     location,
     redirects,
     storageListeners,
@@ -335,6 +337,36 @@ test("blocking rules apply to translated pages", async () => {
     startUrl: "https://www.reddit.com/r/popular?tl=it",
   });
   assert.equal(new URL(blocked.redirects[0]).searchParams.get("page"), "popular");
+});
+
+test("leaves for the website chosen in the settings, except to offer an undo", async () => {
+  const settings = {
+    blockPopular: true,
+    redirectBlockedPages: true,
+    redirectUrl: "https://example.com/",
+  };
+  const content = await loadContent({ settings, startUrl: "https://www.reddit.com/r/popular/" });
+  assert.deepEqual(content.redirects, ["https://example.com/"]);
+
+  // Only the block page offers to undo a one-click block of the open subreddit.
+  const quickBlocked = await loadContent({ settings, startUrl: "https://www.reddit.com/r/news/" });
+  quickBlocked.run(`quickBlock.takeUndo = (name) => (name === "news" ? "abc123" : "")`);
+  quickBlocked.storageListeners[0](
+    { blockedSubreddits: { newValue: [{ name: "news", mode: "all" }] } },
+    "local",
+  );
+  await settle();
+  assert.equal(quickBlocked.redirects.length, 1);
+  const blockPage = new URL(quickBlocked.redirects[0]);
+  assert.equal(blockPage.protocol, "moz-extension:");
+  assert.equal(blockPage.searchParams.get("undo"), "abc123");
+
+  // A website blocked itself would only redirect again.
+  const blockedWebsite = await loadContent({
+    settings: { ...settings, redirectUrl: "https://www.reddit.com/r/popular/top/" },
+    startUrl: "https://www.reddit.com/r/popular/",
+  });
+  assert.equal(new URL(blockedWebsite.redirects[0]).searchParams.get("page"), "popular");
 });
 
 // Settings implemented as page rules, with the shadow-root hosts they may

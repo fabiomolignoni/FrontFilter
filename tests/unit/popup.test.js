@@ -811,6 +811,7 @@ test("maps every checkbox to the matching storage setting", async () => {
     "hide-right-sidebar": "hideRelatedPosts",
     "show-block-subreddit-button": "showBlockSubredditButton",
     "hide-block-page-settings-button": "hideBlockPageSettingsButton",
+    "redirect-blocked-pages": "redirectBlockedPages",
     "limit-infinite-scroll": "limitInfiniteScroll",
   };
   const storedSettings = Object.fromEntries(
@@ -1029,6 +1030,60 @@ test("loads and saves typed scroll settings and disables dependent controls", as
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     limitInfiniteScroll: false,
   });
+});
+
+test("saves the website for blocked pages, shown only while its switch is on", async () => {
+  // Hidden in the markup, so it never shows before the settings load.
+  assert.equal(loadPage("popup/index.html").elements["redirect-url-option"].hidden, true);
+
+  const { elements, storeElsewhere, writes } = await loadPopup({ autoResolveWrites: true });
+  const address = elements["redirect-url"];
+  const option = elements["redirect-url-option"];
+  const saved = () => JSON.parse(JSON.stringify(writes.at(-1).settings));
+  assert.ok(elements["panel-settings"].querySelector("#redirect-url"));
+  assert.equal(address.value, "");
+  assert.equal(option.hidden, true);
+
+  elements["redirect-blocked-pages"].checked = true;
+  elements["redirect-blocked-pages"].dispatch("change");
+  await settle();
+  assert.equal(option.hidden, false);
+  assert.equal(address.disabled, false);
+  assert.deepEqual(saved(), { redirectBlockedPages: true });
+
+  // It is saved, and shown, with its scheme.
+  address.value = " example.com/focus ";
+  address.dispatch("change");
+  await settle();
+  assert.equal(address.value, "https://example.com/focus");
+  assert.deepEqual(saved(), { redirectUrl: "https://example.com/focus" });
+
+  // An address that is not a website is explained and undone.
+  address.value = "javascript:alert(1)";
+  address.dispatch("change");
+  assert.equal(address.value, "https://example.com/focus");
+  assert.equal(elements["toast"].textContent, "Enter a website address, such as example.com");
+  assert.equal(writes.length, 2);
+
+  // So that blocked pages show the block page again.
+  address.value = "";
+  address.dispatch("change");
+  await settle();
+  assert.deepEqual(saved(), { redirectUrl: "" });
+
+  await storeElsewhere({ redirectUrl: "https://example.org/" });
+  assert.equal(address.value, "https://example.org/");
+  // Turned off, the address stays saved for when it is turned on again.
+  elements["redirect-blocked-pages"].checked = false;
+  elements["redirect-blocked-pages"].dispatch("change");
+  await settle();
+  assert.equal(option.hidden, true);
+  assert.deepEqual(saved(), { redirectBlockedPages: false });
+  assert.equal(address.value, "https://example.org/");
+
+  // A switch turned on elsewhere shows it too.
+  await storeElsewhere({ redirectBlockedPages: true });
+  assert.equal(option.hidden, false);
 });
 
 test("imports typed scroll preferences without dropping unrelated settings", async () => {

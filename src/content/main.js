@@ -1,7 +1,8 @@
 /**
  * FrontFilter content script. Page rules hide whole features with CSS
  * (page-style.js); post, comment and community filters mark the elements
- * that match; navigation to a blocked page goes to the block page.
+ * that match; navigation to a blocked page goes to the block page, or to
+ * the website chosen in the settings.
  */
 
 const SELECTORS = FrontFilter.SELECTORS;
@@ -135,15 +136,18 @@ async function checkCurrentPage({ force = false } = {}) {
   if (route) redirectToBlock(route, currentUrl);
 }
 
-// The same block page URL as navigation rules use, the blocked URL last.
+// The same URL as navigation rules use: the website chosen in the settings,
+// or the block page with the blocked URL last.
 function redirectToBlock(route, returnUrl) {
   // Only the redirect caused by a one-click block of this subreddit carries
-  // its undo token; the block page checks it against storage.
+  // its undo token; the block page checks it against storage. That redirect
+  // goes to the block page in any case, as only it offers the undo.
   const undoToken = route.type === "subreddit" ? quickBlock.takeUndo(route.subreddit) : "";
-  window.location.replace(
+  const redirectUrl = undoToken ? "" : FrontFilter.getBlockRedirectUrl(config);
+  window.location.replace(redirectUrl || (
     chrome.runtime.getURL("blocked/index.html") + FrontFilter.blockPageQuery(route)
     + (undoToken ? `&undo=${encodeURIComponent(undoToken)}` : "") + `#${returnUrl}`
-  );
+  ));
 }
 
 function setupUrlChangeMonitor() {

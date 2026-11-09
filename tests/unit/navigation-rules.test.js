@@ -179,6 +179,40 @@ test("redirects blocked users' profiles, whatever exceptions say", () => {
   }
 });
 
+test("redirects to the website chosen in the settings, with none of the blocked address", () => {
+  const FrontFilter = loadRules();
+  const blockPage = "chrome-extension://id/blocked/index.html";
+  const settings = {
+    blockPopular: true,
+    blockedSubreddits: [{ name: "*news*", mode: "all" }],
+    blockedUsers: ["spez"],
+    redirectBlockedPages: true,
+    redirectUrl: "example.com/focus",
+  };
+  const rules = FrontFilter.createNavigationRules(settings, blockPage);
+  assert.equal(rules.length, 3);
+  for (const rule of rules) {
+    assert.deepEqual(JSON.parse(JSON.stringify(rule.action)), {
+      type: "redirect",
+      redirect: { url: "https://example.com/focus" },
+    });
+  }
+
+  // Without a website, or with one these rules would redirect again, blocked
+  // pages show the block page.
+  for (const fallback of [
+    { ...settings, redirectBlockedPages: false },
+    { ...settings, redirectUrl: "" },
+    { ...settings, redirectUrl: "https://www.reddit.com/r/worldnews/" },
+  ]) {
+    const fallbackRules = FrontFilter.createNavigationRules(fallback, blockPage);
+    assert.equal(fallbackRules.length, 3);
+    for (const rule of fallbackRules) {
+      assert.ok(rule.action.redirect.regexSubstitution.startsWith(blockPage), fallback.redirectUrl);
+    }
+  }
+});
+
 test("gives global page rules precedence and recognizes owned rule IDs", () => {
   const FrontFilter = loadRules();
   const rules = FrontFilter.createNavigationRules({
@@ -218,6 +252,12 @@ test("matches the shared route model across network-navigation cases", () => {
     },
     { blockedUsers: ["spez"] },
     { blockSubHome: true, blockedUsers: ["spez"], allowedSubreddits: ["u_spez", "u_kn0thing"] },
+    {
+      blockHomepage: true,
+      blockedSubreddits: [{ name: "*news*", mode: "all" }],
+      redirectBlockedPages: true,
+      redirectUrl: "https://example.com/",
+    },
   ];
   const urls = [
     "https://www.reddit.com/",

@@ -18,6 +18,8 @@ FrontFilter.createNavigationRules = function (settings, blockPageUrl) {
   }
 
   const config = FrontFilter.coerceSettings(settings);
+  // A website chosen in the settings, which gets none of the blocked address.
+  const redirectUrl = FrontFilter.getBlockRedirectUrl(config);
   const rules = [];
   const reddit = "^https?://([^/]+\\.)?reddit\\.com(:[0-9]+)?";
   const query = "(\\?.*)?$";
@@ -46,7 +48,7 @@ FrontFilter.createNavigationRules = function (settings, blockPageUrl) {
   function addRedirect(regexFilter, route, priority) {
     return addRule(regexFilter, {
       type: "redirect",
-      redirect: {
+      redirect: redirectUrl ? { url: redirectUrl } : {
         // The original request is kept in the fragment. It remains local to
         // the extension page and can contain its own query string safely.
         regexSubstitution: `${blockPageUrl}${FrontFilter.blockPageQuery(route)}#\\0`,

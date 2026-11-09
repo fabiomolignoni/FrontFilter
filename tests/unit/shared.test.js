@@ -217,6 +217,7 @@ test("reports malformed recognized settings for strict import validation", () =>
       allowedSubreddits: ["*news*"],
       blockedUsers: ["u/spez", "not a user"],
       blockedTitleKeywords: [""],
+      redirectUrl: "javascript:alert(1)",
       scrollLimit: 0,
       theme: "auto",
       unknown: true,
@@ -227,9 +228,70 @@ test("reports malformed recognized settings for strict import validation", () =>
       "blockedUsers",
       "blockedTitleKeywords",
       "blockHomepage",
+      "redirectUrl",
       "scrollLimit",
       "theme",
     ],
+  );
+  // An address is valid as typed: imports save it with its scheme.
+  for (const redirectUrl of ["", "example.com", "https://example.com/path?q=1"]) {
+    assert.deepEqual(Array.from(FrontFilter.getInvalidSettingKeys({ redirectUrl })), [], redirectUrl);
+  }
+  for (const redirectUrl of [" ", null, "ftp://example.com", "not a url"]) {
+    assert.deepEqual(
+      Array.from(FrontFilter.getInvalidSettingKeys({ redirectUrl })),
+      ["redirectUrl"],
+      String(redirectUrl),
+    );
+  }
+});
+
+test("keeps only web addresses to redirect to, adding https when the scheme is left out", () => {
+  for (const [value, url] of [
+    ["example.com", "https://example.com/"],
+    ["  example.com/path?q=1#top ", "https://example.com/path?q=1#top"],
+    ["http://example.com", "http://example.com/"],
+    ["HTTPS://Example.COM/Page", "https://example.com/Page"],
+    ["localhost:3000/start", "https://localhost:3000/start"],
+    ["www.reddit.com/r/learnprogramming", "https://www.reddit.com/r/learnprogramming"],
+  ]) {
+    assert.equal(FrontFilter.normalizeRedirectUrl(value), url, value);
+  }
+  for (const value of [
+    "", "   ", null, 42, "javascript:alert(1)", "javascript://%0aalert(1)",
+    "data:text/html,hi", "ftp://example.com", "chrome://extensions", "not a url", "https://",
+  ]) {
+    assert.equal(FrontFilter.normalizeRedirectUrl(value), "", String(value));
+  }
+  assert.equal(FrontFilter.coerceSettings({ redirectUrl: "example.com" }).redirectUrl, "https://example.com/");
+  assert.equal(FrontFilter.coerceSettings({ redirectUrl: "javascript:alert(1)" }).redirectUrl, "");
+});
+
+test("redirects blocked pages to the chosen website, unless it is blocked itself", () => {
+  const redirect = (settings) => FrontFilter.getBlockRedirectUrl(settings);
+  const chosen = { redirectBlockedPages: true, redirectUrl: "https://example.com/" };
+  assert.equal(redirect(chosen), "https://example.com/");
+  assert.equal(redirect({ ...chosen, blockHomepage: true }), "https://example.com/");
+  assert.equal(redirect({ ...chosen, redirectBlockedPages: false }), "");
+  assert.equal(redirect({ ...chosen, redirectBlockedPages: "true" }), "");
+  assert.equal(redirect({ ...chosen, redirectUrl: "" }), "");
+  assert.equal(redirect({ ...chosen, redirectUrl: "javascript:alert(1)" }), "");
+  assert.equal(redirect({}), "");
+
+  // A Reddit page that the settings block would only redirect again.
+  const reddit = { redirectBlockedPages: true, redirectUrl: "https://www.reddit.com/?feed=home" };
+  assert.equal(redirect(reddit), "https://www.reddit.com/?feed=home");
+  assert.equal(redirect({ ...reddit, blockHomepage: true }), "");
+  const subreddit = { redirectBlockedPages: true, redirectUrl: "https://old.reddit.com/r/learnprogramming/" };
+  assert.equal(redirect({ ...subreddit, blockSubHome: true }), "");
+  assert.equal(
+    redirect({ ...subreddit, blockSubHome: true, allowedSubreddits: ["learnprogramming"] }),
+    "https://old.reddit.com/r/learnprogramming/",
+  );
+  // A site that only looks like Reddit is not checked against Reddit's routes.
+  assert.equal(
+    redirect({ redirectBlockedPages: true, redirectUrl: "https://notreddit.com/", blockHomepage: true }),
+    "https://notreddit.com/",
   );
 });
 
@@ -305,6 +367,8 @@ test("rejects malformed stored values instead of throwing or enabling flags", ()
       hideRelatedPosts: false,
       showBlockSubredditButton: false,
       hideBlockPageSettingsButton: false,
+      redirectBlockedPages: false,
+      redirectUrl: "",
       limitInfiniteScroll: false,
       scrollLimit: 25,
       scrollMode: "fixed",
@@ -399,6 +463,8 @@ test("settings store preserves changes received during its initial load", async 
       hideRelatedPosts: false,
       showBlockSubredditButton: false,
       hideBlockPageSettingsButton: false,
+      redirectBlockedPages: false,
+      redirectUrl: "",
       limitInfiniteScroll: false,
       scrollLimit: 25,
       scrollMode: "fixed",

@@ -27,7 +27,7 @@ To install from source, see [Development](#development). The
 - Optionally add one-click **Block** buttons to feed posts and subreddit
   pages, with undo.
 - Optionally hide the **Open settings** button from the page shown in place
-  of blocked content.
+  of blocked content, or go to a website of your choice instead of that page.
 
 ### Filter
 
