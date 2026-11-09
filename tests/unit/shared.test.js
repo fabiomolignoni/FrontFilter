@@ -186,6 +186,225 @@ test("normalizes post keywords and matches literal text case-insensitively", () 
   assert.equal(FrontFilter.createKeywordMatcher([])("Anything"), false);
 });
 
+test("matches keywords as whole words", () => {
+  const matches = (keyword, text) => FrontFilter.createKeywordMatcher([keyword])(text);
+  for (const [keyword, text] of [
+    ["ai", "AI art"],
+    ["ai", "Is this (AI)?"],
+    ["ai", "AI-generated"],
+    ["ai", "ai_bot"],
+    ["trump", "Trump's speech"],
+    ["climate change", "On climate  change, again"],
+    ["covid-19", "COVID-19 vaccine"],
+    ["c++", "I like C++."],
+    ["50%", "Save 50% today"],
+    // Edges that are not word characters match next to anything.
+    ["[50%]", "Save[50%]now"],
+    ["#1", "We're #1!"],
+    ["🔥", "hot🔥take"],
+  ]) {
+    assert.equal(matches(keyword, text), true, `${keyword} in ${text}`);
+  }
+  for (const [keyword, text] of [
+    ["ai", "He said so"],
+    ["ai", "Aim higher"],
+    ["trump", "Trumpism"],
+    ["climate change", "climate changes"],
+    ["50%", "Save 150% today"],
+    ["#1", "#10"],
+    ["covid", "covid19"],
+    // A mark that belongs to a letter is part of its word.
+    ["क", "कि"],
+  ]) {
+    assert.equal(matches(keyword, text), false, `${keyword} in ${text}`);
+  }
+});
+
+test("matches keywords inside words in scripts written without spaces", () => {
+  const matches = (keyword, text) => FrontFilter.createKeywordMatcher([keyword])(text);
+  assert.equal(matches("ネタバレ", "【ネタバレ注意】"), true);
+  assert.equal(matches("中国", "中国人"), true);
+  assert.equal(matches("한국", "한국어"), true);
+  assert.equal(matches("ai", "用AI画画"), true);
+  // Comparing syllables, not their letters: 하 is not part of 한.
+  assert.equal(matches("하", "한국"), false);
+  // Japanese voicing marks are letters of their own, not accents.
+  assert.equal(matches("かき", "がき"), false);
+});
+
+test("matches keywords ignoring accents", () => {
+  const matches = (keyword, text) => FrontFilter.createKeywordMatcher([keyword])(text);
+  assert.equal(matches("perche", "Perché?"), true);
+  assert.equal(matches("perché", "PERCHE no"), true);
+  assert.equal(matches("PERCHÉ", "perche\u0301"), true);
+  assert.equal(matches("naive", "Naïve question"), true);
+  assert.equal(matches("istanbul", "İSTANBUL"), true);
+  assert.equal(matches("cafe", "Cafés"), false);
+});
+
+test("matches keywords between slashes as regular expressions", () => {
+  const matches = (keyword, text) => FrontFilter.createKeywordMatcher([keyword])(text);
+  assert.equal(matches("/colou?r/", "Pick a COLOR"), true);
+  assert.equal(matches("/colou?r/", "Pick a colour"), true);
+  assert.equal(matches("/colou?r/", "Pick a shade"), false);
+  assert.equal(matches("/spoilers?/", "Spoilers ahead"), true);
+  assert.equal(matches("/^\\[serious\\]/", "[Serious] question"), true);
+  assert.equal(matches("/^\\[serious\\]/", "Not [serious]"), false);
+  assert.equal(matches("/^a b$/", "  a \n b "), true);
+  // An expression without accents finds accented text, and one with them
+  // finds its own spelling.
+  assert.equal(matches("/\\bperche\\b/", "Perché?"), true);
+  assert.equal(matches("/perché/", "PERCHÉ"), true);
+  assert.equal(matches("/\\p{Lu}{5}/", "SHOUT"), true);
+  // Slashes alone, or only at one end, are literal text.
+  assert.equal(matches("//", "a // b"), true);
+  assert.equal(matches("/s", "Sure /s"), true);
+  assert.equal(matches("/s", "Sure"), false);
+
+  const both = FrontFilter.createKeywordMatcher(["/\\d{4}/", "breaking"]);
+  assert.equal(both("Back in 1999"), true);
+  assert.equal(both("BREAKING: news"), true);
+  assert.equal(both("Calm news"), false);
+  // An expression that is not valid filters nothing.
+  assert.equal(FrontFilter.createKeywordMatcher(["/(/"])("("), false);
+});
+
+test("keeps keywords that match differently, and only usable ones", () => {
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(FrontFilter.normalizeTitleKeywords([
+      "Perché",
+      "perche",
+      "PERCHÉ",
+      "/\\d/",
+      "/\\D/",
+      " /\\d/ ",
+      "/(/",
+      "/[a/",
+      "\u0301",
+      "/x/",
+      "x",
+    ]))),
+    ["Perché", "/\\d/", "/\\D/", "/x/", "x"],
+  );
+  assert.equal(FrontFilter.getKeywordKey("Perché"), FrontFilter.getKeywordKey(" perche "));
+  assert.notEqual(FrontFilter.getKeywordKey("/\\d/"), FrontFilter.getKeywordKey("/\\D/"));
+  assert.notEqual(FrontFilter.getKeywordKey("/x/"), FrontFilter.getKeywordKey("x"));
+  assert.equal(FrontFilter.getKeywordKey("/(/"), "");
+  assert.equal(FrontFilter.getKeywordKey(""), "");
+  assert.equal(FrontFilter.getKeywordKey(null), "");
+  // Flairs keep comparing their spelling, accents included.
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(FrontFilter.normalizeBlockedFlairs(["Café", "cafe", "CAFÉ"]))),
+    ["Café", "cafe"],
+  );
+});
+
+test("lets a star at a keyword's end match inside words there", () => {
+  const matches = (keyword, text) => FrontFilter.createKeywordMatcher([keyword])(text);
+  assert.equal(matches("spoiler*", "Spoilers ahead"), true);
+  assert.equal(matches("spoiler*", "No spoiler here"), true);
+  assert.equal(matches("spoiler*", "Antispoiler"), false);
+  assert.equal(matches("*ai", "OpenAI news"), true);
+  assert.equal(matches("*ai", "AIs are here"), false);
+  assert.equal(matches("*ai*", "He said so"), true);
+  assert.equal(matches("**ai**", "He said so"), true);
+  assert.equal(matches("*climate change*", "geoclimate changes"), true);
+  // A star inside a keyword is text.
+  assert.equal(matches("f*ck", "What the F*CK"), true);
+  assert.equal(matches("f*ck", "What the fuck"), false);
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(FrontFilter.normalizeTitleKeywords([
+      "ai", "*ai*", "AI", "ai*", "[50%]", "*[50%]*", "*", "**", " * ",
+    ]))),
+    ["ai", "*ai*", "ai*", "[50%]"],
+  );
+});
+
+test("upgrades keywords from before whole words to match at least what they did", () => {
+  const legacyMatch = (keyword, text) =>
+    FrontFilter.normalizeText(text).toLowerCase().includes(FrontFilter.normalizeText(keyword).toLowerCase());
+  const upgrade = (keyword) =>
+    FrontFilter.upgradeSettings({ blockedTitleKeywords: [keyword] }).blockedTitleKeywords[0];
+  const keywords = [
+    "ai", "Trump", "climate change", "[50%]", "50%", "#1", "c++", "/r/", "/s", "//", "*",
+    "*bold*", "f*ck", "a*", "/(/", "a.b", "ネタバレ", "ai用", "perche",
+  ];
+  const texts = [
+    "He said so", "AI art", "OpenAI and AIs", "Trumpism", "geoclimate changes", "Save[50%]now",
+    "150%", "#10", "C++17", "see /r/news", "Sure /s", "a // b", "x*y", "**bold**", "f*cking",
+    "a*b", "/(/", "aXb a.b", "【ネタバレ注意】", "用ai用", "Perche", "Perché", "",
+  ];
+  assert.equal(upgrade("ai"), "*ai*");
+  assert.equal(upgrade("[50%]"), "[50%]");
+  assert.equal(upgrade("50%"), "*50%");
+  assert.equal(upgrade("ネタバレ"), "ネタバレ");
+  assert.equal(upgrade("/r/"), "/\\/r\\//");
+  assert.equal(upgrade("*"), "/\\*/");
+  assert.equal(upgrade("f*ck"), "*f*ck*");
+  for (const keyword of keywords) {
+    const upgraded = upgrade(keyword);
+    assert.equal(FrontFilter.normalizeTitleKeywords([upgraded]).length, 1, upgraded);
+    const matches = FrontFilter.createKeywordMatcher([upgraded]);
+    for (const text of texts) {
+      // Upgraded keywords also ignore accents, so they may only match more.
+      if (legacyMatch(keyword, text)) {
+        assert.equal(matches(text), true, `${keyword} as ${upgraded} in ${text}`);
+      } else if (!/[^\x00-\x7f]/.test(keyword + text)) {
+        assert.equal(matches(text), false, `${keyword} as ${upgraded} in ${text}`);
+      }
+    }
+  }
+});
+
+test("upgrades only settings without a version, and marks them with this one", () => {
+  const plainValues = (value) => JSON.parse(JSON.stringify(value));
+  const legacy = { blockedTitleKeywords: ["ai"], blockHomepage: true };
+  assert.deepEqual(plainValues(FrontFilter.upgradeSettings(legacy)), {
+    blockedTitleKeywords: ["*ai*"],
+    blockHomepage: true,
+    settingsVersion: 2,
+  });
+  assert.deepEqual(legacy.blockedTitleKeywords, ["ai"]);
+  for (const version of [2, 3]) {
+    assert.deepEqual(
+      plainValues(FrontFilter.upgradeSettings({ settingsVersion: version, blockedTitleKeywords: ["ai"] })),
+      { settingsVersion: 2, blockedTitleKeywords: ["ai"] },
+    );
+  }
+  // Values that are not keywords stay for validation to report.
+  assert.deepEqual(
+    plainValues(FrontFilter.upgradeSettings({ blockedTitleKeywords: ["ai", 7, ""] }).blockedTitleKeywords),
+    ["*ai*", 7, ""],
+  );
+  assert.deepEqual(
+    plainValues(FrontFilter.upgradeSettings({ blockedTitleKeywords: "ai" })),
+    { blockedTitleKeywords: "ai", settingsVersion: 2 },
+  );
+  for (const value of [null, [], "x"]) {
+    assert.deepEqual(plainValues(FrontFilter.upgradeSettings(value)), { settingsVersion: 2 });
+  }
+  assert.equal(FrontFilter.STORAGE_KEYS.includes(FrontFilter.SETTINGS_VERSION_KEY), false);
+});
+
+test("validates and coerces keywords and allowed keywords", () => {
+  const plainKeys = (values) => JSON.parse(JSON.stringify(FrontFilter.getInvalidSettingKeys(values)));
+  assert.deepEqual(plainKeys({ blockedTitleKeywords: ["Trump", "/colou?r/"], allowedKeywords: ["biden"] }), []);
+  assert.deepEqual(plainKeys({ blockedTitleKeywords: ["/(/"] }), ["blockedTitleKeywords"]);
+  assert.deepEqual(
+    plainKeys({ allowedKeywords: ["ok", ""] }),
+    ["allowedKeywords"],
+  );
+  assert.deepEqual(plainKeys({ allowedKeywords: "biden" }), ["allowedKeywords"]);
+  const settings = FrontFilter.coerceSettings({
+    blockedTitleKeywords: ["Trump", "/(/"],
+    allowedKeywords: [" Biden ", "BIDEN", 7],
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(settings.blockedTitleKeywords)), ["Trump"]);
+  assert.deepEqual(JSON.parse(JSON.stringify(settings.allowedKeywords)), ["Biden"]);
+  assert.deepEqual(JSON.parse(JSON.stringify(FrontFilter.coerceSettings().allowedKeywords)), []);
+});
+
 test("coerces settings without retaining unknown keys", () => {
   const settings = FrontFilter.coerceSettings({
     blockHomepage: true,
@@ -333,6 +552,7 @@ test("rejects malformed stored values instead of throwing or enabling flags", ()
       allowedSubreddits: [],
       blockedUsers: [],
       blockedTitleKeywords: [],
+      allowedKeywords: [],
       blockedFlairs: [],
       blockHomepage: false,
       blockPopular: false,
@@ -429,6 +649,7 @@ test("settings store preserves changes received during its initial load", async 
       allowedSubreddits: [],
       blockedUsers: [],
       blockedTitleKeywords: [],
+      allowedKeywords: [],
       blockedFlairs: [],
       blockHomepage: false,
       blockPopular: true,

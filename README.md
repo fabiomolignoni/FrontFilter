@@ -31,7 +31,10 @@ To install from source, see [Development](#development). The
 
 ### Filter
 
-- Hide posts and comments that contain your keywords.
+- Hide posts and comments that contain your keywords, as whole words in any
+  case and with or without accents, or inside words with `*`, as in
+  `spoiler*`, or that match a regular expression. Allowed keywords keep the
+  posts and comments that contain them.
 - Block users by name, `u/name` or profile URL: their posts and comments
   disappear from every Reddit page, and their profiles are blocked.
 - Hide posts by flair, with `*` wildcards.

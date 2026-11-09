@@ -11,6 +11,8 @@ var FrontFilter = (() => {
     // Keep the original key so existing title-filter settings and backups now
     // apply to both post titles and text previews without a migration.
     blockedTitleKeywords: Object.freeze([]),
+    // Keywords that keep a post or comment that keyword filters would hide.
+    allowedKeywords: Object.freeze([]),
     blockedFlairs: Object.freeze([]),
     blockHomepage: false,
     blockPopular: false,
@@ -83,6 +85,11 @@ var FrontFilter = (() => {
   // A one-time marker, not a setting: it lets the block page offer to undo
   // a one-click block only on the redirect that block caused.
   const QUICK_BLOCK_UNDO_KEY = "quickBlockUndo";
+  // Not a setting either: the version of the stored settings' format, also
+  // written in exports. Version 2 matches keywords as whole words; earlier
+  // settings have no version.
+  const SETTINGS_VERSION_KEY = "settingsVersion";
+  const SETTINGS_VERSION = 2;
   const NAVIGATION_STORAGE_KEYS = Object.freeze([
     "blockedSubreddits",
     "allowedSubreddits",
@@ -326,24 +333,106 @@ var FrontFilter = (() => {
     return typeof text === "string" ? text.trim().replace(/\s+/g, " ") : "";
   }
 
-  function normalizeTitleKeywords(keywords = []) {
-    if (!Array.isArray(keywords)) return [];
+  // Accented letters compare as their base letters, as in browsers' find in
+  // page: "perche" finds "Perché". Marks that are letters of their own, such
+  // as Japanese dakuten, stay.
+  function foldAccents(text) {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").normalize("NFC");
+  }
+
+  // Text as keywords compare it: ignoring case, accents and spacing.
+  function foldKeywordText(text) {
+    return normalizeText(foldAccents(text.toLowerCase()));
+  }
+
+  // Keywords match whole words: "ai" finds "AI art" and "(AI)", not "said".
+  // Words are letters, digits and the marks that belong to letters, except
+  // in scripts written without spaces between words, and in Korean, whose
+  // words take particles: there keywords also match inside words.
+  const WORD_CHARACTER = "[\\p{L}\\p{N}\\p{M}]";
+  const UNSPACED_CHARACTER = `[${[
+    "Han", "Hiragana", "Katakana", "Hangul", "Thai", "Lao", "Khmer", "Myanmar",
+  ].map((script) => `\\p{scx=${script}}`).join("")}]`;
+  const SPACED_WORD_CHARACTER = new RegExp(`^(?!${UNSPACED_CHARACTER})${WORD_CHARACTER}$`, "u");
+  const WORD_START = `(?:(?<!${WORD_CHARACTER})|(?<=${UNSPACED_CHARACTER}))`;
+  const WORD_END = `(?:(?!${WORD_CHARACTER})|(?=${UNSPACED_CHARACTER}))`;
+
+  function escapeRegex(text) {
+    return text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  }
+
+  // A keyword between slashes, such as /colou?r/, is a regular expression.
+  function getKeywordRegexSource(keyword) {
+    return keyword.length > 2 && keyword.startsWith("/") && keyword.endsWith("/")
+      ? keyword.slice(1, -1)
+      : null;
+  }
+
+  // Settings are checked often: compile each expression once, as null when
+  // it is not valid.
+  const keywordRegexes = new Map();
+  function getKeywordRegex(source) {
+    if (!keywordRegexes.has(source)) {
+      let regex = null;
+      try {
+        regex = new RegExp(source, "iu");
+      } catch {
+        // An invalid expression filters nothing.
+      }
+      if (keywordRegexes.size > 1000) keywordRegexes.clear();
+      keywordRegexes.set(source, regex);
+    }
+    return keywordRegexes.get(source);
+  }
+
+  // Any other keyword: its folded text, and whether its start and its end
+  // must each be a word boundary. A * at an end lets the keyword go on
+  // inside a word there, as in spoiler* or *ai*; a * elsewhere is text. An
+  // edge that is not a letter or digit, as in "50%", needs no boundary.
+  function parseWordKeyword(keyword) {
+    const text = foldKeywordText(keyword.replace(/^\*+|\*+$/g, ""));
+    const characters = Array.from(text);
+    return {
+      text,
+      start: !keyword.startsWith("*") && SPACED_WORD_CHARACTER.test(characters[0] ?? ""),
+      end: !keyword.endsWith("*") && SPACED_WORD_CHARACTER.test(characters.at(-1) ?? ""),
+    };
+  }
+
+  // Keywords that match the same texts are one rule: regular expressions
+  // when written alike, other keywords ignoring case, accents, and stars
+  // that change nothing. A keyword that cannot match, such as an invalid
+  // regular expression or a * alone, has no key.
+  function getKeywordKey(keyword) {
+    const text = normalizeText(keyword);
+    const source = getKeywordRegexSource(text);
+    if (source !== null) return getKeywordRegex(source) ? `regex:${text}` : "";
+    const word = parseWordKeyword(text);
+    return word.text && `text:${Number(word.start)}${Number(word.end)}:${word.text}`;
+  }
+
+  // Each text once, by its comparison key: the first spelling stays.
+  function normalizeTextList(values, getKey) {
+    if (!Array.isArray(values)) return [];
 
     const deduped = new Map();
-    for (const keyword of keywords) {
-      const normalized = normalizeText(keyword);
-      if (!normalized) continue;
-
-      const comparisonKey = normalized.toLowerCase();
-      if (!deduped.has(comparisonKey)) deduped.set(comparisonKey, normalized);
+    for (const value of values) {
+      const normalized = normalizeText(value);
+      const comparisonKey = normalized && getKey(normalized);
+      if (comparisonKey && !deduped.has(comparisonKey)) deduped.set(comparisonKey, normalized);
     }
     return Array.from(deduped.values());
+  }
+
+  function normalizeTitleKeywords(keywords = []) {
+    return normalizeTextList(keywords, getKeywordKey);
   }
 
   // Flairs are free text chosen by each subreddit: keep their spelling, but
   // compare them case-insensitively and allow * wildcards.
   function normalizeBlockedFlairs(flairs = []) {
-    return normalizeTitleKeywords(flairs).filter((flair) => flair.length <= 100);
+    return normalizeTextList(flairs, (flair) => flair.toLowerCase())
+      .filter((flair) => flair.length <= 100);
   }
 
   function matchesFlairPattern(pattern, flairText) {
@@ -353,16 +442,74 @@ var FrontFilter = (() => {
     return getWildcardPattern(pattern).test(flair);
   }
 
-  // Filters test many texts against the same keywords: normalize them once.
+  // A parsed keyword as a pattern for folded text, or null when neither of
+  // its ends needs a word boundary.
+  function getWholeWordRegex({ text, start, end }) {
+    if (!start && !end) return null;
+    return new RegExp(`${start ? WORD_START : ""}${escapeRegex(text)}${end ? WORD_END : ""}`, "u");
+  }
+
+  // Filters test many texts against the same keywords: prepare them once.
+  // Regular expressions ignore case, and also find accented text when they
+  // are written without accents.
   function createKeywordMatcher(keywords = []) {
-    const normalizedKeywords = normalizeTitleKeywords(keywords)
-      .map((keyword) => keyword.toLowerCase());
+    const words = [];
+    const regexes = [];
+    for (const keyword of normalizeTitleKeywords(keywords)) {
+      const source = getKeywordRegexSource(keyword);
+      if (source !== null) {
+        regexes.push(getKeywordRegex(source));
+      } else {
+        const word = parseWordKeyword(keyword);
+        words.push({ text: word.text, wholeWord: getWholeWordRegex(word) });
+      }
+    }
+    if (words.length === 0 && regexes.length === 0) return () => false;
+
     return (text) => {
-      if (normalizedKeywords.length === 0) return false;
-      const normalizedText = normalizeText(text).toLowerCase();
-      return Boolean(normalizedText)
-        && normalizedKeywords.some((keyword) => normalizedText.includes(keyword));
+      const normalizedText = normalizeText(text);
+      if (!normalizedText) return false;
+      if (words.length > 0) {
+        const foldedText = foldKeywordText(normalizedText);
+        // Most texts contain no keyword at all: finding one is much faster
+        // than checking word boundaries everywhere.
+        const found = words.some((word) => foldedText.includes(word.text)
+          && (!word.wholeWord || word.wholeWord.test(foldedText)));
+        if (found) return true;
+      }
+      if (regexes.length === 0) return false;
+      const foldedText = foldAccents(normalizedText);
+      return regexes.some((regex) => regex.test(normalizedText)
+        || (foldedText !== normalizedText && regex.test(foldedText)));
     };
+  }
+
+  // A keyword saved before keywords matched whole words, written to match
+  // what it matched then: its text anywhere, ignoring case. Stars go on the
+  // ends that would now need a word boundary, so ai becomes *ai*. Text that
+  // now means more, between slashes or with a * at an end, becomes an
+  // expression that finds that text.
+  function upgradeLegacyKeyword(keyword) {
+    const text = normalizeText(keyword);
+    if (!text) return keyword;
+    if (getKeywordRegexSource(text) !== null || text.startsWith("*") || text.endsWith("*")) {
+      return `/${escapeRegex(text)}/`;
+    }
+    const { start, end } = parseWordKeyword(text);
+    return `${start ? "*" : ""}${text}${end ? "*" : ""}`;
+  }
+
+  // Values stored or exported by an earlier version, as values of this one.
+  // Those from before keywords matched whole words have no version: their
+  // keywords are upgraded to match the same texts.
+  function upgradeSettings(values) {
+    const source = values && typeof values === "object" && !Array.isArray(values) ? values : {};
+    const upgraded = { ...source, [SETTINGS_VERSION_KEY]: SETTINGS_VERSION };
+    if (!(source[SETTINGS_VERSION_KEY] >= SETTINGS_VERSION)
+      && Array.isArray(source.blockedTitleKeywords)) {
+      upgraded.blockedTitleKeywords = source.blockedTitleKeywords.map(upgradeLegacyKeyword);
+    }
+    return upgraded;
   }
 
   // The website blocked pages can lead to instead of the block page, typed
@@ -387,6 +534,7 @@ var FrontFilter = (() => {
     allowedSubreddits: normalizeAllowedSubreddits,
     blockedUsers: normalizeBlockedUsers,
     blockedTitleKeywords: normalizeTitleKeywords,
+    allowedKeywords: normalizeTitleKeywords,
     blockedFlairs: normalizeBlockedFlairs,
   });
   const CHOICE_SETTINGS = Object.freeze({
@@ -626,6 +774,8 @@ var FrontFilter = (() => {
     SETTING_GROUPS,
     NAVIGATION_STORAGE_KEYS,
     QUICK_BLOCK_UNDO_KEY,
+    SETTINGS_VERSION_KEY,
+    SETTINGS_VERSION,
     LISTING_SORTS,
     PAGE_ROUTES,
     SUBREDDIT_FRONTS_ROUTE,
@@ -650,6 +800,8 @@ var FrontFilter = (() => {
     normalizeUserName,
     normalizeBlockedUsers,
     normalizeTitleKeywords,
+    getKeywordKey,
+    upgradeSettings,
     normalizeBlockedFlairs,
     normalizeRedirectUrl,
     normalizeText,

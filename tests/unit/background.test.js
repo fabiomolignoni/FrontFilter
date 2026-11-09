@@ -10,6 +10,7 @@ async function loadBackground({
   const listeners = {};
   const updates = [];
   const removedKeys = [];
+  const storedValues = [];
   const createdTabs = [];
   let storedSettings = { ...settings };
   let rules = dynamicRules.map((rule) => ({ ...rule }));
@@ -34,6 +35,10 @@ async function loadBackground({
     storage: {
       local: {
         async get() { return { ...storedSettings }; },
+        async set(values) {
+          storedValues.push(values);
+          storedSettings = { ...storedSettings, ...values };
+        },
         async remove(keys) {
           removedKeys.push(...keys);
           for (const key of keys) delete storedSettings[key];
@@ -70,6 +75,8 @@ async function loadBackground({
     removedKeys,
     rules: () => rules,
     setSettings(value) { storedSettings = { ...value }; },
+    storedSettings: () => storedSettings,
+    storedValues,
     updates,
   };
 }
@@ -151,6 +158,45 @@ test("removes obsolete settings when the extension is installed or updated", asy
   );
   assert.equal(background.updates.length, 2);
   assert.equal(background.updates[1].addRules.length, 1);
+});
+
+test("upgrades keywords saved by an earlier version once, so they match the same texts", async () => {
+  const background = await loadBackground({
+    settings: { blockedTitleKeywords: ["ai", "[50%]", "/r/", "climate change"], blockHomepage: true },
+  });
+
+  background.listeners.installed({ reason: "update" });
+  await settle();
+  await settle();
+
+  assert.deepEqual(JSON.parse(JSON.stringify(background.storedSettings())), {
+    blockedTitleKeywords: ["*ai*", "[50%]", "/\\/r\\//", "*climate change*"],
+    blockHomepage: true,
+    settingsVersion: 2,
+  });
+  assert.equal(background.updates.length, 2);
+
+  // Settings already upgraded, or written by this version, stay as they are.
+  background.listeners.installed({ reason: "update" });
+  background.listeners.installed({ reason: "browser_update" });
+  await settle();
+  await settle();
+  assert.equal(background.storedValues.length, 1);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(background.storedSettings().blockedTitleKeywords)),
+    ["*ai*", "[50%]", "/\\/r\\//", "*climate change*"],
+  );
+});
+
+test("marks a new installation's settings as this version's", async () => {
+  const background = await loadBackground();
+
+  background.listeners.installed({ reason: "install" });
+  await settle();
+  await settle();
+
+  assert.deepEqual(JSON.parse(JSON.stringify(background.storedValues)), [{ settingsVersion: 2 }]);
+  assert.equal(background.updates.length, 2);
 });
 
 test("opens standalone settings and reports failures through message responses", async () => {

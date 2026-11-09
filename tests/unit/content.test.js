@@ -1081,6 +1081,61 @@ test("hides posts when their text preview contains a configured keyword", async 
   assert.equal(post.dataset.frontfilterPostHidden, "true");
 });
 
+test("keeps posts and comments that contain an allowed keyword", async () => {
+  const bodyElement = {
+    textContent: "Also about Biden",
+    closest(selector) {
+      return selector.includes("shreddit-comment") ? null : previewedPost;
+    },
+  };
+  // The preview's allowed keyword keeps the whole post.
+  const previewedPost = {
+    dataset: {},
+    getAttribute: (name) => (name === "post-title" ? "Trump rally" : null),
+    querySelectorAll(selector) {
+      return selector.includes('[slot="text-body"]') ? [bodyElement] : [];
+    },
+  };
+  const blockedPost = createPost({ title: "Trump rally" });
+  const allowedPost = createPost({ title: "Trump and BIDEN debate" });
+  const posts = [previewedPost, blockedPost, allowedPost];
+  const blockedComment = createComment("Trump again");
+  const allowedComment = createComment("Trump or Bidén?");
+  const comments = [blockedComment, allowedComment];
+  const content = await loadContent({
+    querySelectorAll: (selector) => {
+      if (isPostCollectionSelector(selector)) return posts;
+      if (selector === "shreddit-comment") return comments;
+      if (selector === '[data-frontfilter-post-hidden="true"]') {
+        return posts.filter((post) => post.dataset.frontfilterPostHidden === "true");
+      }
+      if (selector === '[data-frontfilter-comment-hidden="true"]') {
+        return comments.filter((comment) => comment.dataset.frontfilterCommentHidden === "true");
+      }
+      return [];
+    },
+    settings: { blockedTitleKeywords: ["trump"], allowedKeywords: ["biden"] },
+    startUrl: "https://www.reddit.com/r/test/comments/abc/post/",
+  });
+  const hidden = () => [
+    ...posts.map((post) => post.dataset.frontfilterPostHidden === "true"),
+    ...comments.map((comment) => comment.dataset.frontfilterCommentHidden === "true"),
+  ];
+
+  assert.deepEqual(hidden(), [false, true, false, true, false]);
+
+  // Without exceptions every match hides; exceptions alone hide nothing.
+  content.storageListeners[0]({ allowedKeywords: { newValue: [] } }, "local");
+  await settle();
+  assert.deepEqual(hidden(), [true, true, true, true, true]);
+  content.storageListeners[0]({
+    blockedTitleKeywords: { newValue: [] },
+    allowedKeywords: { newValue: ["biden"] },
+  }, "local");
+  await settle();
+  assert.deepEqual(hidden(), [false, false, false, false, false]);
+});
+
 test("does not treat nested comment text as post content", async () => {
   const commentBody = {
     textContent: "Trump appears only in this comment",

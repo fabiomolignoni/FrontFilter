@@ -64,9 +64,21 @@ function syncNavigationRulesInBackground() {
   });
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+// Settings saved by an earlier version, which has no settings version or an
+// older one, keep their meaning once upgraded. A new installation has none.
+async function upgradeStoredSettings(reason) {
+  const versionKey = FrontFilter.SETTINGS_VERSION_KEY;
+  const stored = await chrome.storage.local.get([versionKey, "blockedTitleKeywords"]);
+  if (stored[versionKey] >= FrontFilter.SETTINGS_VERSION) return;
+  await chrome.storage.local.set(reason === "install"
+    ? { [versionKey]: FrontFilter.SETTINGS_VERSION }
+    : FrontFilter.upgradeSettings(stored));
+}
+
+chrome.runtime.onInstalled.addListener(({ reason } = {}) => {
   void chrome.storage.local
     .remove(OBSOLETE_STORAGE_KEYS)
+    .then(() => upgradeStoredSettings(reason))
     .then(syncNavigationRules)
     .catch((error) => console.error("Could not migrate FrontFilter settings:", error));
 });
