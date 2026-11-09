@@ -118,6 +118,16 @@ test("resynchronizes only for relevant local setting changes", async () => {
   await settle();
   assert.equal(background.updates.length, 3);
   assert.match(background.updates[2].addRules[0].condition.regexFilter, /r\/u_\)spez/);
+
+  // Rules redirect to the website chosen in the settings.
+  background.setSettings({
+    blockedUsers: ["spez"], redirectBlockedPages: true, redirectUrl: "https://example.com/",
+  });
+  background.listeners.storageChanged({ redirectBlockedPages: { newValue: true } }, "local");
+  await settle();
+  await settle();
+  assert.equal(background.updates.length, 4);
+  assert.equal(background.updates[3].addRules[0].action.redirect.url, "https://example.com/");
 });
 
 test("removes obsolete settings when the extension is installed or updated", async () => {

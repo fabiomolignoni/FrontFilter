@@ -9,6 +9,11 @@ Notable changes to FrontFilter, newest first.
 - The **Settings** tab can hide the block page's **Open settings** button,
   so a blocked page offers only **Go back**, and **Undo block** after a
   one-click block.
+- Blocked pages can lead to a website of your choice instead of the block
+  page, from the **Settings** tab. A one-click **Block** on a subreddit's
+  own page still shows the block page, which offers **Undo block**, and so
+  does any blocked page while the chosen website is a blocked Reddit page
+  itself.
 
 ## 2.4.0 - 2026-10-12
 

@@ -1,6 +1,6 @@
 # FrontFilter Privacy Policy
 
-**Last updated: October 12, 2026**
+**Last updated: November 9, 2026**
 
 FrontFilter is a browser extension that helps you use Reddit with fewer
 distractions. This policy explains what data the extension handles and what it
@@ -27,7 +27,8 @@ Block buttons on Reddit:
 
 - blocked and allowed subreddits, and blocked users;
 - keywords and post flairs you filter;
-- the pages, page elements, and features you choose to hide or limit; and
+- the pages, page elements, and features you choose to hide or limit;
+- the website blocked pages lead to, if you choose one; and
 - your color theme.
 
 Filter rules can reveal your interests, so treat them, and any configuration
@@ -92,6 +93,10 @@ own terms:
   them, as scrolling would. Changes FrontFilter makes to Reddit pages, such as
   hidden elements or added buttons, can be seen by Reddit's own page scripts.
   See [Reddit's Privacy Policy](https://www.reddit.com/policies/privacy-policy).
+- **The website you choose** for blocked pages, if any, is visited in their
+  place, as if you had opened it. FrontFilter sends it nothing, not even the
+  address of the blocked page, but your browser may tell it that you came
+  from Reddit, as it would for a link.
 - **Your browser and its extension store** install and update FrontFilter
   under their own policies.
 - **GitHub** hosts FrontFilter's project pages, linked from its settings and
@@ -105,7 +110,7 @@ Mozilla, or GitHub.
 | Permission | Why FrontFilter needs it |
 | --- | --- |
 | `storage` | Save your settings on your device. |
-| `declarativeNetRequest` | Let the browser redirect pages you block to FrontFilter's block page. |
+| `declarativeNetRequest` | Let the browser redirect pages you block to FrontFilter's block page, or to the website you choose. |
 | Access to `reddit.com` and its subdomains | Apply your filters and controls on Reddit pages, and find the subreddit for **Add Current**. |
 
 ## Your choices

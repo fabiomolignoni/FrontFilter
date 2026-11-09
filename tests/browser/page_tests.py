@@ -324,6 +324,17 @@ class PageTests:
         self.assertIn("?target=subreddit&filter=*italy*#", self.driver.current_url)
         self.assertEqual(self.driver.current_url.split("#", 1)[1], blocked_url)
 
+    def test_blocked_pages_redirect_to_the_chosen_website(self):
+        website = self.server.url("/elsewhere/?from=frontfilter", "127.0.0.1")
+        self.session.store(blockPopular=True, redirectBlockedPages=True, redirectUrl=website)
+        # Before they load...
+        self.driver.get(self.server.url("/r/popular/", "localhost"))
+        self.wait_until(lambda: self.driver.current_url == website)
+        # ...and once Reddit navigates to one within the page.
+        self.open_fixture()
+        self.js("history.pushState({}, '', '/r/popular/')")
+        self.wait_until(lambda: self.driver.current_url == website)
+
     def test_block_page_settings_button_hides_from_the_settings_tab(self):
         driver = self.driver
         find = lambda element_id: driver.find_element("id", element_id)

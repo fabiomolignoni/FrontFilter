@@ -47,6 +47,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const scrollLimit = document.getElementById("scroll-limit");
   const scrollMode = document.getElementById("scroll-mode");
   const colorTheme = document.getElementById("color-theme");
+  const redirectUrl = document.getElementById("redirect-url");
+  const redirectUrlOption = document.getElementById("redirect-url-option");
 
   // Each switch's name is the setting it stores.
   const switches = Object.fromEntries(Array.from(
@@ -74,6 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let latestSaveId = 0;
   let controlsDisabled = false;
   let lastScrollLimit = FrontFilter.DEFAULT_SETTINGS.scrollLimit;
+  let lastRedirectUrl = FrontFilter.DEFAULT_SETTINGS.redirectUrl;
 
   // Sections start collapsed; a mixed parent switch tells what they hide.
   for (const toggle of document.querySelectorAll(".group-toggle")) {
@@ -90,14 +93,17 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const control of content.querySelectorAll("input, select, button")) {
       control.disabled = disabled;
     }
-    updateScrollControls();
+    updateDependentControls();
     updateGroupControls();
   }
 
-  function updateScrollControls() {
-    const disabled = controlsDisabled || !switches.limitInfiniteScroll.checked;
-    scrollLimit.disabled = disabled;
-    scrollMode.disabled = disabled;
+  // Options that apply only while their switch is on: the scroll options
+  // are disabled while it is off, and the redirect address hidden.
+  function updateDependentControls() {
+    const scrollDisabled = controlsDisabled || !switches.limitInfiniteScroll.checked;
+    scrollLimit.disabled = scrollDisabled;
+    scrollMode.disabled = scrollDisabled;
+    redirectUrlOption.hidden = !switches.redirectBlockedPages.checked;
   }
 
   function updateGroupControls() {
@@ -150,6 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
       scrollLimit: lastScrollLimit,
       scrollMode: scrollMode.value,
       theme: colorTheme.value,
+      redirectUrl: lastRedirectUrl,
     };
   }
 
@@ -500,7 +507,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     showSetting("scrollMode", (mode) => { scrollMode.value = mode; });
     showSetting("theme", (theme) => { colorTheme.value = applyTheme(theme); });
-    updateScrollControls();
+    showSetting("redirectUrl", (url) => {
+      // So does an address still being typed, unless the stored one changed.
+      if (url !== lastRedirectUrl) redirectUrl.value = url;
+      lastRedirectUrl = url;
+    });
+    updateDependentControls();
     updateGroupControls();
   }
 
@@ -595,7 +607,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Sections are saved with their parent, as storage implies them.
       const sections = FrontFilter.SETTING_GROUPS[key] || [];
       for (const section of sections) switches[section].checked = input.checked;
-      updateScrollControls();
+      updateDependentControls();
       updateGroupControls();
       scheduleAutoSave([key, ...sections], true);
     });
@@ -612,6 +624,18 @@ document.addEventListener("DOMContentLoaded", () => {
     scheduleAutoSave(["scrollLimit"], true);
   });
   scrollMode.addEventListener("change", () => scheduleAutoSave(["scrollMode"], true));
+  // The address shows as it is saved, with its scheme; clearing it is allowed.
+  redirectUrl.addEventListener("change", () => {
+    const url = FrontFilter.normalizeRedirectUrl(redirectUrl.value);
+    if (redirectUrl.value.trim() && !url) {
+      showToast("Enter a website address, such as example.com", "error");
+      redirectUrl.value = lastRedirectUrl;
+      return;
+    }
+    redirectUrl.value = url;
+    lastRedirectUrl = url;
+    scheduleAutoSave(["redirectUrl"], true);
+  });
   colorTheme.addEventListener("change", () => {
     colorTheme.value = applyTheme(colorTheme.value);
     scheduleAutoSave(["theme"], true);

@@ -29,14 +29,19 @@ body {
 
 .scroll-options { display: grid; grid-template-columns: minmax(0, 1fr) 100px; gap: 12px; }
 .scroll-options label { display: grid; gap: 6px; font-size: 12px; color: var(--text-secondary); }
-.scroll-options input, .scroll-options select, .settings-select {
+.scroll-options input, .scroll-options select, .settings-select, .redirect-url input {
   width: 100%; min-width: 0; height: 36px; padding: 0 10px; color: var(--text-primary);
   background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px;
   font: inherit; font-size: 13px;
 }
 .scroll-options :is(input, select):focus-visible,
-.settings-select:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
-.scroll-options :disabled { opacity: .5; }
+.settings-select:focus-visible,
+.redirect-url input:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+.scroll-options :disabled, .redirect-url :disabled { opacity: .5; }
+.redirect-url {
+  display: grid; gap: 6px; padding: var(--sp-2);
+  font-size: 12px; color: var(--text-secondary);
+}
 .scroll-header { justify-content: space-between; gap: 12px; }
 .scroll-header .checkbox-label { padding: 6px; margin: -6px; }
 

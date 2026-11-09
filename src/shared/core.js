@@ -46,6 +46,8 @@ var FrontFilter = (() => {
     hideRelatedPosts: false,
     showBlockSubredditButton: false,
     hideBlockPageSettingsButton: false,
+    redirectBlockedPages: false,
+    redirectUrl: "",
     limitInfiniteScroll: false,
     scrollLimit: 25,
     scrollMode: "fixed",
@@ -90,6 +92,8 @@ var FrontFilter = (() => {
     "blockExplore",
     "blockNews",
     "blockSubHome",
+    "redirectBlockedPages",
+    "redirectUrl",
   ]);
 
   const LISTING_SORTS = Object.freeze([
@@ -361,6 +365,22 @@ var FrontFilter = (() => {
     };
   }
 
+  // The website blocked pages can lead to instead of the block page, typed
+  // with or without its scheme, such as example.com. Only web addresses are
+  // kept: pages go there with location.replace.
+  function normalizeRedirectUrl(value) {
+    if (typeof value !== "string" || !value.trim()) return "";
+
+    const text = value.trim();
+    try {
+      const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(text) ? text : `https://${text}`);
+      const isWebUrl = url.protocol === "http:" || url.protocol === "https:";
+      return isWebUrl && url.hostname ? url.href : "";
+    } catch {
+      return "";
+    }
+  }
+
   // Each list setting keeps the entries its normalizer accepts.
   const LIST_SETTINGS = Object.freeze({
     blockedSubreddits: normalizeBlockedSubreddits,
@@ -383,12 +403,17 @@ var FrontFilter = (() => {
     if (key === "scrollLimit") {
       return Number.isSafeInteger(value) && value > 0 ? value : DEFAULT_SETTINGS.scrollLimit;
     }
+    if (key === "redirectUrl") return normalizeRedirectUrl(value);
     return value === true;
   }
 
   // Imports are validated strictly: a value is valid when coercing it keeps
-  // it as it is, and a list when coercing keeps each of its entries.
+  // it as it is, a list when coercing keeps each of its entries, and an
+  // address when it is empty or a web address.
   function isValidSettingValue(key, value) {
+    if (key === "redirectUrl") {
+      return typeof value === "string" && (value === "" || Boolean(normalizeRedirectUrl(value)));
+    }
     const normalizeList = LIST_SETTINGS[key];
     if (!normalizeList) return coerceSetting(key, value) === value;
     return Array.isArray(value) && value.every((entry) =>
@@ -548,6 +573,16 @@ var FrontFilter = (() => {
     return null;
   }
 
+  // Where blocked pages go instead of the block page, if the settings choose
+  // a website: none when that website is a blocked Reddit page itself, which
+  // would only redirect again.
+  function getBlockRedirectUrl(settings) {
+    const config = coerceSettings(settings);
+    if (!config.redirectBlockedPages || !config.redirectUrl) return "";
+    const redditUrl = getRedditUrl(config.redirectUrl);
+    return redditUrl && getBlockedRoute(redditUrl.pathname, config) ? "" : config.redirectUrl;
+  }
+
   // The Home feed and its sort views, which mix in recommended posts.
   function isHomeFeedPath(pathname) {
     return FRONT_PAGE_PATTERN.test(pathname);
@@ -599,6 +634,7 @@ var FrontFilter = (() => {
     createSettingsStore,
     coerceSettings,
     getBlockedRoute,
+    getBlockRedirectUrl,
     getInvalidSettingKeys,
     getSubredditPath,
     getProfileUser,
@@ -615,6 +651,7 @@ var FrontFilter = (() => {
     normalizeBlockedUsers,
     normalizeTitleKeywords,
     normalizeBlockedFlairs,
+    normalizeRedirectUrl,
     normalizeText,
     matchesFlairPattern,
     createKeywordMatcher,
