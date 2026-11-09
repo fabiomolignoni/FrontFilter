@@ -324,6 +324,25 @@ class PageTests:
         self.assertIn("?target=subreddit&filter=*italy*#", self.driver.current_url)
         self.assertEqual(self.driver.current_url.split("#", 1)[1], blocked_url)
 
+    def test_block_page_settings_button_hides_from_the_settings_tab(self):
+        driver = self.driver
+        find = lambda element_id: driver.find_element("id", element_id)
+        popular_url = self.server.url("/r/popular/", "localhost")
+        self.session.store(blockPopular=True)
+        driver.get(popular_url)
+        self.wait_for_block_page("Popular page is blocked")
+        self.wait_until(lambda: find("go-to-settings").is_displayed())
+        self.session.open_settings_page()
+        find("tab-settings").click()
+        find("hide-block-page-settings-button").click()
+        self.wait_until(lambda: find("save-indicator").text == "Saved")
+        driver.get(popular_url)
+        self.wait_for_block_page("Popular page is blocked")
+        # Let the settings load before reading the button.
+        self.pause(300)
+        self.assertFalse(find("go-to-settings").is_displayed())
+        self.assertTrue(find("go-back").is_displayed())
+
     # Feed filters and the scroll limit
 
     def test_fixed_quota_skips_ads_filtered_duplicate_and_nested_posts(self):

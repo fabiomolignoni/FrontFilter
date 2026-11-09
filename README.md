@@ -26,6 +26,8 @@ To install from source, see [Development](#development). The
 - Allow exceptions that override subreddit rules.
 - Optionally add one-click **Block** buttons to feed posts and subreddit
   pages, with undo.
+- Optionally hide the **Open settings** button from the page shown in place
+  of blocked content.
 
 ### Filter
 
@@ -55,7 +57,8 @@ system theme or use a light or dark one.
 Open FrontFilter from the browser toolbar or extensions menu. The
 **Controls** tab turns features on and off, **Filters** holds subreddit,
 user, keyword, and flair rules, and **Settings** covers the theme, the Block
-buttons, and backups. Changes are saved automatically and apply right away.
+buttons, the block page, and backups. Changes are saved automatically and
+apply right away.
 
 ## Privacy
 
