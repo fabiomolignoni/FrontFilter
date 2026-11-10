@@ -187,15 +187,30 @@ article { padding: 10px; }
       href="https://www.reddit.com/r/test/comments/r1/rail/">Rail post</a></reddit-pdp-right-rail-post></li>
     <li id="rail-nsfw"><reddit-pdp-right-rail-post right-rail-post-id="t3_r2"
       data-faceplate-tracking-context='{"post":{"id":"t3_r2","nsfw":true,"subreddit_name":"test"},"action_info":{"position":2,"type":"right_rail"}}'><a
-      href="https://www.reddit.com/r/test/comments/r2/rail/">NSFW rail post</a></reddit-pdp-right-rail-post></li>
+      href="https://www.reddit.com/r/test/comments/r2/rail/">NSFW rail post</a><div class="flex content-tags"><span rpl><span
+      aria-hidden="true"><svg rpl icon-name="nsfw-fill-12" viewBox="0 0 12 12" width="12" height="12"></svg></span><span
+      class="text-caption-1">NSFW</span></span></div></reddit-pdp-right-rail-post></li>
   </ul></div></div></pdp-right-rail>
   <div>
     <search-telemetry-tracker id="search-safe" data-testid="search-sdui-post"
-      data-faceplate-tracking-context='{"post":{"id":"t3_s1","nsfw":false},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'>Search result</search-telemetry-tracker>
+      data-faceplate-tracking-context='{"post":{"id":"t3_s1","nsfw":false,"spoiler":false},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'>Search result</search-telemetry-tracker>
     <search-telemetry-tracker id="search-nsfw-post" data-testid="search-sdui-post"
-      data-faceplate-tracking-context='{"post":{"id":"t3_s2","nsfw":true},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'>NSFW search result</search-telemetry-tracker>
+      data-faceplate-tracking-context='{"post":{"id":"t3_s2","nsfw":true,"spoiler":false},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'>NSFW search result</search-telemetry-tracker>
     <search-telemetry-tracker id="search-nsfw-community" data-testid="search-sdui-post"
-      data-faceplate-tracking-context='{"post":{"id":"t3_s3","nsfw":false},"subreddit":{"id":"t5_2","name":"adult","nsfw":true}}'>Result from an NSFW community</search-telemetry-tracker>
+      data-faceplate-tracking-context='{"post":{"id":"t3_s3","nsfw":false,"spoiler":false},"subreddit":{"id":"t5_2","name":"adult","nsfw":true}}'>Result from an NSFW community</search-telemetry-tracker>
+    <!-- Results shown with a preview of the post have no test ID of their
+      own: the preview has one. Parts of a result track it too. -->
+    <search-telemetry-tracker id="search-safe-preview" view-events="search/view/post"
+      data-faceplate-tracking-context='{"post":{"id":"t3_s4","nsfw":false,"spoiler":false},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'><div
+      data-testid="search-post-with-content-preview"><div data-testid="sdui-post-unit"><search-telemetry-tracker
+      data-faceplate-tracking-context='{"action_info":{"type":"post"},"post":{"id":"t3_s4","nsfw":false,"spoiler":false}}'><a
+      href="/r/test/comments/s4/result/">Search result with a preview</a></search-telemetry-tracker></div></div></search-telemetry-tracker>
+    <search-telemetry-tracker id="search-nsfw-preview" view-events="search/view/post"
+      data-faceplate-tracking-context='{"post":{"id":"t3_s5","nsfw":true,"spoiler":false},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'><div
+      data-testid="search-post-with-content-preview"><div data-testid="sdui-post-unit"><span data-testid="search-warnings"><span
+      class="text-category-nsfw">NSFW</span></span><search-telemetry-tracker
+      data-faceplate-tracking-context='{"action_info":{"type":"post"},"post":{"id":"t3_s5","nsfw":true,"spoiler":false}}'><a
+      href="/r/test/comments/s5/result/">NSFW search result with a preview</a></search-telemetry-tracker></div></div></search-telemetry-tracker>
   </div>
   <div class="content" id="old-safe-thread">
     <div class="sitetable linklisting" id="siteTable"><div class="thing link"
@@ -210,6 +225,42 @@ article { padding: 10px; }
   <div class="search-result search-result-link" id="old-search-safe">Old Reddit search result</div>
   <div class="search-result search-result-link" id="old-search-nsfw"><span
     class="nsfw-stamp stamp">NSFW</span> Old Reddit search result</div>
+</section>
+<!-- Reddit tags spoilers in highlights with an attribute, in search results
+  in their tracking data, and in the right rail only with a tag, shown with
+  the caution icon no other tag uses. On Old Reddit, spoilers have a class,
+  and search results a stamp. -->
+<section id="spoiler-content">
+  <community-highlight-carousel>
+    <shreddit-gallery-carousel slot="content">
+      <li id="highlight-spoiler"><a href="/r/test/comments/h3/highlight/"><community-highlight-card
+        id="highlight_card_t3_h3" subreddit-prefixed-name="r/test" spoiler><h2 slot="title">Spoiler highlight</h2></community-highlight-card></a></li>
+    </shreddit-gallery-carousel>
+  </community-highlight-carousel>
+  <pdp-right-rail><div slot="tab-panel"><div><ul>
+    <li id="rail-spoiler"><reddit-pdp-right-rail-post right-rail-post-id="t3_r3"
+      data-faceplate-tracking-context='{"post":{"id":"t3_r3","nsfw":false,"subreddit_name":"test"},"action_info":{"position":3,"type":"right_rail"}}'><a
+      href="https://www.reddit.com/r/test/comments/r3/rail/">Spoiler rail post</a><div class="flex content-tags"><span rpl><span
+      aria-hidden="true"><svg rpl icon-name="caution-fill" viewBox="0 0 20 20" width="12" height="12"></svg></span><span
+      class="text-caption-1">Spoiler</span></span></div></reddit-pdp-right-rail-post></li>
+  </ul></div></div></pdp-right-rail>
+  <div>
+    <search-telemetry-tracker id="search-spoiler-post" data-testid="search-sdui-post"
+      data-faceplate-tracking-context='{"post":{"id":"t3_s6","nsfw":false,"spoiler":true},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'>Spoiler search result</search-telemetry-tracker>
+    <search-telemetry-tracker id="search-spoiler-preview" view-events="search/view/post"
+      data-faceplate-tracking-context='{"post":{"id":"t3_s7","nsfw":false,"spoiler":true},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'><div
+      data-testid="search-post-with-content-preview"><div data-testid="sdui-post-unit"><span data-testid="search-warnings"><span
+      class="text-category-spoiler">Spoiler</span></span><search-telemetry-tracker
+      data-faceplate-tracking-context='{"action_info":{"type":"post"},"post":{"id":"t3_s7","nsfw":false,"spoiler":true}}'><a
+      href="/r/test/comments/s7/result/">Spoiler search result with a preview</a></search-telemetry-tracker></div></div></search-telemetry-tracker>
+  </div>
+  <div class="content" id="old-spoiler-thread">
+    <div class="sitetable linklisting"><div class="thing link spoiler" id="old-spoiler-post"
+      data-spoiler="true"><p class="tagline"><span class="spoiler-stamp stamp">spoiler</span></p></div></div>
+    <div class="commentarea" id="old-spoiler-comments">Old Reddit comments on a spoiler</div>
+  </div>
+  <div class="search-result search-result-link" id="old-search-spoiler"><span
+    class="spoiler-stamp stamp">spoiler</span> Old Reddit search result</div>
 </section>
 <script>
   window.loadCalls = 0;
@@ -333,10 +384,11 @@ article { padding: 10px; }
       card.setAttribute("permalink", `/r/${row.subreddit}/comments/${row.id}/title`);
       card.setAttribute("post-title", row.title || `Post ${row.id}`);
       if (row.ad) card.setAttribute("is-promoted", "");
-      // Reddit tags NSFW posts, and posts from NSFW communities, with
-      // attributes present only when true.
+      // Reddit tags NSFW posts, posts from NSFW communities and spoilers
+      // with attributes present only when true.
       if (row.nsfw) card.setAttribute("nsfw", "");
       if (row.subredditNsfw) card.setAttribute("subreddit-nsfw", "");
+      if (row.spoiler) card.setAttribute("spoiler", "");
       // Reddit adds ad cards straight to the feed, as unwrapped rows do.
       if (row.adPost) card.setAttribute("promoted", "");
       // The credit bar as Reddit renders it: subreddit and time on the left,
@@ -639,7 +691,7 @@ article { padding: 10px; }
   // A post's page as Reddit renders it: in main, the post, the comment
   // count and sort, the comment header, and the comment tree in an anchor,
   // before other posts, which the feed stands for here.
-  window.setThreadPost = ({ nsfw = false, subredditNsfw = false } = {}) => {
+  window.setThreadPost = ({ nsfw = false, subredditNsfw = false, spoiler = false } = {}) => {
     const post = document.createElement("shreddit-post");
     post.id = "t3_thread";
     post.setAttribute("subreddit-name", "test");
@@ -648,6 +700,7 @@ article { padding: 10px; }
     post.setAttribute("view-context", "FullPost");
     if (nsfw) post.setAttribute("nsfw", "");
     if (subredditNsfw) post.setAttribute("subreddit-nsfw", "");
+    if (spoiler) post.setAttribute("spoiler", "");
     post.textContent = "Thread post";
     const current = document.querySelector("#t3_thread");
     if (current) {
@@ -676,8 +729,9 @@ article { padding: 10px; }
       ["morePosts", "main shreddit-feed shreddit-post"],
     ].map(([name, selector]) => [name, visible(document.querySelector(selector))]));
   };
-  window.nsfwVisibility = () => Object.fromEntries(Array.from(
-    document.querySelectorAll("#nsfw-content [id]:not(community-highlight-card)"),
+  // The tagged elements beyond feeds of a section, and their counterparts.
+  window.taggedVisibility = (section) => Object.fromEntries(Array.from(
+    document.querySelectorAll(`#${section} [id]:not(community-highlight-card)`),
     (element) => [element.id, Boolean(element.getClientRects().length)
       && getComputedStyle(element).display !== "none"],
   ));

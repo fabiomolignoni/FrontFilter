@@ -31,6 +31,10 @@ Notable changes to FrontFilter, newest first.
   community highlights, the posts suggested beside a post, and Old Reddit.
   On an NSFW post's own page, its comments hide with it. Hidden posts do not
   count toward the scroll limit.
+- **Hide spoilers**, in the **Controls** tab: posts tagged as spoilers hide
+  from feeds, search results, community highlights, the posts suggested
+  beside a post, and Old Reddit. On a spoiler's own page, its comments hide
+  with it. Hidden posts do not count toward the scroll limit.
 
 ### Changed
 

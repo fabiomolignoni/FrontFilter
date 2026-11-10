@@ -28,6 +28,8 @@ var FrontFilter = (() => {
     // Posts tagged NSFW, or from communities tagged NSFW. Not blockNsfw, a
     // setting of an earlier release that updates remove (background/main.js).
     hideNsfw: false,
+    // Posts tagged spoiler.
+    hideSpoilers: false,
     hideSocialSignals: false,
     hideVotes: false,
     hideKarma: false,

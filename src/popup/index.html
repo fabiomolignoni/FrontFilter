@@ -131,6 +131,18 @@
                     On an NSFW post's page, its comments hide too.</p>
                 </div>
               </div>
+              <div class="help-row">
+                <div class="checkbox-label">
+                  <label for="hide-spoilers">Hide spoilers</label>
+                  <button type="button" class="help-toggle" aria-expanded="false"
+                    aria-controls="spoilers-help" aria-label="About spoilers">?</button>
+                  <input type="checkbox" role="switch" id="hide-spoilers" name="hideSpoilers" />
+                </div>
+                <div class="help-text" id="spoilers-help" hidden>
+                  <p>Posts tagged as spoilers, on every Reddit page. On a spoiler's page, its
+                    comments hide too. Keyword filters can catch untagged spoilers.</p>
+                </div>
+              </div>
               <div class="setting-group" role="group" aria-label="Votes and user info visibility">
                 <div class="checkbox-label group-header">
                   <button type="button" class="group-toggle" id="social-toggle"

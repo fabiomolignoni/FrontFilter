@@ -40,8 +40,9 @@ EFFECT_TIMEOUT = 15
 SNAPSHOT_SCRIPT = Path(__file__).with_name("snapshot.js").read_text() + "\nreturn snapshotPage();"
 OPTIONS = argparse.Namespace(firefox=None, snapshots=None)
 
-# Defines deep(selector) to search open shadow roots too, visible(element)
-# and countVisible(selector). Prepended to page scripts.
+# Defines deep(selector) to search open shadow roots too, visible(element),
+# countVisible(selector), feedPosts(), hasSpoilerTag(element) and
+# searchResults(). Prepended to page scripts.
 PAGE_HELPERS = """
 const deep = (selector, root = document) => {
   const found = Array.from(root.querySelectorAll(selector));
@@ -55,6 +56,19 @@ const visible = (element) => Boolean(element?.isConnected) && element.getClientR
 const countVisible = (selector) => deep(selector).filter(visible).length;
 const feedPosts = () => Array.from(document.querySelectorAll("main shreddit-feed shreddit-post"))
   .filter((post) => !post.parentElement.closest("shreddit-post"));
+const hasSpoilerTag = (element) => !!element.querySelector('.content-tags [icon-name="caution-fill"]');
+// Post results on a search page, in either layout, and what their tracking
+// data says of each post.
+const searchResults = () => Array.from(document.querySelectorAll("search-telemetry-tracker"))
+  .filter((tracker) => tracker.matches('[data-testid="search-sdui-post"]')
+    || tracker.querySelector(':scope > [data-testid="search-post-with-content-preview"]'))
+  .map((result) => {
+    let post = {};
+    try {
+      post = JSON.parse(result.getAttribute("data-faceplate-tracking-context")).post || {};
+    } catch {}
+    return {id: post.id, nsfw: post.nsfw, spoiler: post.spoiler, shown: visible(result)};
+  });
 """
 # Whole words, as keywords match them: no letter or digit next to them.
 WORD = re.compile(r"(?<![^\W_])[^\W\d_]{5,}(?![^\W_])")
@@ -507,6 +521,86 @@ class SubredditTests(RedditTestCase):
         self.assertGreaterEqual(self.js(in_author_slots, "[avatar]"), avatars, "author avatars hid with the names")
 
 
+class SpoilerTests(RedditTestCase):
+    # A large subreddit where spoilers are common, though not on every load.
+    path = "/r/OnePiece/"
+
+    @classmethod
+    def page_ready(cls):
+        SubredditTests.page_ready()
+
+    def spoilers(self):
+        return self.js("""
+            const posts = feedPosts();
+            return {
+              tagged: posts.filter((post) => post.hasAttribute("spoiler"))
+                .map((post) => ({id: post.id, shownTag: hasSpoilerTag(post)})),
+              untaggedWithTag: posts.filter((post) => !post.hasAttribute("spoiler") && hasSpoilerTag(post))
+                .map((post) => post.id),
+            };
+        """)
+
+    def test_spoiler_markup_the_extension_relies_on(self):
+        # Posts take the spoiler tag and show it with the icon that, beside
+        # a post, is all that names spoilers.
+        observed = self.js("return customElements.get('shreddit-post')?.observedAttributes || []")
+        self.assertIn("spoiler", observed, "posts no longer take the spoiler tag")
+        posts = self.spoilers()
+        if not posts["tagged"]:
+            self.skipTest("no spoilers on this page load")
+        self.assertEqual(posts["untaggedWithTag"], [], f"posts that are no spoilers show its icon: {posts}")
+        self.assertTrue(all(post["shownTag"] for post in posts["tagged"]), f"spoilers show another icon: {posts}")
+
+    def test_spoilers_hide(self):
+        if not self.spoilers()["tagged"]:
+            self.skipTest("no spoilers on this page load")
+        self.configure(hideSpoilers=True)
+        self.expect("""
+            const shown = (post) => visible(post) || visible(post.closest("article"));
+            const posts = feedPosts();
+            return {
+              tagged: posts.filter((post) => post.hasAttribute("spoiler")).some(shown),
+              others: posts.filter((post) => !post.hasAttribute("spoiler")).some(shown),
+            };
+        """, {"tagged": False, "others": True}, "spoilers stayed visible, or other posts were hidden")
+
+
+class SearchTests(RedditTestCase):
+    # Most results for this query are spoilers.
+    path = "/search/?q=spoiler"
+
+    @classmethod
+    def page_ready(cls):
+        cls.wait_until(lambda: cls.js("return searchResults().length") >= 5, "fewer than 5 search results")
+
+    def results(self):
+        return self.js("return searchResults()")
+
+    def test_search_markup_the_extension_relies_on(self):
+        # Each result names, in its tracking data, whether the post is NSFW
+        # and whether it is a spoiler.
+        results = self.results()
+        self.assertTrue(all(
+            isinstance(result["nsfw"], bool) and isinstance(result["spoiler"], bool) for result in results
+        ), results)
+        self.assertTrue(any(result["spoiler"] for result in results), f"no spoilers among the results: {results}")
+
+    def test_spoilers_and_nsfw_posts_hide_from_search_results(self):
+        # Each setting adds its tag to those that hide results. Reddit shows
+        # no NSFW result to logged-out visitors: the others must stay.
+        tags = []
+        for setting, tag in [("hideNsfw", "nsfw"), ("hideSpoilers", "spoiler")]:
+            tags.append(tag)
+            with self.subTest(setting=setting):
+                self.configure(**{setting: True})
+                try:
+                    self.wait_until(lambda: all(
+                        result["shown"] != any(result[name] for name in tags) for result in self.results()
+                    ), "")
+                except Exception:
+                    self.fail(f"tagged results stayed visible, or others were hidden: {self.results()}")
+
+
 class CrosspostTests(RedditTestCase):
     # A large subreddit where crossposts are common, though not on every load.
     path = "/r/BeAmazed/"
@@ -766,6 +860,32 @@ class CommentsTests(RedditTestCase):
             "return [countVisible('main > shreddit-post'), countVisible('shreddit-comment') > 0]",
             [1, True], "an untagged post or its comments were hidden",
         )
+
+    def test_spoilers_hide_from_post_pages(self):
+        # The post and its comments stay unless it is a spoiler, and posts
+        # suggested beside it hide if they show the spoiler tag.
+        state = """
+            const rail = Array.from(document.querySelectorAll("li > reddit-pdp-right-rail-post")).filter(visible);
+            return {
+              post: countVisible("main > shreddit-post"),
+              comments: countVisible("shreddit-comment") > 0,
+              railSpoilers: rail.filter(hasSpoilerTag).length,
+              railOthers: rail.filter((post) => !hasSpoilerTag(post)).map((post) => post.getAttribute("right-rail-post-id")),
+            };
+        """
+        spoiler = self.js("return !!document.querySelector('main > shreddit-post[spoiler]')")
+        before = self.js(state)
+        self.configure(hideSpoilers=True)
+        expected = {"post": 0 if spoiler else 1, "comments": not spoiler, "railSpoilers": 0}
+
+        def hidden_as_expected():
+            now = self.js(state)
+            return ({key: now[key] for key in expected} == expected
+                    and set(before["railOthers"]) <= set(now["railOthers"]))
+        try:
+            self.wait_until(hidden_as_expected, "")
+        except Exception:
+            self.fail(f"spoilers stayed visible, or other posts were hidden: before {before}, after {self.js(state)}")
 
     def test_comment_page_ads_hide(self):
         ads = "shreddit-comments-page-ad, shreddit-comment-tree-ad, shreddit-sidebar-ad"
