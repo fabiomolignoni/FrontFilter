@@ -34,6 +34,13 @@ FrontFilter.pageStyle = (() => {
     ).map(hide);
   }
 
+  // NSFW posts and, on their pages, their comments, with the controls the
+  // comment limit adds after them (comment-limit.js).
+  function nsfwRules() {
+    const { content, comments, postPage } = SELECTORS.nsfw;
+    return [...content, ...comments, `${postPage} .frontfilter-comment-controls`].map(hide);
+  }
+
   // Links to blocked main pages, and the list items that hold them.
   function mainPageLinkRule(settings, scope = "") {
     const links = Object.entries(SELECTORS.mainPageLinks)
@@ -66,6 +73,7 @@ FrontFilter.pageStyle = (() => {
       ...(comments ? [hide(comments)] : []),
       ...(settings.hideSuggestedCommunities ? [hide(SELECTORS.suggestedCommunities)] : []),
       ...(settings.hideAds ? SELECTORS.ads.map(hide) : []),
+      ...(settings.hideNsfw ? nsfwRules() : []),
       // Other feeds, such as Popular, consist of recommendations by design.
       ...settingRules(settings, {
         hideSuggestedPosts: SELECTORS.suggestedPosts.map((selector) =>

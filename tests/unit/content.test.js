@@ -411,6 +411,7 @@ const PAGE_RULE_SETTINGS = {
   hideSuggestedCommunities: [],
   hideSuggestedPosts: [],
   hideAds: [],
+  hideNsfw: [],
   hideKarma: [],
   hideAvatars: [],
   hideUsernames: [],
@@ -682,6 +683,24 @@ test("hides suggested posts only in the Home feed, in CSS and in the feed limite
   content.storageListeners[0]({ hideSuggestedPosts: { newValue: false } }, "local");
   await settle();
   assert.equal(content.isFeedRecordBlocked(suggested), false);
+});
+
+test("hides NSFW posts on every page, in CSS and in the feed limiter", async () => {
+  const content = await loadContent({
+    settings: { hideNsfw: true },
+    startUrl: "https://www.reddit.com/r/popular/",
+  });
+  const record = (nsfw) => ({ subreddit: "safe", title: "", bodyTexts: [], recommended: false, nsfw });
+  const style = content.injectedStyles[0];
+
+  assert.match(style.textContent, /\[subreddit-nsfw\]/);
+  assert.equal(content.isFeedRecordBlocked(record(true)), true);
+  assert.equal(content.isFeedRecordBlocked(record(false)), false);
+
+  content.storageListeners[0]({ hideNsfw: { newValue: false } }, "local");
+  await settle();
+  assert.doesNotMatch(style.textContent, /nsfw/);
+  assert.equal(content.isFeedRecordBlocked(record(true)), false);
 });
 
 test("leaves blocked users' posts out of the scroll limit, whatever the case of their name", async () => {

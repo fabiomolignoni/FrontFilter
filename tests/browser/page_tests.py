@@ -53,7 +53,7 @@ PAGE_RULE_SETTINGS = [
     "hideNavbarNotifications", "hideNavbarProfile", "hideNavbarOthers",
     "hideLeftSidebar", "hideLeftSidebarGames", "hideLeftSidebarCustomFeeds",
     "hideLeftSidebarRecent", "hideLeftSidebarCommunities", "hideLeftSidebarResources",
-    "hideRelatedPosts", "hideSuggestedCommunities", "hideSuggestedPosts", "hideAds",
+    "hideRelatedPosts", "hideSuggestedCommunities", "hideSuggestedPosts", "hideAds", "hideNsfw",
     "hideComments", "hideCommentReplies", "hideSocialSignals", *SIGNAL_KEYS,
     "blockHomepage", "blockPopular", "blockExplore", "blockNews",
 ]
@@ -61,6 +61,23 @@ AD_PLACEMENTS = [
     "comments-page-ad", "comment-tree-ad", "sidebar-ad", "tracked-promoted",
     "tracked-organic", "legacy-ad", "old-promoted", "old-placeholder",
 ]
+# The fixture's NSFW-tagged elements beyond feeds, and their untagged
+# counterparts, all visible.
+NSFW_SHOWN = dict.fromkeys([
+    "highlight-safe", "highlight-nsfw", "rail-safe", "rail-nsfw",
+    "search-safe", "search-nsfw-post", "search-nsfw-community",
+    "old-safe-thread", "siteTable", "old-safe-post", "old-safe-comments",
+    "old-nsfw-thread", "old-nsfw-post", "old-nsfw-comments",
+    "old-search-safe", "old-search-nsfw",
+], True)
+NSFW_HIDDEN = {
+    **NSFW_SHOWN,
+    **dict.fromkeys([
+        "highlight-nsfw", "rail-nsfw", "search-nsfw-post", "search-nsfw-community",
+        "old-nsfw-post", "old-nsfw-comments", "old-search-nsfw",
+    ], False),
+}
+THREAD_SHOWN = dict.fromkeys(["post", "stats", "header", "comments", "controls", "morePosts"], True)
 # The fixture's feed posts, comments and Old Reddit things, all visible.
 ALL_COMMENTS = [
     "comment-photo", "comment-thanks", "comment-spam", "comment-spam-reply",
@@ -139,6 +156,58 @@ class PageTests:
         self.wait_until(lambda: self.js("return adVisibility()") == ads_hidden)
         self.configure(hideAds=False)
         self.wait_until(lambda: self.js("return adVisibility()") == ads_shown)
+
+    def test_nsfw_posts_hide_everywhere(self):
+        # Posts tagged NSFW, or from NSFW communities, ads included, take
+        # their wrapper and divider; elsewhere, tracking data, Old Reddit's
+        # class and its search stamp name NSFW posts.
+        self.js(
+            "resetFeed([post('a'), post('b', 'safe', {nsfw: true}), post('c', 'safe', {subredditNsfw: true}),"
+            " post('d', 'safe', {adPost: true, nsfw: true}), post('e')])"
+        )
+        shown = {"feed": {f"t3_{post_id}": [True, True] for post_id in "abcde"}, "other": NSFW_SHOWN}
+        hidden = {
+            "feed": {f"t3_{post_id}": [post_id in "ae"] * 2 for post_id in "abcde"},
+            "other": NSFW_HIDDEN,
+        }
+        visibility = "return {feed: adVisibility().feed, other: nsfwVisibility()}"
+        self.wait_until(lambda: self.js(visibility) == shown)
+        self.configure(hideNsfw=True)
+        self.wait_until(lambda: self.js(visibility) == hidden)
+        # A post tagged once it is in the page hides at once.
+        self.js("document.querySelector('#t3_e').setAttribute('nsfw', '')")
+        self.wait_until(lambda: self.js("return adVisibility().feed.t3_e") == [False, False])
+        self.configure(hideNsfw=False)
+        self.wait_until(lambda: self.js("return nsfwVisibility()") == NSFW_SHOWN)
+
+    def test_nsfw_post_pages_hide_the_post_with_its_comments(self):
+        # Other posts on the page are judged on their own, and the comment
+        # limit's controls go with the comments.
+        self.open_thread()
+        self.configure(hideNsfw=True, limitComments=True, commentLimit=1, commentLimitMode="button")
+        self.js("resetFeed([post('more')]); setThreadPost(); resetCommentTree([comment('a'), comment('b')])")
+        self.wait_until(lambda: self.js("return threadVisibility()") == THREAD_SHOWN)
+        for tag in ["nsfw", "subredditNsfw"]:
+            with self.subTest(tag=tag):
+                self.js("setThreadPost(arguments[0])", {tag: True})
+                self.wait_until(lambda: self.js("return threadVisibility()") == {
+                    **dict.fromkeys(THREAD_SHOWN, False), "morePosts": True,
+                })
+        self.configure(hideNsfw=False)
+        self.wait_until(lambda: self.js("return threadVisibility()") == THREAD_SHOWN)
+
+    def test_nsfw_posts_never_count_toward_the_scroll_limit(self):
+        self.configure(limitInfiniteScroll=True, scrollLimit=3, scrollMode="fixed", hideNsfw=True)
+        self.js(
+            "resetFeed([post('a', 'safe', {nsfw: true}), post('b'), post('c', 'safe', {subredditNsfw: true}),"
+            " post('d'), post('e'), post('f')])"
+        )
+        self.expect("bde")
+        # A card tagged once it is in the feed is read again.
+        self.js("document.querySelector('#t3_d').setAttribute('subreddit-nsfw', '')")
+        self.expect("bef")
+        self.configure(hideNsfw=False)
+        self.expect("abc")
 
     def test_votes_karma_awards_avatars_and_usernames(self):
         # Avatars hide on their own: names and subreddit icons stay visible.

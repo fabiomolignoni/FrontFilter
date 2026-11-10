@@ -303,6 +303,19 @@ class FeedTests(RedditTestCase):
             True, f"ads stayed visible, before: {before}", ads,
         )
 
+    def test_nsfw_tags_the_extension_relies_on(self):
+        # Reddit shows no NSFW post to logged-out visitors: check that posts
+        # still take the tags, and that hiding tagged posts keeps the others.
+        observed = self.js("return customElements.get('shreddit-post')?.observedAttributes || []")
+        self.assertLessEqual({"nsfw", "subreddit-nsfw"}, set(observed), "posts no longer take NSFW tags")
+        self.configure(hideNsfw=True)
+        self.expect("""
+            const tagged = (post) => post.hasAttribute("nsfw") || post.hasAttribute("subreddit-nsfw");
+            const shown = (post) => visible(post) || visible(post.closest("article"));
+            const posts = feedPosts();
+            return {tagged: posts.filter(tagged).some(shown), others: posts.filter((post) => !tagged(post)).some(shown)};
+        """, {"tagged": False, "others": True}, "NSFW posts stayed visible, or other posts were hidden")
+
     def test_votes_and_comment_buttons_hide_inside_posts(self):
         # Hiding the comment buttons comes with "All comments", which the
         # settings page saves with the replies switch.
@@ -734,6 +747,25 @@ class CommentsTests(RedditTestCase):
             self.wait_until(lambda: self.js(state, signals, kept) == expected, "")
         except Exception:
             self.fail(f"social signals did not hide as expected: {self.js(state, signals, kept)}")
+
+    def test_nsfw_tags_on_post_pages(self):
+        # The post sits in main, before its comments, and the right rail's
+        # posts name in their tracking data whether they are NSFW.
+        markup = self.js("""
+            const rail = Array.from(document.querySelectorAll("li > reddit-pdp-right-rail-post"));
+            return {
+              postInMain: !!document.querySelector("main > shreddit-post"),
+              commentsInMain: !!document.querySelector("main shreddit-comment-tree"),
+              railPosts: rail.length > 0,
+              railTagged: rail.every((post) => /"nsfw":(true|false)/.test(post.getAttribute("data-faceplate-tracking-context") || "")),
+            };
+        """)
+        self.assertEqual(markup, dict.fromkeys(markup, True), markup)
+        self.configure(hideNsfw=True)
+        self.expect(
+            "return [countVisible('main > shreddit-post'), countVisible('shreddit-comment') > 0]",
+            [1, True], "an untagged post or its comments were hidden",
+        )
 
     def test_comment_page_ads_hide(self):
         ads = "shreddit-comments-page-ad, shreddit-comment-tree-ad, shreddit-sidebar-ad"

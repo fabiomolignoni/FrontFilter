@@ -89,6 +89,22 @@ FrontFilter.SELECTORS = (() => {
   const SUGGESTED_POSTS = 'shreddit-post[recommendation-source]:not([recommendation-source=""])';
   const SUGGESTED_ARTICLES = `article:has(> ${SUGGESTED_POSTS})`;
 
+  // Reddit tags a post NSFW, or the community it is from, with boolean
+  // attributes of the post, ads included: present when true, in any
+  // language. Old Reddit gives NSFW posts a class, and NSFW search results
+  // a stamp.
+  const NSFW_ATTRIBUTES = Object.freeze(["nsfw", "subreddit-nsfw"]);
+  const NSFW_POSTS = `:is(shreddit-post, shreddit-ad-post):is(${
+    NSFW_ATTRIBUTES.map((name) => `[${name}]`).join(", ")
+  })`;
+  const NSFW_ARTICLES = `article:has(> ${NSFW_POSTS})`;
+  const OLD_NSFW_THINGS = ".thing.over18";
+  // Elements that describe a post in their tracking data name whether it is
+  // NSFW, and some whether its community is, as JSON.
+  const NSFW_TRACKING = `[data-faceplate-tracking-context*='"nsfw":true']`;
+  // A post's page holds the post, its comments and other posts.
+  const NSFW_POST_PAGE = `main:has(> ${NSFW_POSTS})`;
+
   const NAVBARS = [
     "#header",
     "#shreddit-header",
@@ -232,6 +248,33 @@ FrontFilter.SELECTORS = (() => {
     ].map((selector) => `shreddit-feed ${selector}`)),
     suggestedCommunities: "in-feed-community-recommendations",
     byAuthors,
+
+    // NSFW posts wherever they show, with their feed wrappers, and on an
+    // NSFW post's own page its comments too, which belong to it. Each
+    // selector gets a CSS rule of its own.
+    nsfw: Object.freeze({
+      postAttributes: NSFW_ATTRIBUTES,
+      content: Object.freeze([
+        NSFW_POSTS,
+        NSFW_ARTICLES,
+        `shreddit-feed :is(${NSFW_POSTS}, ${NSFW_ARTICLES}) + hr`,
+        // A community's highlighted posts, in a carousel.
+        "community-highlight-card[nsfw]",
+        "li:has(> a > community-highlight-card[nsfw])",
+        // Posts suggested beside a post, in the right rail.
+        `reddit-pdp-right-rail-post${NSFW_TRACKING}`,
+        `li:has(> reddit-pdp-right-rail-post${NSFW_TRACKING})`,
+        // Search results, whose tracking data names the post's community too.
+        `search-telemetry-tracker[data-testid="search-sdui-post"]${NSFW_TRACKING}`,
+        OLD_NSFW_THINGS,
+        ".search-result:has(.nsfw-stamp)",
+      ]),
+      postPage: NSFW_POST_PAGE,
+      comments: Object.freeze([
+        `${NSFW_POST_PAGE} :is(comment-body-header, shreddit-comment-tree-stats, shreddit-comment-tree)`,
+        `.content:has(> .sitetable > ${OLD_NSFW_THINGS}) > .commentarea`,
+      ]),
+    }),
 
     // Identifiers come from Reddit's component markup (slots, tracking nouns
     // and test IDs). Subreddit icons are not user avatars.

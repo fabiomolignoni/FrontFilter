@@ -43,11 +43,12 @@ let commentCollections = null;
 
 const feedLimiter = FrontFilter.createFeedLimiter({
   getSettings: () => config,
-  isBlocked: ({ subreddit, crosspostedFrom, title, bodyTexts, recommended, flair, author }) =>
+  isBlocked: ({ subreddit, crosspostedFrom, title, bodyTexts, recommended, nsfw, flair, author }) =>
     isSubredditNameBlocked(subreddit)
     || isSubredditNameBlocked(crosspostedFrom)
     || containsBlockedText([title, ...bodyTexts])
     || (recommended && areSuggestedPostsHidden())
+    || (nsfw && config.hideNsfw)
     || isFlairBlocked(flair)
     || isUserBlocked(author),
 });

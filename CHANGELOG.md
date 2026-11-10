@@ -26,6 +26,11 @@ Notable changes to FrontFilter, newest first.
   group on request, as the scroll limit does with posts. Comments hidden by
   filters do not count, and Reddit loads no more comments while the limit
   is reached.
+- **Hide NSFW content**, in the **Controls** tab: posts tagged NSFW, and
+  posts from communities tagged NSFW, hide from feeds, search results,
+  community highlights, the posts suggested beside a post, and Old Reddit.
+  On an NSFW post's own page, its comments hide with it. Hidden posts do not
+  count toward the scroll limit.
 
 ### Changed
 
