@@ -32,6 +32,8 @@ Notable changes to FrontFilter, newest first.
   whole words only. Configurations exported by earlier versions import the
   same way. A keyword that was text between slashes or with a `*` at an end,
   such as `/r/`, becomes a regular expression that finds that text.
+- The settings page's help texts are shorter, and each shows from the **?**
+  button next to the setting or list it explains.
 
 ### Fixed
 

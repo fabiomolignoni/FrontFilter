@@ -78,8 +78,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let lastScrollLimit = FrontFilter.DEFAULT_SETTINGS.scrollLimit;
   let lastRedirectUrl = FrontFilter.DEFAULT_SETTINGS.redirectUrl;
 
-  // Sections start collapsed; a mixed parent switch tells what they hide.
-  for (const toggle of document.querySelectorAll(".group-toggle")) {
+  // Sections and help texts start collapsed; a mixed parent switch tells
+  // what its sections hide.
+  for (const toggle of document.querySelectorAll(".group-toggle, .help-toggle")) {
     const options = document.getElementById(toggle.getAttribute("aria-controls"));
     toggle.addEventListener("click", () => {
       const expanded = toggle.getAttribute("aria-expanded") !== "true";
