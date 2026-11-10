@@ -412,6 +412,7 @@ const PAGE_RULE_SETTINGS = {
   hideSuggestedPosts: [],
   hideAds: [],
   hideNsfw: [],
+  hideSpoilers: [],
   hideKarma: [],
   hideAvatars: [],
   hideUsernames: [],
@@ -701,6 +702,30 @@ test("hides NSFW posts on every page, in CSS and in the feed limiter", async () 
   await settle();
   assert.doesNotMatch(style.textContent, /nsfw/);
   assert.equal(content.isFeedRecordBlocked(record(true)), false);
+});
+
+test("hides spoilers on every page, in CSS and in the feed limiter, apart from NSFW posts", async () => {
+  const content = await loadContent({
+    settings: { hideSpoilers: true },
+    startUrl: "https://www.reddit.com/r/popular/",
+  });
+  const record = (tags) => ({ subreddit: "safe", title: "", bodyTexts: [], recommended: false, ...tags });
+  const style = content.injectedStyles[0];
+
+  assert.match(style.textContent, /\[spoiler\]/);
+  assert.doesNotMatch(style.textContent, /nsfw/);
+  assert.equal(content.isFeedRecordBlocked(record({ spoiler: true })), true);
+  assert.equal(content.isFeedRecordBlocked(record({ nsfw: true })), false);
+  assert.equal(content.isFeedRecordBlocked(record({})), false);
+
+  content.storageListeners[0]({
+    hideSpoilers: { newValue: false },
+    hideNsfw: { newValue: true },
+  }, "local");
+  await settle();
+  assert.doesNotMatch(style.textContent, /spoiler/);
+  assert.equal(content.isFeedRecordBlocked(record({ spoiler: true })), false);
+  assert.equal(content.isFeedRecordBlocked(record({ nsfw: true })), true);
 });
 
 test("leaves blocked users' posts out of the scroll limit, whatever the case of their name", async () => {

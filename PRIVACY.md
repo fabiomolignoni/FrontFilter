@@ -46,9 +46,9 @@ browsing history or any page outside Reddit.
 To apply the features you turn on, FrontFilter reads parts of the Reddit
 pages you open: subreddit names, post links, titles, text previews, comment
 text, flairs, the usernames of post and comment authors, markers that
-identify ads, suggested posts or NSFW posts, and the page elements you choose
-to hide or change. This happens in memory, on your device, and nothing is kept once you
-leave the page.
+identify ads, suggested posts, NSFW posts or spoilers, and the page elements
+you choose to hide or change. This happens in memory, on your device, and
+nothing is kept once you leave the page.
 
 FrontFilter never accesses your passwords or cookies, is not designed to read
 private messages or what you type, and does not use your location.

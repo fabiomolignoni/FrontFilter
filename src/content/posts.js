@@ -1,14 +1,16 @@
 /**
  * Reads what filters match in a post: its subreddits, title, text, flair,
- * author and whether it is an ad or NSFW, and in a comment its text. Page
- * filters and the scroll and comment limits use these readers, so they
- * judge a post or a comment the same way. A post nested in another is judged on
- * its own: its title, text, flair and author are not the outer post's. A
- * crosspost does not nest the post it shares but shows it, so it is judged
- * by that post's subreddit as well as its own.
+ * author and whether it is an ad, NSFW or a spoiler, and in a comment its
+ * text. Page filters and the scroll and comment limits use these readers, so
+ * they judge a post or a comment the same way. A post nested in another is
+ * judged on its own: its title, text, flair and author are not the outer
+ * post's. A crosspost does not nest the post it shares but shows it, so it
+ * is judged by that post's subreddit as well as its own.
  */
 FrontFilter.posts = (() => {
-  const { post: POST, comment: COMMENT, nsfw: NSFW } = FrontFilter.SELECTORS;
+  const {
+    post: POST, comment: COMMENT, nsfw: NSFW, spoilers: SPOILERS,
+  } = FrontFilter.SELECTORS;
 
   // Elements of a nested post, or of a comment, belong to that post or
   // comment rather than to this one.
@@ -109,6 +111,11 @@ FrontFilter.posts = (() => {
     return NSFW.postAttributes.some((name) => post.hasAttribute(name));
   }
 
+  // Whether Reddit tags the post a spoiler.
+  function isSpoiler(post) {
+    return SPOILERS.postAttributes.some((name) => post.hasAttribute(name));
+  }
+
   // An empty value means Reddit did not recommend the post.
   function isRecommended(post) {
     return Boolean(post.getAttribute(POST.recommendationAttribute));
@@ -126,7 +133,7 @@ FrontFilter.posts = (() => {
   }
 
   return Object.freeze({
-    subreddits, crosspostedFrom, title, bodyTexts, flair, author, isAd, isNsfw, isRecommended,
-    commentText, isUnreadTextChange,
+    subreddits, crosspostedFrom, title, bodyTexts, flair, author,
+    isAd, isNsfw, isSpoiler, isRecommended, commentText, isUnreadTextChange,
   });
 })();

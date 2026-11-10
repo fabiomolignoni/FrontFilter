@@ -89,21 +89,50 @@ FrontFilter.SELECTORS = (() => {
   const SUGGESTED_POSTS = 'shreddit-post[recommendation-source]:not([recommendation-source=""])';
   const SUGGESTED_ARTICLES = `article:has(> ${SUGGESTED_POSTS})`;
 
-  // Reddit tags a post NSFW, or the community it is from, with boolean
-  // attributes of the post, ads included: present when true, in any
-  // language. Old Reddit gives NSFW posts a class, and NSFW search results
-  // a stamp.
-  const NSFW_ATTRIBUTES = Object.freeze(["nsfw", "subreddit-nsfw"]);
-  const NSFW_POSTS = `:is(shreddit-post, shreddit-ad-post):is(${
-    NSFW_ATTRIBUTES.map((name) => `[${name}]`).join(", ")
-  })`;
-  const NSFW_ARTICLES = `article:has(> ${NSFW_POSTS})`;
-  const OLD_NSFW_THINGS = ".thing.over18";
-  // Elements that describe a post in their tracking data name whether it is
-  // NSFW, and some whether its community is, as JSON.
-  const NSFW_TRACKING = `[data-faceplate-tracking-context*='"nsfw":true']`;
-  // A post's page holds the post, its comments and other posts.
-  const NSFW_POST_PAGE = `main:has(> ${NSFW_POSTS})`;
+  // Search results for posts, in either of Reddit's layouts: with a test ID
+  // of their own, or with one on the content preview they hold.
+  const SEARCH_POSTS = `search-telemetry-tracker:is(${join([
+    '[data-testid="search-sdui-post"]',
+    ':has(> [data-testid="search-post-with-content-preview"])',
+  ])})`;
+
+  // Reddit tags posts NSFW or spoiler with boolean attributes of the post,
+  // ads included, present when true, and Old Reddit with a class: neither
+  // is translated text. A tag hides its posts wherever they show: in feeds
+  // with their wrapper and divider, elsewhere as its other selectors find
+  // them. On a tagged post's own page, which holds the post, its comments
+  // and other posts, its comments hide too, since they belong to it. Each
+  // selector gets a CSS rule of its own.
+  function taggedContent({ attributes, oldThings, others }) {
+    const posts = `:is(shreddit-post, shreddit-ad-post):is(${
+      attributes.map((name) => `[${name}]`).join(", ")
+    })`;
+    const articles = `article:has(> ${posts})`;
+    const postPage = `main:has(> ${posts})`;
+    return Object.freeze({
+      postAttributes: Object.freeze(attributes),
+      content: Object.freeze([
+        posts,
+        articles,
+        `shreddit-feed :is(${posts}, ${articles}) + hr`,
+        ...others,
+        oldThings,
+      ]),
+      postPage,
+      comments: Object.freeze([
+        `${postPage} :is(comment-body-header, shreddit-comment-tree-stats, shreddit-comment-tree)`,
+        `.content:has(> .sitetable > ${oldThings}) > .commentarea`,
+      ]),
+    });
+  }
+
+  // Elements that describe a post in their tracking data name, as JSON,
+  // whether it is NSFW, and some whether its community is; search results
+  // also whether it is a spoiler.
+  const tracked = (field) => `[data-faceplate-tracking-context*='"${field}":true']`;
+  // Posts suggested beside a post show their spoiler tag with Reddit's
+  // caution icon, which no other tag uses.
+  const SPOILER_TAG = '.content-tags [icon-name="caution-fill"]';
 
   const NAVBARS = [
     "#header",
@@ -249,31 +278,36 @@ FrontFilter.SELECTORS = (() => {
     suggestedCommunities: "in-feed-community-recommendations",
     byAuthors,
 
-    // NSFW posts wherever they show, with their feed wrappers, and on an
-    // NSFW post's own page its comments too, which belong to it. Each
-    // selector gets a CSS rule of its own.
-    nsfw: Object.freeze({
-      postAttributes: NSFW_ATTRIBUTES,
-      content: Object.freeze([
-        NSFW_POSTS,
-        NSFW_ARTICLES,
-        `shreddit-feed :is(${NSFW_POSTS}, ${NSFW_ARTICLES}) + hr`,
+    // Posts tagged NSFW, or from communities tagged NSFW.
+    nsfw: taggedContent({
+      attributes: ["nsfw", "subreddit-nsfw"],
+      oldThings: ".thing.over18",
+      others: [
         // A community's highlighted posts, in a carousel.
         "community-highlight-card[nsfw]",
         "li:has(> a > community-highlight-card[nsfw])",
         // Posts suggested beside a post, in the right rail.
-        `reddit-pdp-right-rail-post${NSFW_TRACKING}`,
-        `li:has(> reddit-pdp-right-rail-post${NSFW_TRACKING})`,
+        `reddit-pdp-right-rail-post${tracked("nsfw")}`,
+        `li:has(> reddit-pdp-right-rail-post${tracked("nsfw")})`,
         // Search results, whose tracking data names the post's community too.
-        `search-telemetry-tracker[data-testid="search-sdui-post"]${NSFW_TRACKING}`,
-        OLD_NSFW_THINGS,
+        `${SEARCH_POSTS}${tracked("nsfw")}`,
         ".search-result:has(.nsfw-stamp)",
-      ]),
-      postPage: NSFW_POST_PAGE,
-      comments: Object.freeze([
-        `${NSFW_POST_PAGE} :is(comment-body-header, shreddit-comment-tree-stats, shreddit-comment-tree)`,
-        `.content:has(> .sitetable > ${OLD_NSFW_THINGS}) > .commentarea`,
-      ]),
+      ],
+    }),
+    // Posts tagged spoiler.
+    spoilers: taggedContent({
+      attributes: ["spoiler"],
+      oldThings: ".thing.spoiler",
+      others: [
+        "community-highlight-card[spoiler]",
+        "li:has(> a > community-highlight-card[spoiler])",
+        // The right rail's tracking data does not name spoilers: only
+        // their tag does.
+        `reddit-pdp-right-rail-post:has(${SPOILER_TAG})`,
+        `li:has(> reddit-pdp-right-rail-post ${SPOILER_TAG})`,
+        `${SEARCH_POSTS}${tracked("spoiler")}`,
+        ".search-result:has(.spoiler-stamp)",
+      ],
     }),
 
     // Identifiers come from Reddit's component markup (slots, tracking nouns

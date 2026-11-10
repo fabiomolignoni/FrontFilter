@@ -54,7 +54,7 @@ PAGE_RULE_SETTINGS = [
     "hideLeftSidebar", "hideLeftSidebarGames", "hideLeftSidebarCustomFeeds",
     "hideLeftSidebarRecent", "hideLeftSidebarCommunities", "hideLeftSidebarResources",
     "hideRelatedPosts", "hideSuggestedCommunities", "hideSuggestedPosts", "hideAds", "hideNsfw",
-    "hideComments", "hideCommentReplies", "hideSocialSignals", *SIGNAL_KEYS,
+    "hideSpoilers", "hideComments", "hideCommentReplies", "hideSocialSignals", *SIGNAL_KEYS,
     "blockHomepage", "blockPopular", "blockExplore", "blockNews",
 ]
 AD_PLACEMENTS = [
@@ -66,6 +66,7 @@ AD_PLACEMENTS = [
 NSFW_SHOWN = dict.fromkeys([
     "highlight-safe", "highlight-nsfw", "rail-safe", "rail-nsfw",
     "search-safe", "search-nsfw-post", "search-nsfw-community",
+    "search-safe-preview", "search-nsfw-preview",
     "old-safe-thread", "siteTable", "old-safe-post", "old-safe-comments",
     "old-nsfw-thread", "old-nsfw-post", "old-nsfw-comments",
     "old-search-safe", "old-search-nsfw",
@@ -74,9 +75,20 @@ NSFW_HIDDEN = {
     **NSFW_SHOWN,
     **dict.fromkeys([
         "highlight-nsfw", "rail-nsfw", "search-nsfw-post", "search-nsfw-community",
-        "old-nsfw-post", "old-nsfw-comments", "old-search-nsfw",
+        "search-nsfw-preview", "old-nsfw-post", "old-nsfw-comments", "old-search-nsfw",
     ], False),
 }
+# The fixture's spoilers beyond feeds, all visible; their untagged
+# counterparts are NSFW_SHOWN's.
+SPOILERS_SHOWN = dict.fromkeys([
+    "highlight-spoiler", "rail-spoiler", "search-spoiler-post", "search-spoiler-preview",
+    "old-spoiler-thread", "old-spoiler-post", "old-spoiler-comments", "old-search-spoiler",
+], True)
+SPOILERS_HIDDEN = {**dict.fromkeys(SPOILERS_SHOWN, False), "old-spoiler-thread": True}
+TAGGED_VISIBILITY = (
+    "return {feed: adVisibility().feed, nsfw: taggedVisibility('nsfw-content'),"
+    " spoilers: taggedVisibility('spoiler-content')}"
+)
 THREAD_SHOWN = dict.fromkeys(["post", "stats", "header", "comments", "controls", "morePosts"], True)
 # The fixture's feed posts, comments and Old Reddit things, all visible.
 ALL_COMMENTS = [
@@ -160,41 +172,81 @@ class PageTests:
     def test_nsfw_posts_hide_everywhere(self):
         # Posts tagged NSFW, or from NSFW communities, ads included, take
         # their wrapper and divider; elsewhere, tracking data, Old Reddit's
-        # class and its search stamp name NSFW posts.
+        # class and its search stamp name NSFW posts. Spoilers stay.
         self.js(
             "resetFeed([post('a'), post('b', 'safe', {nsfw: true}), post('c', 'safe', {subredditNsfw: true}),"
-            " post('d', 'safe', {adPost: true, nsfw: true}), post('e')])"
+            " post('d', 'safe', {adPost: true, nsfw: true}), post('e'), post('f', 'safe', {spoiler: true})])"
         )
-        shown = {"feed": {f"t3_{post_id}": [True, True] for post_id in "abcde"}, "other": NSFW_SHOWN}
-        hidden = {
-            "feed": {f"t3_{post_id}": [post_id in "ae"] * 2 for post_id in "abcde"},
-            "other": NSFW_HIDDEN,
+        shown = {
+            "feed": {f"t3_{post_id}": [True, True] for post_id in "abcdef"},
+            "nsfw": NSFW_SHOWN, "spoilers": SPOILERS_SHOWN,
         }
-        visibility = "return {feed: adVisibility().feed, other: nsfwVisibility()}"
-        self.wait_until(lambda: self.js(visibility) == shown)
+        hidden = {
+            "feed": {f"t3_{post_id}": [post_id in "aef"] * 2 for post_id in "abcdef"},
+            "nsfw": NSFW_HIDDEN, "spoilers": SPOILERS_SHOWN,
+        }
+        self.wait_until(lambda: self.js(TAGGED_VISIBILITY) == shown)
         self.configure(hideNsfw=True)
-        self.wait_until(lambda: self.js(visibility) == hidden)
+        self.wait_until(lambda: self.js(TAGGED_VISIBILITY) == hidden)
         # A post tagged once it is in the page hides at once.
         self.js("document.querySelector('#t3_e').setAttribute('nsfw', '')")
         self.wait_until(lambda: self.js("return adVisibility().feed.t3_e") == [False, False])
         self.configure(hideNsfw=False)
-        self.wait_until(lambda: self.js("return nsfwVisibility()") == NSFW_SHOWN)
+        self.wait_until(lambda: self.js("return taggedVisibility('nsfw-content')") == NSFW_SHOWN)
 
-    def test_nsfw_post_pages_hide_the_post_with_its_comments(self):
+    def test_spoilers_hide_everywhere(self):
+        # Spoilers, ads included, take their wrapper and divider; elsewhere,
+        # tracking data, the right rail's tag, Old Reddit's class and its
+        # search stamp name them. NSFW posts, and their tags, stay.
+        self.js(
+            "resetFeed([post('a'), post('b', 'safe', {spoiler: true}), post('c', 'safe', {nsfw: true}),"
+            " post('d', 'safe', {adPost: true, spoiler: true}), post('e')])"
+        )
+        shown = {
+            "feed": {f"t3_{post_id}": [True, True] for post_id in "abcde"},
+            "nsfw": NSFW_SHOWN, "spoilers": SPOILERS_SHOWN,
+        }
+        hidden = {
+            "feed": {f"t3_{post_id}": [post_id in "ace"] * 2 for post_id in "abcde"},
+            "nsfw": NSFW_SHOWN, "spoilers": SPOILERS_HIDDEN,
+        }
+        self.wait_until(lambda: self.js(TAGGED_VISIBILITY) == shown)
+        self.configure(hideSpoilers=True)
+        self.wait_until(lambda: self.js(TAGGED_VISIBILITY) == hidden)
+        # A post tagged once it is in the page hides at once.
+        self.js("document.querySelector('#t3_e').setAttribute('spoiler', '')")
+        self.wait_until(lambda: self.js("return adVisibility().feed.t3_e") == [False, False])
+        self.configure(hideSpoilers=False)
+        self.wait_until(lambda: self.js("return taggedVisibility('spoiler-content')") == SPOILERS_SHOWN)
+
+    def check_tagged_post_page(self, setting, tags, other_tags):
+        """A post page hides with its comments for each of the setting's tags,
+        and shows again for each of the other tags."""
         # Other posts on the page are judged on their own, and the comment
         # limit's controls go with the comments.
         self.open_thread()
-        self.configure(hideNsfw=True, limitComments=True, commentLimit=1, commentLimitMode="button")
+        self.configure(**{setting: True}, limitComments=True, commentLimit=1, commentLimitMode="button")
         self.js("resetFeed([post('more')]); setThreadPost(); resetCommentTree([comment('a'), comment('b')])")
         self.wait_until(lambda: self.js("return threadVisibility()") == THREAD_SHOWN)
-        for tag in ["nsfw", "subredditNsfw"]:
+        for tag in tags:
             with self.subTest(tag=tag):
                 self.js("setThreadPost(arguments[0])", {tag: True})
                 self.wait_until(lambda: self.js("return threadVisibility()") == {
                     **dict.fromkeys(THREAD_SHOWN, False), "morePosts": True,
                 })
-        self.configure(hideNsfw=False)
+        for tag in other_tags:
+            with self.subTest(tag=tag):
+                self.js("setThreadPost(arguments[0])", {tag: True})
+                self.wait_until(lambda: self.js("return threadVisibility()") == THREAD_SHOWN)
+        self.js("setThreadPost(arguments[0])", {tags[0]: True})
+        self.configure(**{setting: False})
         self.wait_until(lambda: self.js("return threadVisibility()") == THREAD_SHOWN)
+
+    def test_nsfw_post_pages_hide_the_post_with_its_comments(self):
+        self.check_tagged_post_page("hideNsfw", ["nsfw", "subredditNsfw"], ["spoiler"])
+
+    def test_spoiler_pages_hide_the_post_with_its_comments(self):
+        self.check_tagged_post_page("hideSpoilers", ["spoiler"], ["nsfw", "subredditNsfw"])
 
     def test_nsfw_posts_never_count_toward_the_scroll_limit(self):
         self.configure(limitInfiniteScroll=True, scrollLimit=3, scrollMode="fixed", hideNsfw=True)
@@ -207,6 +259,19 @@ class PageTests:
         self.js("document.querySelector('#t3_d').setAttribute('subreddit-nsfw', '')")
         self.expect("bef")
         self.configure(hideNsfw=False)
+        self.expect("abc")
+
+    def test_spoilers_never_count_toward_the_scroll_limit(self):
+        self.configure(limitInfiniteScroll=True, scrollLimit=3, scrollMode="fixed", hideSpoilers=True)
+        self.js(
+            "resetFeed([post('a', 'safe', {spoiler: true}), post('b'), post('c', 'safe', {nsfw: true}),"
+            " post('d'), post('e'), post('f')])"
+        )
+        self.expect("bcd")
+        # A card tagged once it is in the feed is read again.
+        self.js("document.querySelector('#t3_d').setAttribute('spoiler', '')")
+        self.expect("bce")
+        self.configure(hideSpoilers=False)
         self.expect("abc")
 
     def test_votes_karma_awards_avatars_and_usernames(self):

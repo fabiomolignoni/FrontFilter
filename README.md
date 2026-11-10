@@ -42,6 +42,8 @@ To install from source, see [Development](#development). The
 - Hide NSFW content: posts tagged NSFW and posts from NSFW communities, on
   every Reddit page, Old Reddit included, with the comments on an NSFW
   post's own page.
+- Hide spoilers: posts tagged as spoilers, on every Reddit page, Old Reddit
+  included, with the comments on a spoiler's own page.
 
 ### Simplify
 

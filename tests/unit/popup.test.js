@@ -880,6 +880,7 @@ test("maps every checkbox to the matching storage setting", async () => {
     "hide-suggested-posts": "hideSuggestedPosts",
     "hide-ads": "hideAds",
     "hide-nsfw": "hideNsfw",
+    "hide-spoilers": "hideSpoilers",
     "hide-social-signals": "hideSocialSignals",
     "hide-votes": "hideVotes",
     "hide-karma": "hideKarma",

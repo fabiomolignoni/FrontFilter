@@ -27,6 +27,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     ...SELECTORS.post.authorAttributes,
     SELECTORS.post.recommendationAttribute,
     ...SELECTORS.nsfw.postAttributes,
+    ...SELECTORS.spoilers.postAttributes,
   ];
   // While a session limits a feed, it reads each card once and again after
   // the card's attributes or text change. Otherwise only added and removed
@@ -113,6 +114,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       bodyTexts: POSTS.bodyTexts(post),
       recommended: POSTS.isRecommended(post),
       nsfw: POSTS.isNsfw(post),
+      spoiler: POSTS.isSpoiler(post),
       flair: POSTS.flair(post),
       author: POSTS.author(post),
     };
@@ -499,7 +501,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     const rows = collect(feed, { cards: current.cards });
     const records = new Map();
     for (const {
-      id, subreddit, crosspostedFrom, title, bodyTexts, ad, recommended, nsfw, flair, author,
+      id, subreddit, crosspostedFrom, title, bodyTexts, ad, recommended, nsfw, spoiler, flair, author,
     } of rows) {
       // A partially hydrated card may precede complete cards. Wait for its
       // identity before admitting later results, preserving feed order.
@@ -507,7 +509,8 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       // A promoted copy must not override the organic card with the same ID.
       if (id && (!records.has(id) || !ad)) {
         records.set(id, {
-          id, subreddit, crosspostedFrom, title, bodyTexts, ad, recommended, nsfw, flair, author,
+          id, subreddit, crosspostedFrom, title, bodyTexts, ad, recommended, nsfw, spoiler, flair,
+          author,
         });
       }
     }
