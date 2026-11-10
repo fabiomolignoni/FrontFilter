@@ -51,6 +51,8 @@ To install from source, see [Development](#development). The
 ### Limit scrolling
 
 - Show a fixed number of posts, or reveal them in groups of your chosen size.
+- Show only the first comments on a post's page, each with its replies, a
+  fixed number of them or in groups of your chosen size.
 
 Settings can be exported and imported as JSON. FrontFilter's pages follow your
 system theme or use a light or dark one.

@@ -90,8 +90,10 @@ own terms:
 
 - **Reddit** receives the requests your browser makes while you use it. When
   the feed limit loads more posts, FrontFilter asks Reddit's own page to load
-  them, as scrolling would. Changes FrontFilter makes to Reddit pages, such as
-  hidden elements or added buttons, can be seen by Reddit's own page scripts.
+  them, as scrolling would; so it does for comments you ask the comment limit
+  to show, as Reddit's own button would. Changes FrontFilter makes to Reddit
+  pages, such as hidden elements or added buttons, can be seen by Reddit's
+  own page scripts.
   See [Reddit's Privacy Policy](https://www.reddit.com/policies/privacy-policy).
 - **The website you choose** for blocked pages, if any, is visited in their
   place, as if you had opened it. FrontFilter sends it nothing, not even the

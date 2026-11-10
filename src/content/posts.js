@@ -1,10 +1,11 @@
 /**
  * Reads what filters match in a post: its subreddits, title, text, flair,
- * author and whether it is an ad. Page filters and the scroll limit both
- * use these readers, so they judge a post the same way. A post nested in
- * another is judged on its own: its title, text, flair and author are not
- * the outer post's. A crosspost does not nest the post it shares but shows
- * it, so it is judged by that post's subreddit as well as its own.
+ * author and whether it is an ad, and in a comment its text. Page filters
+ * and the scroll and comment limits use these readers, so they judge a
+ * post or a comment the same way. A post nested in another is judged on
+ * its own: its title, text, flair and author are not the outer post's. A
+ * crosspost does not nest the post it shares but shows it, so it is judged
+ * by that post's subreddit as well as its own.
  */
 FrontFilter.posts = (() => {
   const { post: POST, comment: COMMENT } = FrontFilter.SELECTORS;
@@ -88,6 +89,21 @@ FrontFilter.posts = (() => {
       || Boolean(post.querySelector(POST.adMarkers));
   }
 
+  // A comment's own text, not its replies', in modern and Old Reddit; null
+  // while its body has not rendered yet. Current markup nests the body
+  // inside <details>; older markup made it a direct child. In both, a
+  // comment's own body precedes its replies, so the first match is its own
+  // unless it has none, as deleted comments do.
+  function commentText(comment) {
+    if (comment.localName !== COMMENT.modern) {
+      const body = comment.querySelector(COMMENT.oldBody);
+      return body ? body.textContent : null;
+    }
+    const body = comment.querySelector(COMMENT.modernBody);
+    if (!body) return null;
+    return body.closest(COMMENT.modern) === comment ? body.textContent : "";
+  }
+
   // An empty value means Reddit did not recommend the post.
   function isRecommended(post) {
     return Boolean(post.getAttribute(POST.recommendationAttribute));
@@ -106,6 +122,6 @@ FrontFilter.posts = (() => {
 
   return Object.freeze({
     subreddits, crosspostedFrom, title, bodyTexts, flair, author, isAd, isRecommended,
-    isUnreadTextChange,
+    commentText, isUnreadTextChange,
   });
 })();

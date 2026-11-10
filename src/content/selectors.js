@@ -2,7 +2,8 @@
  * Reddit's markup as FrontFilter relies on it: component names, attributes,
  * slots and test IDs, never translated text. When Reddit changes, update
  * this file and the fixtures in tests/fixtures (see CONTRIBUTING.md).
- * feed-bridge.js runs in the page and keeps its own copy of the feed names.
+ * feed-bridge.js runs in the page and keeps its own copy of the feed names,
+ * and feed-limit.css of the names the feed and comment limits hide.
  */
 FrontFilter.SELECTORS = (() => {
   const join = (selectors) => selectors.join(", ");
@@ -195,6 +196,16 @@ FrontFilter.SELECTORS = (() => {
       bodies: '[slot="comment"], .comment .usertext-body',
       // The modern feed action row lives in each post's shadow root.
       actionShadowHost: "shreddit-post",
+      // A post's comments, in a tree: its top-level comments, each holding
+      // its replies, with ad slots between them. At its end, outside every
+      // comment, a loader brings the next top-level comments, by itself as
+      // the reader scrolls near it and then on a click. Loaders inside a
+      // comment bring more of its replies.
+      tree: "shreddit-comment-tree",
+      mainTree: "main shreddit-comment-tree",
+      treeAds: "shreddit-comment-tree-ad",
+      moreComments: 'faceplate-partial[src*="/more-comments/"]',
+      authorAttribute: AUTHOR,
     }),
 
     // Component names and tracking attributes follow EasyList and AdGuard's

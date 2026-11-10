@@ -612,6 +612,9 @@ test("rejects malformed stored values instead of throwing or enabling flags", ()
       limitInfiniteScroll: false,
       scrollLimit: 25,
       scrollMode: "fixed",
+      limitComments: false,
+      commentLimit: 10,
+      commentLimitMode: "fixed",
       theme: "system",
     },
   );
@@ -709,6 +712,9 @@ test("settings store preserves changes received during its initial load", async 
       limitInfiniteScroll: false,
       scrollLimit: 25,
       scrollMode: "fixed",
+      limitComments: false,
+      commentLimit: 10,
+      commentLimitMode: "fixed",
       theme: "system",
     },
   );
@@ -1089,18 +1095,29 @@ test("lists each blockable main page once, with its setting", () => {
   );
 });
 
-test("normalizes typed scroll settings and resets removed values", () => {
-  assert.equal(FrontFilter.coerceSettings({ scrollLimit: 1 }).scrollLimit, 1);
-  for (const value of [0, -1, 2.5, "10", null, true, Infinity, NaN, 2 ** 53]) {
-    assert.equal(FrontFilter.coerceSettings({ scrollLimit: value }).scrollLimit, 25);
+test("normalizes typed scroll and comment limits and resets removed values", () => {
+  for (const [count, mode, defaultCount] of [
+    ["scrollLimit", "scrollMode", 25],
+    ["commentLimit", "commentLimitMode", 10],
+  ]) {
+    assert.equal(FrontFilter.coerceSettings({ [count]: 1 })[count], 1);
+    for (const value of [0, -1, 2.5, "10", null, true, Infinity, NaN, 2 ** 53]) {
+      assert.equal(FrontFilter.coerceSettings({ [count]: value })[count], defaultCount, `${count}: ${value}`);
+    }
+    assert.equal(FrontFilter.coerceSettings({ [mode]: "button" })[mode], "button");
+    assert.equal(FrontFilter.coerceSettings({ [mode]: "other" })[mode], "fixed");
+    const settings = FrontFilter.coerceSettings(FrontFilter.applyStorageChanges({ [count]: 7, [mode]: "button" }, {
+      [count]: { oldValue: 7 }, [mode]: { oldValue: "button" },
+    }));
+    assert.equal(settings[count], defaultCount);
+    assert.equal(settings[mode], "fixed");
   }
-  assert.equal(FrontFilter.coerceSettings({ scrollMode: "button" }).scrollMode, "button");
-  assert.equal(FrontFilter.coerceSettings({ scrollMode: "other" }).scrollMode, "fixed");
-  const settings = FrontFilter.coerceSettings(FrontFilter.applyStorageChanges({ scrollLimit: 10, scrollMode: "button" }, {
-    scrollLimit: { oldValue: 10 }, scrollMode: { oldValue: "button" },
-  }));
-  assert.equal(settings.scrollLimit, 25);
-  assert.equal(settings.scrollMode, "fixed");
+  assert.deepEqual(Array.from(FrontFilter.getInvalidSettingKeys({
+    limitComments: "yes", commentLimit: 0, commentLimitMode: "auto",
+  })), ["limitComments", "commentLimit", "commentLimitMode"]);
+  assert.deepEqual(Array.from(FrontFilter.getInvalidSettingKeys({
+    limitComments: true, commentLimit: 3, commentLimitMode: "button",
+  })), []);
 });
 
 test("normalizes color themes and resets removed themes to system", () => {
@@ -1132,6 +1149,22 @@ test("limits listing routes without treating comments, wiki or settings as feeds
     "/message/inbox", "/r/firefox/top/extra",
   ]) {
     assert.equal(FrontFilter.isFeedPath(path), false, path);
+  }
+});
+
+test("recognizes post pages, where comments are, in subreddits and on profiles", () => {
+  for (const path of [
+    "/r/firefox/comments/abc/post", "/r/firefox/comments/abc/post/", "/r/firefox/comments/abc",
+    "/r/firefox/comments/abc/post/def/", "/r/firefox/comments/abc/comment/def/",
+    "/user/spez/comments/abc/post/", "/u/spez/comments/abc/", "/R/Firefox/Comments/ABC/",
+  ]) {
+    assert.equal(FrontFilter.isCommentsPath(path), true, path);
+  }
+  for (const path of [
+    "/", "/r/firefox/", "/r/firefox/new/", "/r/firefox/comments/", "/user/spez/comments/",
+    "/user/spez/", "/comments/abc/", "/r/firefox/wiki/comments/abc/", "/search/?q=comments",
+  ]) {
+    assert.equal(FrontFilter.isCommentsPath(path), false, path);
   }
 });
 

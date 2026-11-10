@@ -266,6 +266,35 @@
               </label>
             </div>
           </div>
+
+          <div class="card">
+            <div class="card-header scroll-header">
+              <h2 class="card-title">Comment limit</h2>
+              <button type="button" class="help-toggle" aria-expanded="false"
+                aria-controls="comment-limit-help" aria-label="About the comment limit">?</button>
+              <label class="checkbox-label">
+                <input type="checkbox" role="switch" id="limit-comments"
+                  name="limitComments" aria-label="Limit comments" />
+              </label>
+            </div>
+            <div class="card-body">
+              <div class="help-text" id="comment-limit-help" hidden>
+                <p>Counts the comments that reply to the post, each shown with its replies.
+                  Comments hidden by filters do not count.</p>
+              </div>
+              <div class="scroll-options">
+                <label for="comment-limit-mode">Mode
+                  <select id="comment-limit-mode">
+                    <option value="fixed">Stop at the limit</option>
+                    <option value="button">Show next</option>
+                  </select>
+                </label>
+                <label for="comment-limit">Comments per batch
+                  <input type="number" id="comment-limit" min="1" step="1" value="10" />
+                </label>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section class="tab-panel" id="panel-filters" role="tabpanel"

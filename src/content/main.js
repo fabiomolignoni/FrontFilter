@@ -52,6 +52,18 @@ const feedLimiter = FrontFilter.createFeedLimiter({
     || isUserBlocked(author),
 });
 
+// Comments that page filters hide never count toward the comment limit.
+const commentLimiter = FrontFilter.createCommentLimiter({
+  getSettings: () => config,
+  isBlocked: ({ author, text }) => isUserBlocked(author) || containsBlockedText([text]),
+});
+
+// The feed and comment limits apply settings once they have loaded.
+function updateLimits() {
+  feedLimiter.update();
+  commentLimiter.update();
+}
+
 const quickBlock = FrontFilter.createQuickBlock({
   getSettings: () => config,
   isAllowed: (name) => filterIndex.allowedSubreddits.has(name),
@@ -105,7 +117,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     return;
   }
   setConfig(settingsStore.applyChanges(changes));
-  if (configLoaded) feedLimiter.update();
+  if (configLoaded) updateLimits();
 
   void checkCurrentPage({ force: true });
   void filterPosts();
@@ -117,7 +129,7 @@ async function loadConfig() {
     if (!configLoaded) {
       setConfig(loadedConfig);
       configLoaded = true;
-      feedLimiter.update();
+      updateLimits();
     }
   }
   return config;
@@ -133,7 +145,7 @@ async function checkCurrentPage({ force = false } = {}) {
   if (!force && !urlChanged) return;
   lastCheckedUrl = currentUrl;
   syncHomeFeedMarker();
-  if (urlChanged) feedLimiter.update();
+  if (urlChanged) updateLimits();
   const route = FrontFilter.getBlockedRoute(window.location.pathname, config);
   if (route) redirectToBlock(route, currentUrl);
 }
@@ -315,20 +327,6 @@ function processPostElements() {
 
 // Comments
 
-// Returns null while the comment body has not rendered yet.
-function getCommentText(comment) {
-  if (comment.localName !== SELECTORS.comment.modern) {
-    const body = comment.querySelector(SELECTORS.comment.oldBody);
-    return body ? body.textContent : null;
-  }
-  // Current markup nests the body inside <details>; older markup made it a
-  // direct child. In both, a comment's own body precedes its replies, so the
-  // first match is its own unless it has none (e.g. deleted comments).
-  const body = comment.querySelector(SELECTORS.comment.modernBody);
-  if (!body) return null;
-  return body.closest(SELECTORS.comment.modern) === comment ? body.textContent : "";
-}
-
 // Runs on every processed mutation, so each comment's text is read and
 // matched once per settings version; later passes are a WeakMap lookup.
 function processComments() {
@@ -341,7 +339,7 @@ function processComments() {
     for (const comment of collection) {
       // Already matched and marked for the current settings.
       if (commentFilterResults.get(comment) === filterVersion) continue;
-      const text = getCommentText(comment);
+      const text = POSTS.commentText(comment);
       // A comment inserted before its body is checked again on a later pass.
       if (text === null) continue;
       setElementBlocked(comment, containsBlockedText([text]), "comment");

@@ -11,7 +11,7 @@
 body { font: 16px sans-serif; }
 reddit-header-large, reddit-header-action-items,
 shreddit-feed, shreddit-post, shreddit-comment, reddit-sidebar-nav,
-shreddit-ad-post, shreddit-comments-page-ad, shreddit-comment-tree-ad,
+shreddit-ad-post, shreddit-comments-page-ad, shreddit-comment-tree, shreddit-comment-tree-ad,
 shreddit-async-loader, faceplate-hovercard, shreddit-comment-action-row,
 left-nav-top-section, faceplate-loader, faceplate-tracker,
 faceplate-expandable-section-helper { display: block; }
@@ -373,8 +373,26 @@ article { padding: 10px; }
     return loader;
   };
   customElements.define("faceplate-partial", class extends HTMLElement {
+    // The loader of more top-level comments loads by itself once in view,
+    // as Reddit's does, and on a click once Reddit renders it as a button.
+    connectedCallback() {
+      if (!this.closest("shreddit-comment-tree")) return;
+      if (this.getAttribute("loading") === "lazy") {
+        this.visibility ??= new IntersectionObserver((entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) this.loadContent();
+        });
+        this.visibility.observe(this);
+      } else if (!this.clicks) {
+        this.clicks = true;
+        this.addEventListener("click", () => this.loadContent());
+      }
+    }
+    disconnectedCallback() {
+      this.visibility?.disconnect();
+    }
     loadContent() {
       if (this.inflight) return this.inflight;
+      if (this.closest("shreddit-comment-tree")) return this.loadComments();
       loadCalls++;
       const plan = plans.shift();
       loadLog.push({ src: this.getAttribute("src"), plan, stack: new Error().stack });
@@ -389,6 +407,20 @@ article { padding: 10px; }
         }
         resolve();
       }, plan.delay || 30));
+      return this.inflight;
+    }
+    // Reddit replaces the loader with the comments it brings, followed by
+    // the loader of the next ones, if any.
+    loadComments() {
+      commentLoadCalls++;
+      const plan = commentPlans.shift() || {};
+      this.inflight = new Promise((resolve) => setTimeout(() => {
+        const section = this.parentElement;
+        this.remove();
+        appendComments(section, plan.comments || []);
+        if (plan.next) addCommentLoader(section, plan.next);
+        resolve();
+      }, 30));
       return this.inflight;
     }
   });
@@ -504,6 +536,76 @@ article { padding: 10px; }
         createComment("comment-deleted-reply", { author: "erin", depth: 1, text: "trump again" }),
       ] }),
     );
+  };
+  // A post's comment tree as Reddit renders it on the post's page: in a
+  // section, each top-level comment after its ad slot, then the loader of
+  // the next ones, which loads by itself (lazy) or on a click (action).
+  window.commentLoadCalls = 0;
+  window.commentPlans = [];
+  window.comment = (id, extra = {}) => ({ id, ...extra });
+  const appendComments = (section, specs) => {
+    for (const { id, author, text = `Comment ${id}`, replies = [] } of specs) {
+      const ad = document.createElement("shreddit-comment-tree-ad");
+      ad.id = `ad-${id}`;
+      ad.setAttribute("comment-id", `t1_${id}`);
+      ad.textContent = `Ad slot before ${id}`;
+      section.append(ad, createComment(id, {
+        author, text,
+        replies: replies.map((reply) => createComment(reply, { depth: 1, text: `Reply ${reply}` })),
+      }));
+    }
+  };
+  const addCommentLoader = (section, loading) => {
+    const loader = document.createElement("faceplate-partial");
+    loader.setAttribute("loading", loading);
+    loader.setAttribute("method", "post");
+    loader.setAttribute("src", "/svc/shreddit/more-comments/test/t3_abc?top-level=1");
+    if (loading === "lazy") {
+      loader.id = "top-level-more-comments-partial";
+      loader.className = "top-level";
+      loader.textContent = "Loading comments";
+    } else {
+      loader.className = "more-comments-partial";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "View more comments";
+      loader.append(button);
+    }
+    section.append(loader);
+  };
+  window.resetCommentTree = (specs, plans = [], loading = null) => {
+    commentLoadCalls = 0;
+    commentPlans = plans;
+    const tree = document.createElement("shreddit-comment-tree");
+    tree.id = "comment-tree";
+    const section = document.createElement("section");
+    tree.append(section);
+    appendComments(section, specs);
+    if (loading) addCommentLoader(section, loading);
+    const current = document.querySelector("#comment-tree");
+    if (current) current.replaceWith(tree);
+    else document.querySelector("main").append(tree);
+  };
+  // What the comment tree shows: its top-level comments and replies, the ad
+  // slots between them, its loader and the comment limit's controls.
+  window.commentTreeState = () => {
+    const visible = (element) => Boolean(element?.getClientRects().length)
+      && getComputedStyle(element).display !== "none";
+    const tree = document.querySelector("#comment-tree");
+    const comments = Array.from(tree.querySelectorAll("shreddit-comment")).filter(visible);
+    const controls = document.querySelector(".frontfilter-comment-controls");
+    return {
+      comments: comments.filter((comment) => comment.getAttribute("depth") === "0").map(({ id }) => id),
+      replies: comments.filter((comment) => comment.getAttribute("depth") !== "0").map(({ id }) => id),
+      ads: Array.from(tree.querySelectorAll("shreddit-comment-tree-ad")).filter(visible).map(({ id }) => id),
+      loader: Array.from(tree.querySelectorAll("faceplate-partial"), (loader) =>
+        `${loader.getAttribute("loading")}${visible(loader) ? "" : " (hidden)"}`).join(", ") || null,
+      controls: controls && visible(controls) ? [
+        controls.querySelector('[role="status"]').textContent,
+        controls.querySelector("button")?.textContent ?? null,
+      ] : null,
+      loads: commentLoadCalls,
+    };
   };
   // A subreddit header as Reddit renders it: Create Post, then the element
   // holding Join, notifications and the overflow menu.

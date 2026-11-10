@@ -8,6 +8,12 @@ html[data-frontfilter-feed-gate] shreddit-feed faceplate-partial[slot="load-afte
 [data-frontfilter-limit-hidden] {
   display: none !important;
 }
+/* The comment limit (comment-limit.js) uses the same markers and controls.
+   In the comment tree it limits, top-level comments, the ad slots between
+   them and the loader of more comments stay hidden until it shows them. */
+shreddit-comment-tree[data-frontfilter-comment-limit] :is(shreddit-comment, shreddit-comment-tree-ad, faceplate-partial[src*="/more-comments/"]):not(shreddit-comment *):not([data-frontfilter-limit-visible]) {
+  display: none !important;
+}
 /* Native loading paused after several fully filtered pages. */
 shreddit-feed[data-frontfilter-feed-paused] > faceplate-partial[slot="load-after"] {
   display: none !important;

@@ -614,6 +614,44 @@ class CommentsTests(RedditTestCase):
         self.assertGreater(markup["actionRows"], 0, markup)
         self.assertEqual(markup["actionRowVotes"], markup["actionRows"], markup)
 
+    def test_comment_limit_shows_the_first_top_level_comments(self):
+        # The limit counts the comments outside every other comment, and
+        # hides the loader of more, outside every comment too.
+        state = """
+            const tree = document.querySelector("main shreddit-comment-tree");
+            const outsideComments = (element) => !element.parentElement.closest("shreddit-comment");
+            const comments = Array.from(tree?.querySelectorAll("shreddit-comment") || []).filter(outsideComments);
+            const loaders = Array.from(tree?.querySelectorAll('faceplate-partial[src*="/more-comments/"]') || [])
+              .filter(outsideComments);
+            return {
+              tree: !!tree,
+              comments: comments.length,
+              topLevel: comments.filter((comment) => comment.getAttribute("depth") === "0").length,
+              shown: comments.filter(visible).length,
+              loaders: loaders.length,
+              loadersShown: loaders.filter(visible).length,
+              controls: document.querySelector(".frontfilter-comment-controls")?.textContent || "",
+            };
+        """
+        before = self.js(state)
+        self.assertTrue(before["tree"], before)
+        self.assertGreaterEqual(before["comments"], 5, before)
+        self.assertEqual(before["topLevel"], before["comments"], before)
+        if before["loaders"] != 1:
+            self.skipTest(f"no single loader of more top-level comments: {before}")
+        self.configure(limitComments=True, commentLimit=3, commentLimitMode="fixed")
+        limited = {
+            **before, "shown": 3, "loadersShown": 0, "controls": "3 comments shown · Limit reached",
+        }
+        self.expect(state, limited, "the comment limit did not apply")
+        # Reddit loads no more comments while the limit is reached, however
+        # far the reader scrolls.
+        for _ in range(3):
+            self.js("window.scrollTo(0, document.documentElement.scrollHeight)")
+            self.driver.execute_async_script("setTimeout(arguments[0], 1000)")
+        self.assertEqual(self.js(state), limited, "Reddit loaded comments past the limit")
+        self.js("window.scrollTo(0, 0)")
+
     def test_all_comments_hide_with_the_posts_comment_button(self):
         state = """
             return {

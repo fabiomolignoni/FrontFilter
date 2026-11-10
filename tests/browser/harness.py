@@ -345,6 +345,19 @@ class ExtensionTestCase(unittest.TestCase):
         self.wait_until(lambda: self.js(f"return !!document.querySelector('{button}')"))
         self.js(f"document.querySelector('{button}').click()")
 
+    def click_comment_button(self):
+        button = ".frontfilter-comment-controls button"
+        self.wait_until(lambda: self.js(f"return !!document.querySelector('{button}')?.isConnected"))
+        self.js(f"document.querySelector('{button}').click()")
+
+    def expect_comments(self, **expected):
+        """Waits until the fixture's comment tree shows what is expected of it."""
+        state = lambda: self.js("return commentTreeState()")
+        try:
+            self.wait_until(lambda: all(state()[key] == value for key, value in expected.items()))
+        except Exception:
+            self.fail(f"expected {expected}, comment tree: {state()}")
+
     def save_screenshot(self, name):
         if self.session.screenshots:
             self.session.screenshots.mkdir(parents=True, exist_ok=True)

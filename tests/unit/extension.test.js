@@ -87,6 +87,7 @@ test("loads each content script after the modules it uses", () => {
   for (const file of ["content/feed-window.js", "content/posts.js"]) {
     assert.ok(position(file) < position("content/feed-limit.js"), file);
   }
+  assert.ok(position("content/posts.js") < position("content/comment-limit.js"));
 });
 
 test("parses every script, which uses the chrome namespace that both browsers have", () => {
