@@ -143,6 +143,12 @@ FrontFilter.SELECTORS = (() => {
         "data-subreddit",
         "data-subreddit-prefixed",
       ]),
+      // A crosspost card shows the post it shares, under its own title. The
+      // content link names that post, and so the subreddit it is from: a
+      // relative permalink, as /r/name/comments/id/slug/. Other posts can
+      // link to Reddit threads too, so only crossposts are read this way.
+      crossposts: '[is-crosspost], [post-type="crosspost" i]',
+      crosspostSourceAttribute: "content-href",
       titleAttributes: Object.freeze(["post-title", "data-title"]),
       title: POST_TITLE,
       bodyAttributes: Object.freeze(["post-body", "data-post-body"]),

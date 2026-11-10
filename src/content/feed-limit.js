@@ -20,6 +20,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   const ATTRIBUTES = [
     "id", "post-id", "permalink", "src", "loading", "class", "href", "data-testid",
     ...SELECTORS.post.subredditAttributes,
+    SELECTORS.post.crosspostSourceAttribute,
     ...SELECTORS.post.promotedAttributes,
     ...SELECTORS.post.titleAttributes,
     ...SELECTORS.post.bodyAttributes,
@@ -106,6 +107,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   function readCard(post) {
     return {
       ...identifyCard(post),
+      crosspostedFrom: POSTS.crosspostedFrom(post),
       title: POSTS.title(post),
       bodyTexts: POSTS.bodyTexts(post),
       recommended: POSTS.isRecommended(post),
@@ -495,7 +497,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     const rows = collect(feed, { cards: current.cards });
     const records = new Map();
     for (const {
-      id, subreddit, title, bodyTexts, ad, recommended, flair, author,
+      id, subreddit, crosspostedFrom, title, bodyTexts, ad, recommended, flair, author,
     } of rows) {
       // A partially hydrated card may precede complete cards. Wait for its
       // identity before admitting later results, preserving feed order.
@@ -503,7 +505,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       // A promoted copy must not override the organic card with the same ID.
       if (id && (!records.has(id) || !ad)) {
         records.set(id, {
-          id, subreddit, title, bodyTexts, ad, recommended, flair, author,
+          id, subreddit, crosspostedFrom, title, bodyTexts, ad, recommended, flair, author,
         });
       }
     }

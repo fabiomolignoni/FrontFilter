@@ -43,8 +43,9 @@ let commentCollections = null;
 
 const feedLimiter = FrontFilter.createFeedLimiter({
   getSettings: () => config,
-  isBlocked: ({ subreddit, title, bodyTexts, recommended, flair, author }) =>
+  isBlocked: ({ subreddit, crosspostedFrom, title, bodyTexts, recommended, flair, author }) =>
     isSubredditNameBlocked(subreddit)
+    || isSubredditNameBlocked(crosspostedFrom)
     || containsBlockedText([title, ...bodyTexts])
     || (recommended && areSuggestedPostsHidden())
     || isFlairBlocked(flair)
@@ -205,18 +206,21 @@ function isFlairBlocked(flair) {
 
 // Posts
 
-// Subreddits named by a post's attributes or, failing those, by its links.
+// Subreddits named by a post's attributes or, failing those, by its links,
+// and for a crosspost the subreddit of the post it shares.
 function getPostSubredditNames(postElement) {
   const names = POSTS.subreddits(postElement);
-  if (names.size > 0) return names;
-
-  for (const link of postElement.querySelectorAll(SELECTORS.subredditLink)) {
-    const nestedPost = link.closest(SELECTORS.post.roots);
-    if (nestedPost && nestedPost !== postElement) continue;
-    const url = FrontFilter.getRedditUrl(link.getAttribute("href"), window.location.origin);
-    const subreddit = url && FrontFilter.getSubredditPath(url.pathname);
-    if (subreddit) names.add(subreddit.name);
+  if (names.size === 0) {
+    for (const link of postElement.querySelectorAll(SELECTORS.subredditLink)) {
+      const nestedPost = link.closest(SELECTORS.post.roots);
+      if (nestedPost && nestedPost !== postElement) continue;
+      const url = FrontFilter.getRedditUrl(link.getAttribute("href"), window.location.origin);
+      const subreddit = url && FrontFilter.getSubredditPath(url.pathname);
+      if (subreddit) names.add(subreddit.name);
+    }
   }
+  const sharedFrom = POSTS.crosspostedFrom(postElement);
+  if (sharedFrom) names.add(sharedFrom);
   return names;
 }
 
@@ -599,6 +603,7 @@ function configureContentObserver() {
       "class",
       "href",
       ...SELECTORS.post.subredditAttributes,
+      SELECTORS.post.crosspostSourceAttribute,
       ...SELECTORS.post.titleAttributes,
       ...SELECTORS.post.bodyAttributes,
       ...SELECTORS.autoplay.attributes,

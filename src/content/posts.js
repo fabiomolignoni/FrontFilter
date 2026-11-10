@@ -1,8 +1,10 @@
 /**
  * Reads what filters match in a post: its subreddits, title, text, flair,
  * author and whether it is an ad. Page filters and the scroll limit both
- * use these readers, so they judge a post the same way. A crosspost embeds
- * the original post, whose title, text, flair and author are not its own.
+ * use these readers, so they judge a post the same way. A post nested in
+ * another is judged on its own: its title, text, flair and author are not
+ * the outer post's. A crosspost does not nest the post it shares but shows
+ * it, so it is judged by that post's subreddit as well as its own.
  */
 FrontFilter.posts = (() => {
   const { post: POST, comment: COMMENT } = FrontFilter.SELECTORS;
@@ -32,6 +34,16 @@ FrontFilter.posts = (() => {
       if (name) names.add(name);
     }
     return names;
+  }
+
+  // The subreddit of the post a crosspost shares, or "" for other posts and
+  // for posts shared from a user profile, which is not a subreddit.
+  function crosspostedFrom(post) {
+    const source = post.getAttribute(POST.crosspostSourceAttribute);
+    if (!source || !post.matches(POST.crossposts)) return "";
+    // Permalinks are relative to Reddit, whatever page shows them.
+    const url = FrontFilter.getRedditUrl(source, "https://www.reddit.com");
+    return (url && FrontFilter.getSubredditPath(url.pathname)?.name) || "";
   }
 
   function title(post) {
@@ -93,6 +105,7 @@ FrontFilter.posts = (() => {
   }
 
   return Object.freeze({
-    subreddits, title, bodyTexts, flair, author, isAd, isRecommended, isUnreadTextChange,
+    subreddits, crosspostedFrom, title, bodyTexts, flair, author, isAd, isRecommended,
+    isUnreadTextChange,
   });
 })();
