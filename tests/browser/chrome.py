@@ -71,6 +71,7 @@ class ChromeSettingsTests(ExtensionTestCase):
         self.assertTrue(explore_toggle.is_enabled() and news_toggle.is_enabled())
 
         self.check_switch_groups()
+        self.check_help_button()
         suggested_communities = find("hide-suggested-communities")
         self.assertFalse(suggested_communities.is_selected())
         suggested_communities.click()

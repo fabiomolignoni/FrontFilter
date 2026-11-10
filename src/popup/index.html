@@ -56,11 +56,18 @@
                 <input type="checkbox" role="switch" id="block-news" name="blockNews" />
                 <span>News</span>
               </label>
-              <label class="checkbox-label">
-                <input type="checkbox" role="switch" id="block-sub-home" name="blockSubHome" />
-                <span>All subreddit front pages
-                  <small>Includes hot, new, top and rising views.</small></span>
-              </label>
+              <div class="help-row">
+                <div class="checkbox-label">
+                  <label for="block-sub-home">All subreddit front pages</label>
+                  <button type="button" class="help-toggle" aria-expanded="false"
+                    aria-controls="sub-home-help" aria-label="About subreddit front pages">?</button>
+                  <input type="checkbox" role="switch" id="block-sub-home" name="blockSubHome" />
+                </div>
+                <div class="help-text" id="sub-home-help" hidden>
+                  <p>Includes their hot, new, top and rising views. Allowed subreddits, in the
+                    Filters tab, stay open.</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -96,12 +103,18 @@
                   name="hideSuggestedCommunities" />
                 <span>Hide suggested communities</span>
               </label>
-              <label class="checkbox-label">
-                <input type="checkbox" role="switch" id="hide-suggested-posts"
-                  name="hideSuggestedPosts" />
-                <span>Hide suggested posts
-                  <small>Home feed posts from communities you have not joined.</small></span>
-              </label>
+              <div class="help-row">
+                <div class="checkbox-label">
+                  <label for="hide-suggested-posts">Hide suggested posts</label>
+                  <button type="button" class="help-toggle" aria-expanded="false"
+                    aria-controls="suggested-posts-help" aria-label="About suggested posts">?</button>
+                  <input type="checkbox" role="switch" id="hide-suggested-posts"
+                    name="hideSuggestedPosts" />
+                </div>
+                <div class="help-text" id="suggested-posts-help" hidden>
+                  <p>Posts in the Home feed from communities you have not joined.</p>
+                </div>
+              </div>
               <label class="checkbox-label">
                 <input type="checkbox" role="switch" id="hide-ads" name="hideAds" />
                 <span>Hide ads and promoted posts</span>
@@ -260,22 +273,19 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Blocked subreddits</h2>
+              <button type="button" class="help-toggle" aria-expanded="false"
+                aria-controls="blocked-help" aria-label="About blocked subreddits">?</button>
               <span id="blocked-count" class="count"></span>
             </div>
             <div class="card-body">
-              <details class="mode-help">
-                <summary>Block modes</summary>
-                <p><strong>HOME</strong> blocks only the subreddit front page and sort views,
-                  such as hot, top, new, and rising.</p>
-                <p><strong>ALL</strong> blocks every page under that subreddit and hides its
-                  posts from Home and Popular.</p>
-                <p>Each subreddit has one rule: adding it again keeps ALL if either rule had
-                  it.</p>
-                <p>You can use <strong>*</strong> as a wildcard to filter multiple subreddits,
-                  for example <strong>*news*</strong> (filters subreddits containing "news"),
-                  <strong>news*</strong> (filters subreddits starting with "news"), or
-                  <strong>*news</strong> (filters subreddits ending with "news").</p>
-              </details>
+              <div class="help-text" id="blocked-help" hidden>
+                <p><strong>HOME</strong> blocks only the subreddit's front page, with its hot,
+                  new, top and rising views.</p>
+                <p><strong>ALL</strong> blocks every page of the subreddit and hides its posts
+                  from Home and Popular.</p>
+                <p>Use <strong>*</strong> as a wildcard, as in <strong>news*</strong> for every
+                  subreddit whose name starts with “news”.</p>
+              </div>
               <div class="add-row">
                 <button type="button" id="add-subreddit" class="btn btn-primary">+ Add</button>
                 <button type="button" id="add-current-subreddit"
@@ -288,11 +298,15 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Allowed subreddits</h2>
+              <button type="button" class="help-toggle" aria-expanded="false"
+                aria-controls="allowed-help" aria-label="About allowed subreddits">?</button>
               <span id="allowed-count" class="count"></span>
             </div>
             <div class="card-body">
-              <p class="filter-help">These exact subreddits override “All subreddit front
-                pages” and blocked subreddit rules. Wildcards are not supported.</p>
+              <div class="help-text" id="allowed-help" hidden>
+                <p>These subreddits override blocked subreddit rules and “All subreddit front
+                  pages”.</p>
+              </div>
               <div class="add-row">
                 <button type="button" id="add-allowed-subreddit"
                   class="btn btn-primary">+ Add</button>
@@ -306,13 +320,15 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Blocked users</h2>
+              <button type="button" class="help-toggle" aria-expanded="false"
+                aria-controls="blocked-user-help" aria-label="About blocked users">?</button>
               <span id="blocked-user-count" class="count"></span>
             </div>
             <div class="card-body">
-              <p class="filter-help">Hide posts and comments by these users everywhere on
-                Reddit, and block their profile pages. Enter a username, such as
-                <strong>spez</strong> or <strong>u/spez</strong>, or a profile URL. Replies to
-                a hidden comment are hidden too.</p>
+              <div class="help-text" id="blocked-user-help" hidden>
+                <p>Hides their posts and comments everywhere on Reddit, along with the replies
+                  to their comments, and blocks their profile pages.</p>
+              </div>
               <div class="add-row">
                 <button type="button" id="add-blocked-user"
                   class="btn btn-primary">+ Add user</button>
@@ -324,16 +340,21 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Keywords</h2>
+              <button type="button" class="help-toggle" aria-expanded="false"
+                aria-controls="title-keyword-help" aria-label="About keywords">?</button>
               <span id="title-keyword-count" class="count"></span>
             </div>
             <div class="card-body">
-              <p class="filter-help">Hide posts and comments when their title, text preview
-                or comment text contains one of these keywords as whole words:
-                <strong>ai</strong> hides “AI art”, not “said”. Add <strong>*</strong> to an
-                end to match inside words too, as in <strong>spoiler*</strong> or
-                <strong>*ai*</strong>. Matching ignores case and accents. For other matches,
-                write a regular expression between slashes, as in
-                <strong>/colou?r/</strong>. Replies to a hidden comment are hidden too.</p>
+              <div class="help-text" id="title-keyword-help" hidden>
+                <p>Hides posts and comments whose title, text preview or comment text contains
+                  one of these as whole words: <strong>ai</strong> hides “AI art”, not “said”.
+                  Replies to a hidden comment are hidden too.</p>
+                <p>Add <strong>*</strong> to an end to match inside words too, as in
+                  <strong>spoiler*</strong> or <strong>*ai*</strong>. Matching ignores case and
+                  accents.</p>
+                <p>For other matches, write a regular expression between slashes, as in
+                  <strong>/colou?r/</strong>.</p>
+              </div>
               <div class="add-row">
                 <button type="button" id="add-title-keyword"
                   class="btn btn-primary">+ Add keyword</button>
@@ -345,12 +366,15 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Allowed keywords</h2>
+              <button type="button" class="help-toggle" aria-expanded="false"
+                aria-controls="allowed-keyword-help" aria-label="About allowed keywords">?</button>
               <span id="allowed-keyword-count" class="count"></span>
             </div>
             <div class="card-body">
-              <p class="filter-help">Keyword filters never hide a post or comment that
-                contains one of these, and they match as keywords do. Other filters still
-                apply.</p>
+              <div class="help-text" id="allowed-keyword-help" hidden>
+                <p>Keyword filters never hide a post or comment that contains one of these.
+                  They match as keywords do; other filters still apply.</p>
+              </div>
               <div class="add-row">
                 <button type="button" id="add-allowed-keyword"
                   class="btn btn-primary">+ Add</button>
@@ -362,12 +386,15 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Post flairs</h2>
+              <button type="button" class="help-toggle" aria-expanded="false"
+                aria-controls="blocked-flair-help" aria-label="About post flairs">?</button>
               <span id="blocked-flair-count" class="count"></span>
             </div>
             <div class="card-body">
-              <p class="filter-help">Hide posts with these flairs, such as
-                <strong>Meme</strong>. Matching ignores case; use <strong>*</strong> as a
-                wildcard, as in <strong>*politic*</strong>.</p>
+              <div class="help-text" id="blocked-flair-help" hidden>
+                <p>Hides posts with these flairs, ignoring case. Use <strong>*</strong> as a
+                  wildcard, as in <strong>*politic*</strong>.</p>
+              </div>
               <div class="add-row">
                 <button type="button" id="add-blocked-flair"
                   class="btn btn-primary">+ Add flair</button>
@@ -384,12 +411,8 @@
               <h2 class="card-title">Appearance</h2>
             </div>
             <div class="card-body preference-row">
-              <div class="preference-copy">
-                <label for="color-theme">Color mode</label>
-                <p id="color-theme-help">System follows your browser or device appearance.</p>
-              </div>
-              <select id="color-theme" class="settings-select"
-                aria-describedby="color-theme-help">
+              <label for="color-theme">Color mode</label>
+              <select id="color-theme" class="settings-select">
                 <option value="system">System</option>
                 <option value="dark">Dark</option>
                 <option value="light">Light</option>
@@ -436,18 +459,19 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Configuration backup</h2>
+              <button type="button" class="help-toggle" aria-expanded="false"
+                aria-controls="backup-help" aria-label="About configuration backups">?</button>
             </div>
-            <div class="card-body backup-actions">
-              <div>
+            <div class="card-body">
+              <div class="help-text" id="backup-help" hidden>
+                <p>Importing a file replaces the settings it includes; the others stay as
+                  they are.</p>
+              </div>
+              <div class="backup-actions">
                 <button type="button" id="export-config"
                   class="btn btn-primary">Export configuration</button>
-                <p>Download your controls and filter rules as a JSON file.</p>
-              </div>
-              <div>
-                <button type="button" id="import-config" class="btn btn-ghost"
-                  aria-describedby="import-help">Import configuration</button>
-                <p id="import-help">Settings included in the file replace their current
-                  values.</p>
+                <button type="button" id="import-config"
+                  class="btn btn-ghost">Import configuration</button>
               </div>
               <input type="file" id="import-file" accept=".json,application/json" hidden />
             </div>

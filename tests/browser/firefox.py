@@ -134,6 +134,7 @@ class FirefoxSettingsTests(ExtensionTestCase):
         self.assertTrue(find("block-explore").is_enabled())
         self.assertTrue(find("block-news").is_enabled())
         self.check_switch_groups()
+        self.check_help_button()
         suggested_communities = find("hide-suggested-communities")
         self.assertFalse(suggested_communities.is_selected())
         suggested_communities.click()

@@ -743,6 +743,29 @@ test("collapses grouped sub-options and shows partly hidden groups as mixed", as
   assert.equal(navbar.indeterminate, false);
 });
 
+test("shows each help text from its ? button without saving settings", async () => {
+  const { documentElement, elements, writes } = await loadPopup({ autoResolveWrites: true });
+  const toggles = documentElement.querySelectorAll(".help-toggle");
+  assert.ok(toggles.length > 0);
+
+  for (const toggle of toggles) {
+    const helpId = toggle.getAttribute("aria-controls");
+    const help = elements[helpId];
+    assert.ok(help?.classList.contains("help-text"), helpId);
+    assert.ok(toggle.getAttribute("aria-label"), helpId);
+    assert.equal(toggle.getAttribute("aria-expanded"), "false");
+    assert.equal(help.hidden, true);
+
+    toggle.click();
+    assert.equal(toggle.getAttribute("aria-expanded"), "true");
+    assert.equal(help.hidden, false);
+    toggle.click();
+    assert.equal(toggle.getAttribute("aria-expanded"), "false");
+    assert.equal(help.hidden, true);
+  }
+  assert.equal(writes.length, 0);
+});
+
 test("makes hiding votes and user info imply every signal toggle", async () => {
   const { elements, writes } = await loadPopup({ autoResolveWrites: true,
     storedSettings: { hideKarma: true, hideAwards: true },

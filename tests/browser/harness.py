@@ -320,6 +320,26 @@ class ExtensionTestCase(unittest.TestCase):
                 parent.click()
                 self.wait_until(lambda: not any(section.is_selected() for section in sections))
 
+    def check_help_button(self):
+        """Checks a setting's ? button, which shows its help text without
+        toggling the switch beside it, while the setting's name still does."""
+        find = lambda element_id: self.driver.find_element("id", element_id)
+        switch = find("block-sub-home")
+        help_text = find("sub-home-help")
+        toggle = self.driver.find_element("css selector", '[aria-controls="sub-home-help"]')
+        self.assertFalse(help_text.is_displayed())
+        toggle.click()
+        self.wait_until(help_text.is_displayed)
+        self.assertEqual(toggle.get_attribute("aria-expanded"), "true")
+        toggle.click()
+        self.wait_until(lambda: not help_text.is_displayed())
+        self.assertFalse(switch.is_selected())
+        label = self.driver.find_element("css selector", 'label[for="block-sub-home"]')
+        label.click()
+        self.wait_until(switch.is_selected)
+        label.click()
+        self.wait_until(lambda: not switch.is_selected())
+
     def click_feed_button(self):
         button = ".frontfilter-feed-controls button:not([hidden]):not(:disabled)"
         self.wait_until(lambda: self.js(f"return !!document.querySelector('{button}')"))
