@@ -57,8 +57,8 @@ const countVisible = (selector) => deep(selector).filter(visible).length;
 const feedPosts = () => Array.from(document.querySelectorAll("main shreddit-feed shreddit-post"))
   .filter((post) => !post.parentElement.closest("shreddit-post"));
 const hasSpoilerTag = (element) => !!element.querySelector('.content-tags [icon-name="caution-fill"]');
-// Post results on a search page, in either layout, and what their tracking
-// data says of each post.
+// Post results on a search page, in either layout, what their tracking data
+// says of each post, and whether a divider follows each.
 const searchResults = () => Array.from(document.querySelectorAll("search-telemetry-tracker"))
   .filter((tracker) => tracker.matches('[data-testid="search-sdui-post"]')
     || tracker.querySelector(':scope > [data-testid="search-post-with-content-preview"]'))
@@ -67,7 +67,11 @@ const searchResults = () => Array.from(document.querySelectorAll("search-telemet
     try {
       post = JSON.parse(result.getAttribute("data-faceplate-tracking-context")).post || {};
     } catch {}
-    return {id: post.id, nsfw: post.nsfw, spoiler: post.spoiler, shown: visible(result)};
+    const divider = result.nextElementSibling?.localName === "hr" ? result.nextElementSibling : null;
+    return {
+      id: post.id, nsfw: post.nsfw, spoiler: post.spoiler, shown: visible(result),
+      divided: !!divider, dividerShown: visible(divider),
+    };
   });
 """
 # Whole words, as keywords match them: no letter or digit next to them.
@@ -578,16 +582,18 @@ class SearchTests(RedditTestCase):
 
     def test_search_markup_the_extension_relies_on(self):
         # Each result names, in its tracking data, whether the post is NSFW
-        # and whether it is a spoiler.
+        # and whether it is a spoiler, and a divider follows it.
         results = self.results()
         self.assertTrue(all(
-            isinstance(result["nsfw"], bool) and isinstance(result["spoiler"], bool) for result in results
+            isinstance(result["nsfw"], bool) and isinstance(result["spoiler"], bool) and result["divided"]
+            for result in results
         ), results)
         self.assertTrue(any(result["spoiler"] for result in results), f"no spoilers among the results: {results}")
 
     def test_spoilers_and_nsfw_posts_hide_from_search_results(self):
-        # Each setting adds its tag to those that hide results. Reddit shows
-        # no NSFW result to logged-out visitors: the others must stay.
+        # Each setting adds its tag to those that hide results, with their
+        # dividers. Reddit shows no NSFW result to logged-out visitors: the
+        # others must stay.
         tags = []
         for setting, tag in [("hideNsfw", "nsfw"), ("hideSpoilers", "spoiler")]:
             tags.append(tag)
@@ -595,7 +601,8 @@ class SearchTests(RedditTestCase):
                 self.configure(**{setting: True})
                 try:
                     self.wait_until(lambda: all(
-                        result["shown"] != any(result[name] for name in tags) for result in self.results()
+                        result["shown"] == result["dividerShown"] != any(result[name] for name in tags)
+                        for result in self.results()
                     ), "")
                 except Exception:
                     self.fail(f"tagged results stayed visible, or others were hidden: {self.results()}")

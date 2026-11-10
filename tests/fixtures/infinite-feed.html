@@ -191,13 +191,17 @@ article { padding: 10px; }
       aria-hidden="true"><svg rpl icon-name="nsfw-fill-12" viewBox="0 0 12 12" width="12" height="12"></svg></span><span
       class="text-caption-1">NSFW</span></span></div></reddit-pdp-right-rail-post></li>
   </ul></div></div></pdp-right-rail>
+  <!-- Search results, each followed by a divider. -->
   <div>
     <search-telemetry-tracker id="search-safe" data-testid="search-sdui-post"
       data-faceplate-tracking-context='{"post":{"id":"t3_s1","nsfw":false,"spoiler":false},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'>Search result</search-telemetry-tracker>
+    <hr id="search-safe-divider">
     <search-telemetry-tracker id="search-nsfw-post" data-testid="search-sdui-post"
       data-faceplate-tracking-context='{"post":{"id":"t3_s2","nsfw":true,"spoiler":false},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'>NSFW search result</search-telemetry-tracker>
+    <hr id="search-nsfw-post-divider">
     <search-telemetry-tracker id="search-nsfw-community" data-testid="search-sdui-post"
       data-faceplate-tracking-context='{"post":{"id":"t3_s3","nsfw":false,"spoiler":false},"subreddit":{"id":"t5_2","name":"adult","nsfw":true}}'>Result from an NSFW community</search-telemetry-tracker>
+    <hr id="search-nsfw-community-divider">
     <!-- Results shown with a preview of the post have no test ID of their
       own: the preview has one. Parts of a result track it too. -->
     <search-telemetry-tracker id="search-safe-preview" view-events="search/view/post"
@@ -205,12 +209,14 @@ article { padding: 10px; }
       data-testid="search-post-with-content-preview"><div data-testid="sdui-post-unit"><search-telemetry-tracker
       data-faceplate-tracking-context='{"action_info":{"type":"post"},"post":{"id":"t3_s4","nsfw":false,"spoiler":false}}'><a
       href="/r/test/comments/s4/result/">Search result with a preview</a></search-telemetry-tracker></div></div></search-telemetry-tracker>
+    <hr id="search-safe-preview-divider">
     <search-telemetry-tracker id="search-nsfw-preview" view-events="search/view/post"
       data-faceplate-tracking-context='{"post":{"id":"t3_s5","nsfw":true,"spoiler":false},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'><div
       data-testid="search-post-with-content-preview"><div data-testid="sdui-post-unit"><span data-testid="search-warnings"><span
       class="text-category-nsfw">NSFW</span></span><search-telemetry-tracker
       data-faceplate-tracking-context='{"action_info":{"type":"post"},"post":{"id":"t3_s5","nsfw":true,"spoiler":false}}'><a
       href="/r/test/comments/s5/result/">NSFW search result with a preview</a></search-telemetry-tracker></div></div></search-telemetry-tracker>
+    <hr id="search-nsfw-preview-divider">
   </div>
   <div class="content" id="old-safe-thread">
     <div class="sitetable linklisting" id="siteTable"><div class="thing link"
@@ -247,12 +253,14 @@ article { padding: 10px; }
   <div>
     <search-telemetry-tracker id="search-spoiler-post" data-testid="search-sdui-post"
       data-faceplate-tracking-context='{"post":{"id":"t3_s6","nsfw":false,"spoiler":true},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'>Spoiler search result</search-telemetry-tracker>
+    <hr id="search-spoiler-post-divider">
     <search-telemetry-tracker id="search-spoiler-preview" view-events="search/view/post"
       data-faceplate-tracking-context='{"post":{"id":"t3_s7","nsfw":false,"spoiler":true},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'><div
       data-testid="search-post-with-content-preview"><div data-testid="sdui-post-unit"><span data-testid="search-warnings"><span
       class="text-category-spoiler">Spoiler</span></span><search-telemetry-tracker
       data-faceplate-tracking-context='{"action_info":{"type":"post"},"post":{"id":"t3_s7","nsfw":false,"spoiler":true}}'><a
       href="/r/test/comments/s7/result/">Spoiler search result with a preview</a></search-telemetry-tracker></div></div></search-telemetry-tracker>
+    <hr id="search-spoiler-preview-divider">
   </div>
   <div class="content" id="old-spoiler-thread">
     <div class="sitetable linklisting"><div class="thing link spoiler" id="old-spoiler-post"

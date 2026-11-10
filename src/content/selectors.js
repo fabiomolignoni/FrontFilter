@@ -90,11 +90,13 @@ FrontFilter.SELECTORS = (() => {
   const SUGGESTED_ARTICLES = `article:has(> ${SUGGESTED_POSTS})`;
 
   // Search results for posts, in either of Reddit's layouts: with a test ID
-  // of their own, or with one on the content preview they hold.
+  // of their own, or with one on the content preview they hold. Given a
+  // test of a result, the results that pass it, and the divider after each.
   const SEARCH_POSTS = `search-telemetry-tracker:is(${join([
     '[data-testid="search-sdui-post"]',
     ':has(> [data-testid="search-post-with-content-preview"])',
   ])})`;
+  const searchPosts = (test) => [`${SEARCH_POSTS}${test}`, `${SEARCH_POSTS}${test} + hr`];
 
   // Reddit tags posts NSFW or spoiler with boolean attributes of the post,
   // ads included, present when true, and Old Reddit with a class: neither
@@ -290,7 +292,7 @@ FrontFilter.SELECTORS = (() => {
         `reddit-pdp-right-rail-post${tracked("nsfw")}`,
         `li:has(> reddit-pdp-right-rail-post${tracked("nsfw")})`,
         // Search results, whose tracking data names the post's community too.
-        `${SEARCH_POSTS}${tracked("nsfw")}`,
+        ...searchPosts(tracked("nsfw")),
         ".search-result:has(.nsfw-stamp)",
       ],
     }),
@@ -305,7 +307,7 @@ FrontFilter.SELECTORS = (() => {
         // their tag does.
         `reddit-pdp-right-rail-post:has(${SPOILER_TAG})`,
         `li:has(> reddit-pdp-right-rail-post ${SPOILER_TAG})`,
-        `${SEARCH_POSTS}${tracked("spoiler")}`,
+        ...searchPosts(tracked("spoiler")),
         ".search-result:has(.spoiler-stamp)",
       ],
     }),

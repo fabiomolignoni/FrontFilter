@@ -67,6 +67,10 @@ NSFW_SHOWN = dict.fromkeys([
     "highlight-safe", "highlight-nsfw", "rail-safe", "rail-nsfw",
     "search-safe", "search-nsfw-post", "search-nsfw-community",
     "search-safe-preview", "search-nsfw-preview",
+    *(f"{result}-divider" for result in [
+        "search-safe", "search-nsfw-post", "search-nsfw-community",
+        "search-safe-preview", "search-nsfw-preview",
+    ]),
     "old-safe-thread", "siteTable", "old-safe-post", "old-safe-comments",
     "old-nsfw-thread", "old-nsfw-post", "old-nsfw-comments",
     "old-search-safe", "old-search-nsfw",
@@ -75,14 +79,15 @@ NSFW_HIDDEN = {
     **NSFW_SHOWN,
     **dict.fromkeys([
         "highlight-nsfw", "rail-nsfw", "search-nsfw-post", "search-nsfw-community",
-        "search-nsfw-preview", "old-nsfw-post", "old-nsfw-comments", "old-search-nsfw",
+        "search-nsfw-preview", "search-nsfw-post-divider", "search-nsfw-community-divider",
+        "search-nsfw-preview-divider", "old-nsfw-post", "old-nsfw-comments", "old-search-nsfw",
     ], False),
 }
 # The fixture's spoilers beyond feeds, all visible; their untagged
 # counterparts are NSFW_SHOWN's.
 SPOILERS_SHOWN = dict.fromkeys([
     "highlight-spoiler", "rail-spoiler", "search-spoiler-post", "search-spoiler-preview",
-    "old-spoiler-thread", "old-spoiler-post", "old-spoiler-comments", "old-search-spoiler",
+    "search-spoiler-post-divider", "search-spoiler-preview-divider", "old-spoiler-thread", "old-spoiler-post", "old-spoiler-comments", "old-search-spoiler",
 ], True)
 SPOILERS_HIDDEN = {**dict.fromkeys(SPOILERS_SHOWN, False), "old-spoiler-thread": True}
 TAGGED_VISIBILITY = (
