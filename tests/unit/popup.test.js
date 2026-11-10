@@ -89,6 +89,17 @@ function getRenderedKeywords(elements) {
   return elements["title-keyword-list"].querySelectorAll(".keyword-item");
 }
 
+// Pastes text in a field, as the browser would at its selection, and
+// returns whether the page pasted it instead.
+function paste(input, text) {
+  let prevented = false;
+  input.dispatch("paste", {
+    clipboardData: { getData: (type) => (type === "text/plain" ? text : "") },
+    preventDefault() { prevented = true; },
+  });
+  return prevented;
+}
+
 test("shows the extension version from its manifest", async () => {
   const { elements } = await loadPopup();
   assert.equal(elements["app-version"].textContent, "FrontFilter v9.8.7");
@@ -1283,6 +1294,119 @@ test("merges a row into an earlier one for the same rule", async () => {
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     blockedTitleKeywords: ["SPOILERS"],
   });
+});
+
+test("adds a row for each entry of a pasted list, merging those already there", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedSubreddits: [{ name: "news", mode: "home" }] },
+  });
+  elements["add-subreddit"].click();
+  const input = getRenderedItems(elements)[0].querySelector("input");
+  assert.equal(paste(input, "r/Firefox\nNews, https://www.reddit.com/r/AskReddit/top\r\nnot valid!,firefox,"), true);
+  await settle();
+
+  const items = getRenderedItems(elements);
+  assert.deepEqual(items.map((item) => item.querySelector("input").value), ["askreddit", "firefox", "news"]);
+  // New rows are in ALL mode, as the row they were pasted in, which wins over HOME.
+  assert.deepEqual(items.map((item) => item.children[1].children[1].selected), [true, true, true]);
+  assert.deepEqual(items.map((item) => item.classList.contains("pop-in")), [true, true, true]);
+  assert.equal(items[0].querySelector("input").focused, true);
+  assert.equal(elements["blocked-count"].textContent, "3 rules");
+  assert.equal(elements["toast"].textContent, "Added 2 rules; 1 entry could not be used");
+  assert.equal(elements["toast"].className, "show error");
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedSubreddits: [
+      { name: "askreddit", mode: "all" },
+      { name: "firefox", mode: "all" },
+      { name: "news", mode: "all" },
+    ],
+  });
+
+  // The row the list replaced leaves the page without saving again.
+  const writeCount = writes.length;
+  input.value = "not valid!";
+  input.dispatch("blur");
+  await settle();
+  assert.equal(writes.length, writeCount);
+  assert.equal(elements["toast"].textContent, "Added 2 rules; 1 entry could not be used");
+});
+
+test("pastes a list in the row's mode, with what the row holds around it", async () => {
+  const { elements, writes } = await loadPopup({ autoResolveWrites: true });
+  elements["add-subreddit"].click();
+  const item = getRenderedItems(elements)[0];
+  const input = item.querySelector("input");
+  const select = item.children[1];
+  select.value = "home";
+  select.dispatch("change");
+  input.value = "fire pics";
+  input.dispatch("input");
+  Object.assign(input, { selectionStart: 4, selectionEnd: 5 });
+  assert.equal(paste(input, "fox, funny\n"), true);
+  await settle();
+
+  const items = getRenderedItems(elements);
+  assert.deepEqual(items.map((row) => row.querySelector("input").value), ["firefox", "funny", "pics"]);
+  assert.deepEqual(items.map((row) => row.children[1].children[0].selected), [true, true, true]);
+  assert.equal(elements["toast"].textContent, "Added 3 rules");
+  assert.equal(elements["toast"].className, "show success");
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedSubreddits: [
+      { name: "firefox", mode: "home" },
+      { name: "funny", mode: "home" },
+      { name: "pics", mode: "home" },
+    ],
+  });
+});
+
+test("pastes a single entry as usual, and keeps the row if no entry can be used", async () => {
+  const { elements, writes } = await loadPopup({ autoResolveWrites: true });
+  const items = () => elements["blocked-user-list"].querySelectorAll(".user-item");
+  elements["add-blocked-user"].click();
+  const input = items()[0].querySelector("input");
+  assert.equal(paste(input, " u/spez, \n"), false);
+  assert.equal(paste(input, "r/firefox, not a user!"), true);
+  await settle();
+  assert.equal(items().length, 1);
+  assert.equal(items()[0].querySelector("input"), input);
+  assert.equal(elements["toast"].textContent, "Enter a username, such as u/name, or a profile URL");
+  assert.equal(writes.length, 0);
+
+  assert.equal(paste(input, "u/spez\nhttps://www.reddit.com/user/kn0thing/, r/firefox"), true);
+  await settle();
+  assert.deepEqual(items().map((item) => item.querySelector("input").value), ["kn0thing", "spez"]);
+  assert.equal(elements["toast"].textContent, "Added 2 users; 1 entry could not be used");
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedUsers: ["kn0thing", "spez"],
+  });
+});
+
+test("pastes keyword lists without splitting regular expressions", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedTitleKeywords: ["perche"], blockedFlairs: ["Meme"] },
+  });
+  elements["add-title-keyword"].click();
+  assert.equal(paste(getRenderedKeywords(elements)[0].querySelector("input"), "/a{1,3}/, spoiler*\nPerché"), true);
+  await settle();
+  assert.deepEqual(
+    getRenderedKeywords(elements).map((item) => item.querySelector("input").value),
+    ["/a{1,3}/", "Perché", "spoiler*"],
+  );
+  assert.equal(elements["toast"].textContent, "Added 2 keywords");
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedTitleKeywords: ["/a{1,3}/", "Perché", "spoiler*"],
+  });
+
+  // Only keywords keep commas between slashes; a list of rules already there adds none.
+  const flairs = () => elements["blocked-flair-list"].querySelectorAll(".flair-item");
+  elements["add-blocked-flair"].click();
+  assert.equal(paste(flairs()[0].querySelector("input"), "meme, MEME"), true);
+  await settle();
+  assert.deepEqual(flairs().map((item) => item.querySelector("input").value), ["meme"]);
+  assert.equal(elements["toast"].textContent, "No new flairs");
+  assert.equal(elements["toast"].className, "show info");
 });
 
 test("tells empty lists apart and counts their rules", async () => {
