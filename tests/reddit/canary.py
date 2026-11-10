@@ -494,6 +494,56 @@ class SubredditTests(RedditTestCase):
         self.assertGreaterEqual(self.js(in_author_slots, "[avatar]"), avatars, "author avatars hid with the names")
 
 
+class CrosspostTests(RedditTestCase):
+    # A large subreddit where crossposts are common, though not on every load.
+    path = "/r/BeAmazed/"
+
+    @classmethod
+    def page_ready(cls):
+        SubredditTests.page_ready()
+
+    def crossposts(self):
+        return self.js("""
+            return feedPosts().filter((post) => post.matches('[is-crosspost], [post-type="crosspost" i]'))
+              .map((post) => ({
+                id: post.id,
+                marked: post.hasAttribute("is-crosspost") && post.getAttribute("post-type") === "crosspost",
+                nested: !!post.querySelector("shreddit-post"),
+                source: post.getAttribute("content-href") || "",
+                // The subreddit or profile the card names for the shared post.
+                shown: post.querySelector(".crosspost-credit-bar a[href]")?.getAttribute("href") || "",
+              }));
+        """)
+
+    def test_crosspost_markup_the_extension_relies_on(self):
+        posts = self.crossposts()
+        if not posts:
+            self.skipTest("no crossposts on this page load")
+        for post in posts:
+            # The shared post's permalink: under the subreddit the card
+            # shows, or under a user profile, which is no subreddit.
+            source = re.fullmatch(r"/(r|user)/([^/]+)/comments/[a-z0-9]+/.*", post["source"], re.I)
+            self.assertIsNotNone(source, post)
+            self.assertTrue(post["marked"] and not post["nested"], post)
+            if source[1] == "r":
+                self.assertEqual(post["shown"].lower().rstrip("/"), f"/r/{source[2]}".lower(), post)
+
+    def test_all_mode_rule_hides_crossposts_of_a_subreddits_posts(self):
+        page = self.path.split("/")[2].lower()
+        sources = [
+            (post["id"], source[1]) for post in self.crossposts()
+            if (source := re.match(r"/r/([^/]+)/", post["source"])) and source[1].lower() != page
+        ]
+        if not sources:
+            self.skipTest("no crossposts from other subreddits on this page load")
+        target, subreddit = sources[0]
+        self.configure(blockedSubreddits=[{"name": subreddit, "mode": "all"}])
+        self.expect("""
+            const shown = (post) => visible(post) || visible(post.closest("article"));
+            return {target: shown(document.getElementById(arguments[0])), others: feedPosts().some(shown)};
+        """, {"target": False, "others": True}, f"the crosspost of a post from r/{subreddit} stayed visible", target)
+
+
 class CommentsTests(RedditTestCase):
     @classmethod
     def setUpClass(cls):

@@ -22,7 +22,7 @@ To install from source, see [Development](#development). The
 - Block Home, Popular, Explore, News, or every subreddit's front page.
 - Block subreddits by exact name or with `*` wildcards. `HOME` rules block a
   subreddit's front page and sort views; `ALL` rules block every page of it and
-  hide its posts from other feeds.
+  hide its posts, and crossposts of them, from other feeds.
 - Allow exceptions that override subreddit rules.
 - Optionally add one-click **Block** buttons to feed posts and subreddit
   pages, with undo.

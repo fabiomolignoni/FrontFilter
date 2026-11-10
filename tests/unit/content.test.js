@@ -1239,6 +1239,49 @@ test("does not take a post for one from the subreddit of a thread it links to", 
   assert.equal("frontfilterPostHidden" in post.dataset, false);
 });
 
+// A crosspost card as Reddit renders it: marked as one, with a content link
+// to the post it shares. A link post can link to a thread without sharing it.
+function createCrosspost(subreddit, source, { marked = true } = {}) {
+  const post = createPost({ subreddit });
+  const getOwnAttribute = post.getAttribute;
+  post.getAttribute = (name) => name === "content-href" ? source : getOwnAttribute(name);
+  post.matches = (selector) => marked && selector === '[is-crosspost], [post-type="crosspost" i]';
+  return post;
+}
+
+test("hides crossposts of posts from ALL-mode subreddits, in pages and the scroll limit", async () => {
+  const posts = [
+    createCrosspost("pics", "/r/Firefox/comments/abc/a_post/"),
+    createCrosspost("pics", "https://www.reddit.com/r/firefox/comments/def/a_post/"),
+    createCrosspost("pics", "/r/firefox/comments/ghi/a_thread/", { marked: false }),
+    // Profiles are not subreddits, HOME rules only block front pages, and
+    // exceptions keep their subreddit's posts.
+    createCrosspost("pics", "/user/firefox/comments/jkl/a_post/"),
+    createCrosspost("pics", "/r/news/comments/mno/a_post/"),
+    createCrosspost("pics", "/r/firefoxdev/comments/pqr/a_post/"),
+  ];
+  const content = await loadContent({
+    querySelectorAll: (selector) => isPostCollectionSelector(selector) ? posts : [],
+    settings: {
+      blockedSubreddits: [{ name: "firefox*", mode: "all" }, { name: "news", mode: "home" }],
+      allowedSubreddits: ["firefoxdev"],
+    },
+    startUrl: "https://www.reddit.com/",
+  });
+
+  assert.deepEqual(
+    posts.map((post) => post.dataset.frontfilterPostHidden === "true"),
+    [true, true, false, false, false, false],
+  );
+  assert.ok(content.observerOptions.at(-1).attributeFilter.includes("content-href"));
+  const record = (crosspostedFrom) => ({
+    subreddit: "pics", crosspostedFrom, title: "", bodyTexts: [], recommended: false, author: "",
+  });
+  assert.equal(content.isFeedRecordBlocked(record("firefox")), true);
+  assert.equal(content.isFeedRecordBlocked(record("firefoxdev")), false);
+  assert.equal(content.isFeedRecordBlocked(record("")), false);
+});
+
 // A post whose title can change, counting how often filters read it.
 function createChangingPost(title) {
   return {

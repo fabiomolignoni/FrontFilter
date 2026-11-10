@@ -393,6 +393,20 @@ class PageTests:
         )
         self.expect("bde")
 
+    def test_crossposts_hide_with_the_subreddit_of_the_post_they_share(self):
+        # Page filters and the scroll limit read the post a crosspost shares.
+        self.configure(blockedSubreddits=[{"name": "blocked", "mode": "all"}])
+        rows = (
+            "resetFeed([post('a'), post('shared', 'safe', {crosspost: 'blocked'}),"
+            " post('b', 'safe', {crosspost: 'other'}), post('c'), post('d')])"
+        )
+        self.js(rows)
+        self.expect("abcd")
+        self.wait_until(lambda: self.js("return adVisibility().feed.t3_shared") == [False, False])
+        self.configure(limitInfiniteScroll=True, scrollLimit=3, scrollMode="fixed")
+        self.js(rows)
+        self.expect("abc")
+
     def test_subreddit_exceptions_take_precedence_in_feeds(self):
         self.configure(
             blockedSubreddits=[{"name": "*italy*", "mode": "all"}],

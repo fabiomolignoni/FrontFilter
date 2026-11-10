@@ -33,6 +33,11 @@ Notable changes to FrontFilter, newest first.
   same way. A keyword that was text between slashes or with a `*` at an end,
   such as `/r/`, becomes a regular expression that finds that text.
 
+### Fixed
+
+- `ALL` rules also hide crossposts of the subreddit's posts from other
+  subreddits and feeds, and the scroll limit no longer counts them.
+
 ## 2.4.0 - 2026-10-12
 
 ### Added

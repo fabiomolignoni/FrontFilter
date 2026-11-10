@@ -326,6 +326,30 @@ article { padding: 10px; }
       title.slot = "title";
       title.textContent = card.getAttribute("post-title");
       card.append(title);
+      // A crosspost nests no post: its content link names the post it
+      // shares, whose subreddit and title it shows above that post's media.
+      if (row.crosspost) {
+        const source = `/r/${row.crosspost}/comments/x${row.id}/shared`;
+        card.setAttribute("is-crosspost", "");
+        card.setAttribute("post-type", "crosspost");
+        card.setAttribute("content-href", source);
+        const media = document.createElement("div");
+        media.slot = "post-media-container";
+        const credit = document.createElement("div");
+        credit.className = "crosspost-credit-bar";
+        const subreddit = document.createElement("a");
+        subreddit.href = `/r/${row.crosspost}/`;
+        subreddit.textContent = `r/${row.crosspost}`;
+        credit.append(subreddit);
+        const sharedTitle = document.createElement("div");
+        sharedTitle.className = "crosspost-title";
+        const sharedLink = document.createElement("a");
+        sharedLink.href = source;
+        sharedLink.textContent = `Shared post ${row.id}`;
+        sharedTitle.append(sharedLink);
+        media.append(credit, sharedTitle);
+        card.append(media);
+      }
       if (row.body) {
         const body = document.createElement("div");
         body.slot = "text-body";
