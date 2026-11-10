@@ -47,6 +47,7 @@
         "content/autoplay.js",
         "content/feed-window.js",
         "content/feed-limit.js",
+        "content/comment-limit.js",
         "content/quick-block.js",
         "content/main.js"
       ],

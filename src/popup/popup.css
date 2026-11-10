@@ -27,7 +27,8 @@ body {
   background: var(--bg-surface);
 }
 
-.scroll-options { display: grid; grid-template-columns: minmax(0, 1fr) 100px; gap: 12px; }
+/* The number column fits its longest label, Comments per batch, on one line. */
+.scroll-options { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 12px; }
 .scroll-options label { display: grid; gap: 6px; font-size: 12px; color: var(--text-secondary); }
 .scroll-options input, .scroll-options select, .settings-select, .redirect-url input {
   width: 100%; min-width: 0; height: 36px; padding: 0 10px; color: var(--text-primary);

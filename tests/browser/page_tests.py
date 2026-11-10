@@ -758,6 +758,111 @@ class PageTests:
             "return document.querySelector('#comment-mention [slot=\"comment\"]').getClientRects().length > 0"
         ))
 
+    # The comment limit
+
+    def open_thread(self, path="/r/test/comments/abc/post/"):
+        self.open_fixture(path)
+
+    def scroll_to_comment_tree_end(self):
+        self.js("document.querySelector('#comment-tree').scrollIntoView({block: 'end'})")
+
+    def test_comment_limit_counts_the_top_level_comments_filters_keep(self):
+        self.open_thread()
+        self.configure(
+            limitComments=True, commentLimit=3, commentLimitMode="fixed",
+            blockedUsers=["spez"], blockedTitleKeywords=["spoiler*"],
+        )
+        self.js(
+            "resetCommentTree([comment('a', {replies: ['a1', 'a2']}), comment('b', {author: 'Spez'}),"
+            " comment('c', {text: 'Spoilers ahead'}), comment('d'), comment('e'), comment('f')],"
+            " [{comments: [comment('g')]}], 'lazy')"
+        )
+        self.scroll_to_comment_tree_end()
+        # Replies show with their comment; ad slots only before a comment shown.
+        self.expect_comments(
+            comments=["a", "d", "e"], replies=["a1", "a2"],
+            ads=["ad-a", "ad-b", "ad-c", "ad-d", "ad-e"], loader="lazy (hidden)",
+            controls=["3 comments shown · Limit reached", None],
+        )
+        # Reddit loads no more comments, even with its loader in view.
+        self.scroll_to_comment_tree_end()
+        self.pause(300)
+        self.expect_comments(loads=0)
+        # A comment that comes to match a filter gives its place to the next.
+        self.js("""document.querySelector('#d [slot="comment"] p').append(' with a spoiler')""")
+        self.expect_comments(comments=["a", "e", "f"], loader="lazy (hidden)")
+        # Without the limit, Reddit loads the next comments again.
+        self.configure(limitComments=False)
+        self.expect_comments(loader="lazy", controls=None)
+        self.scroll_to_comment_tree_end()
+        self.expect_comments(comments=["a", "e", "f", "g"], loader=None, controls=None, loads=1)
+
+    def test_comment_limit_shows_the_next_group_as_reddit_loads_it(self):
+        self.open_thread()
+        self.configure(limitComments=True, commentLimit=2, commentLimitMode="button")
+        self.js(
+            "resetCommentTree([comment('a'), comment('b'), comment('c')],"
+            " [{comments: [comment('d'), comment('e'), comment('f')], next: 'action'},"
+            " {comments: [comment('g'), comment('h')]}], 'lazy')"
+        )
+        self.expect_comments(
+            comments=["a", "b"], loader="lazy (hidden)", controls=["2 comments shown", "Show next 2"],
+        )
+        self.save_screenshot("comment-button.png")
+        # The next group shows the comments already loaded, and Reddit loads
+        # the rest by itself once the reader reaches them.
+        self.click_comment_button()
+        self.scroll_to_comment_tree_end()
+        self.expect_comments(
+            comments=list("abcd"), loader="action (hidden)",
+            controls=["4 comments shown", "Show next 2"], loads=1,
+        )
+        self.click_comment_button()
+        self.expect_comments(comments=list("abcdef"), controls=["6 comments shown", "Show next 2"])
+        # Later ones load from a button in Reddit's loader, which the next
+        # group presses for the reader.
+        self.click_comment_button()
+        self.expect_comments(comments=list("abcdefgh"), loader=None, controls=None, loads=2)
+
+    def test_comment_limit_loads_comments_only_when_the_reader_asks(self):
+        # Too few comments for the limit: Reddit's loader shows, and loads
+        # only as it would without the limit, here from its button.
+        self.open_thread()
+        self.configure(limitComments=True, commentLimit=2, commentLimitMode="fixed", blockedUsers=["spez"])
+        self.js(
+            "resetCommentTree([comment('a'), comment('b', {author: 'spez'})],"
+            " [{comments: [comment('c'), comment('d')], next: 'action'}], 'action')"
+        )
+        self.expect_comments(comments=["a"], loader="action", controls=None)
+        self.pause(300)
+        self.expect_comments(loads=0)
+        self.js("document.querySelector('#comment-tree faceplate-partial button').click()")
+        self.expect_comments(
+            comments=["a", "c"], loader="action (hidden)",
+            controls=["2 comments shown · Limit reached", None], loads=1,
+        )
+
+    def test_comment_limit_follows_settings_and_the_page(self):
+        self.open_thread()
+        self.configure(limitComments=True, commentLimit=2, commentLimitMode="button")
+        self.js("resetCommentTree(['a', 'b', 'c', 'd', 'e'].map((id) => comment(id)))")
+        self.expect_comments(comments=["a", "b"], controls=["2 comments shown", "Show next 2"])
+        self.click_comment_button()
+        self.expect_comments(comments=list("abcd"), controls=["4 comments shown", "Show remaining 1"])
+        # Another post's page starts from the first group again.
+        self.js("history.pushState({}, '', '/r/test/comments/def/another_post/')")
+        self.expect_comments(comments=["a", "b"])
+        # A new limit applies at once; with comments hidden, none is counted.
+        self.configure(commentLimit=3, commentLimitMode="fixed")
+        self.expect_comments(comments=["a", "b", "c"], controls=["3 comments shown · Limit reached", None])
+        self.configure(hideComments=True)
+        self.expect_comments(comments=[], controls=None)
+        self.configure(hideComments=False)
+        self.expect_comments(comments=["a", "b", "c"])
+        # Only post pages have their comments limited.
+        self.js("history.pushState({}, '', '/r/test/')")
+        self.expect_comments(comments=list("abcde"), controls=None)
+
     # Blocked users
 
     def test_blocked_users_posts_and_comments_hide_everywhere(self):

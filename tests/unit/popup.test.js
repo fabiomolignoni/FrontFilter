@@ -903,6 +903,7 @@ test("maps every checkbox to the matching storage setting", async () => {
     "hide-block-page-settings-button": "hideBlockPageSettingsButton",
     "redirect-blocked-pages": "redirectBlockedPages",
     "limit-infinite-scroll": "limitInfiniteScroll",
+    "limit-comments": "limitComments",
   };
   const storedSettings = Object.fromEntries(
     Object.values(settingByElementId).map((key) => [key, true]),
@@ -1166,6 +1167,45 @@ test("loads and saves typed scroll settings and disables dependent controls", as
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     limitInfiniteScroll: false,
   });
+});
+
+test("loads and saves the comment limit apart from the scroll limit", async () => {
+  const { elements, storeElsewhere, writes } = await loadPopup({ autoResolveWrites: true });
+  const saved = () => JSON.parse(JSON.stringify(writes.at(-1).settings));
+  const count = elements["comment-limit"];
+  const mode = elements["comment-limit-mode"];
+  assert.equal(count.value, "10");
+  assert.equal(mode.value, "fixed");
+  assert.equal(count.disabled, true);
+  assert.equal(mode.disabled, true);
+
+  elements["limit-comments"].checked = true;
+  elements["limit-comments"].dispatch("change");
+  await settle();
+  assert.deepEqual(saved(), { limitComments: true });
+  assert.equal(count.disabled, false);
+  assert.equal(mode.disabled, false);
+  assert.equal(elements["scroll-limit"].disabled, true);
+
+  count.value = "5";
+  count.dispatch("change");
+  await settle();
+  assert.deepEqual(saved(), { commentLimit: 5 });
+  mode.value = "button";
+  mode.dispatch("change");
+  await settle();
+  assert.deepEqual(saved(), { commentLimitMode: "button" });
+
+  count.value = "2.5";
+  count.dispatch("change");
+  assert.equal(count.value, "5");
+  assert.equal(elements["toast"].textContent, "Enter a positive whole number of comments");
+  assert.equal(writes.length, 3);
+
+  await storeElsewhere({ commentLimit: 20, commentLimitMode: "fixed", scrollLimit: 40 });
+  assert.equal(count.value, "20");
+  assert.equal(mode.value, "fixed");
+  assert.equal(elements["scroll-limit"].value, "40");
 });
 
 test("saves the website for blocked pages, shown only while its switch is on", async () => {

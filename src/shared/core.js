@@ -53,6 +53,11 @@ var FrontFilter = (() => {
     limitInfiniteScroll: false,
     scrollLimit: 25,
     scrollMode: "fixed",
+    // The comment limit counts top-level comments, each shown with its
+    // replies.
+    limitComments: false,
+    commentLimit: 10,
+    commentLimitMode: "fixed",
     theme: "system",
   });
   const STORAGE_KEYS = Object.freeze(Object.keys(DEFAULT_SETTINGS));
@@ -129,6 +134,9 @@ var FrontFilter = (() => {
     `^/r/[^/]+(?:/(?:${LISTING_SORT_PATTERN}))?/?$`,
     "i",
   );
+  // A post's page, with its comments, in a subreddit or on a profile. A
+  // profile's comments tab, /user/name/comments/, lists no post's.
+  const COMMENTS_PAGE_PATTERN = /^\/(?:r|u|user)\/[^/]+\/comments\/[a-z0-9]+(?:\/|$)/i;
 
   const SUBREDDIT_SORTS = new Set(LISTING_SORTS);
   const REDDIT_HOST_PATTERN = /(^|\.)reddit\.com$/i;
@@ -564,8 +572,12 @@ var FrontFilter = (() => {
   });
   const CHOICE_SETTINGS = Object.freeze({
     scrollMode: Object.freeze(["fixed", "button"]),
+    commentLimitMode: Object.freeze(["fixed", "button"]),
     theme: Object.freeze(["system", "dark", "light"]),
   });
+
+  // How many posts or comments a limit shows: a positive whole number.
+  const COUNT_SETTINGS = Object.freeze(["scrollLimit", "commentLimit"]);
 
   // Any other setting is a switch.
   function coerceSetting(key, value) {
@@ -573,8 +585,8 @@ var FrontFilter = (() => {
     if (normalizeList) return normalizeList(value);
     const choices = CHOICE_SETTINGS[key];
     if (choices) return choices.includes(value) ? value : DEFAULT_SETTINGS[key];
-    if (key === "scrollLimit") {
-      return Number.isSafeInteger(value) && value > 0 ? value : DEFAULT_SETTINGS.scrollLimit;
+    if (COUNT_SETTINGS.includes(key)) {
+      return Number.isSafeInteger(value) && value > 0 ? value : DEFAULT_SETTINGS[key];
     }
     if (key === "redirectUrl") return normalizeRedirectUrl(value);
     return value === true;
@@ -765,6 +777,10 @@ var FrontFilter = (() => {
     return FRONT_PAGE_PATTERN.test(pathname) || FEED_PAGE_PATTERN.test(pathname);
   }
 
+  function isCommentsPath(pathname) {
+    return COMMENTS_PAGE_PATTERN.test(pathname);
+  }
+
   // The block page's query for a route; the blocked URL always follows in
   // the fragment. Navigation rules cannot name the subreddit a pattern
   // matched, so the page then reads it from that URL.
@@ -836,6 +852,7 @@ var FrontFilter = (() => {
     blockPageQuery,
     settingsPagePath,
     isFeedPath,
+    isCommentsPath,
     isHomeFeedPath,
   };
 })();

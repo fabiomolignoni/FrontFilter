@@ -91,9 +91,13 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
     window,
   });
 
-  // This harness isolates legacy filtering. The limiter has its own DOM tests.
+  // This harness isolates legacy filtering. The limiters have their own DOM tests.
   vm.runInContext(`
     var FrontFilterFeedStub = {
+      updateCount: 0,
+      update() { this.updateCount += 1; },
+    };
+    var FrontFilterCommentStub = {
       updateCount: 0,
       update() { this.updateCount += 1; },
     };
@@ -108,6 +112,10 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
       vm.runInContext(`FrontFilter.createFeedLimiter = (options) => {
         FrontFilterFeedStub.options = options;
         return FrontFilterFeedStub;
+      };
+      FrontFilter.createCommentLimiter = (options) => {
+        FrontFilterCommentStub.options = options;
+        return FrontFilterCommentStub;
       };`, context);
     }
   }
@@ -116,7 +124,9 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
   return {
     checkCurrentPage: context.checkCurrentPage,
     getFeedLimiterUpdateCount: () => context.FrontFilterFeedStub.updateCount,
+    getCommentLimiterUpdateCount: () => context.FrontFilterCommentStub.updateCount,
     isFeedRecordBlocked: (record) => context.FrontFilterFeedStub.options.isBlocked(record),
+    isCommentBlocked: (comment) => context.FrontFilterCommentStub.options.isBlocked(comment),
     processFilteredContent: context.processFilteredContent,
     // Simulates the parser reaching the end of the page.
     async finishParsing() {
@@ -298,20 +308,30 @@ test("filters the page again only when a setting changes", async () => {
   assert.equal(post.dataset.frontfilterPostHidden, "true");
 });
 
-test("updates the feed limiter once when an SPA navigation changes the URL", async () => {
+test("updates the feed and comment limits once when an SPA navigation changes the URL", async () => {
   const content = await loadContent({
-    settings: { limitInfiniteScroll: true },
+    settings: { limitInfiniteScroll: true, limitComments: true },
     startUrl: "https://www.reddit.com/r/firefox/",
   });
+  // Both apply settings once loaded, and again when they change.
+  const loadUpdateCount = content.getFeedLimiterUpdateCount();
+  assert.ok(loadUpdateCount > 0);
+  assert.equal(content.getCommentLimiterUpdateCount(), loadUpdateCount);
+  content.storageListeners[0]({ commentLimit: { newValue: 3 } }, "local");
+  await settle();
   const initialUpdateCount = content.getFeedLimiterUpdateCount();
+  assert.equal(initialUpdateCount, loadUpdateCount + 1);
+  assert.equal(content.getCommentLimiterUpdateCount(), initialUpdateCount);
 
-  content.location.href = "https://www.reddit.com/r/javascript/";
-  content.location.pathname = "/r/javascript/";
+  content.location.href = "https://www.reddit.com/r/firefox/comments/abc/a_post/";
+  content.location.pathname = "/r/firefox/comments/abc/a_post/";
   await content.checkCurrentPage();
   assert.equal(content.getFeedLimiterUpdateCount(), initialUpdateCount + 1);
+  assert.equal(content.getCommentLimiterUpdateCount(), initialUpdateCount + 1);
 
   await content.checkCurrentPage();
   assert.equal(content.getFeedLimiterUpdateCount(), initialUpdateCount + 1);
+  assert.equal(content.getCommentLimiterUpdateCount(), initialUpdateCount + 1);
 });
 
 test("leaves for the block page when the History API reaches a blocked page", async () => {
@@ -679,6 +699,21 @@ test("leaves blocked users' posts out of the scroll limit, whatever the case of 
   content.storageListeners[0]({ blockedUsers: { newValue: [] } }, "local");
   await settle();
   assert.equal(content.isFeedRecordBlocked(record("spez")), false);
+});
+
+test("leaves comments that page filters hide out of the comment limit", async () => {
+  const content = await loadContent({
+    settings: { blockedUsers: ["spez"], blockedTitleKeywords: ["spoiler*"], allowedKeywords: ["review"] },
+    startUrl: "https://www.reddit.com/r/movies/comments/abc/a_post/",
+  });
+  const blocked = (author, text) => content.isCommentBlocked({ author, text });
+
+  assert.equal(blocked("Spez", "Nice"), true);
+  assert.equal(blocked("alice", "Spoilers ahead"), true);
+  assert.equal(blocked("alice", "A spoiler-free review"), false);
+  assert.equal(blocked("alice", "Nice"), false);
+  // A comment whose text has not rendered is judged by its author.
+  assert.equal(blocked("alice", ""), false);
 });
 
 test("disables autoplay for players that render once their element is defined", async () => {

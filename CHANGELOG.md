@@ -21,6 +21,11 @@ Notable changes to FrontFilter, newest first.
 - A list of subreddits, users, keywords or flairs pasted into a field of the
   **Filters** tab, one per line or separated by commas, adds a rule for each.
   Commas inside a regular expression, as in `/a{1,3}/`, do not split it.
+- **Comment limit**, in the **Controls** tab: a post's page shows only its
+  first comments, each with its replies, and stops there or shows the next
+  group on request, as the scroll limit does with posts. Comments hidden by
+  filters do not count, and Reddit loads no more comments while the limit
+  is reached.
 
 ### Changed
 

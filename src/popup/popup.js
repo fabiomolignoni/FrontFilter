@@ -44,8 +44,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const saveIndicator = document.getElementById("save-indicator");
   const toast = document.getElementById("toast");
   const importFile = document.getElementById("import-file");
-  const scrollLimit = document.getElementById("scroll-limit");
-  const scrollMode = document.getElementById("scroll-mode");
   const colorTheme = document.getElementById("color-theme");
   const redirectUrl = document.getElementById("redirect-url");
   const redirectUrlOption = document.getElementById("redirect-url-option");
@@ -55,6 +53,23 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll('input[type="checkbox"][name]'),
     (input) => [input.name, input],
   ));
+  // The scroll and comment limits: a switch, then a mode and a number of
+  // posts or comments, kept as last saved while another is typed.
+  const limits = [
+    {
+      switchKey: "limitInfiniteScroll", countKey: "scrollLimit", modeKey: "scrollMode",
+      countId: "scroll-limit", modeId: "scroll-mode", noun: "posts",
+    },
+    {
+      switchKey: "limitComments", countKey: "commentLimit", modeKey: "commentLimitMode",
+      countId: "comment-limit", modeId: "comment-limit-mode", noun: "comments",
+    },
+  ].map(({ countId, modeId, ...limit }) => ({
+    ...limit,
+    count: document.getElementById(countId),
+    mode: document.getElementById(modeId),
+    lastCount: FrontFilter.DEFAULT_SETTINGS[limit.countKey],
+  }));
   // A parent switch checks and locks its sections, and turns them off with
   // it. While it is off with some sections on, it shows a mixed state.
   const switchGroups = Object.entries(FrontFilter.SETTING_GROUPS).map(([parent, sections]) => ({
@@ -75,7 +90,6 @@ document.addEventListener("DOMContentLoaded", () => {
   let lastShownRead = 0;
   let latestSaveId = 0;
   let controlsDisabled = false;
-  let lastScrollLimit = FrontFilter.DEFAULT_SETTINGS.scrollLimit;
   let lastRedirectUrl = FrontFilter.DEFAULT_SETTINGS.redirectUrl;
 
   // Sections and help texts start collapsed; a mixed parent switch tells
@@ -98,12 +112,14 @@ document.addEventListener("DOMContentLoaded", () => {
     updateGroupControls();
   }
 
-  // Options that apply only while their switch is on: the scroll options
+  // Options that apply only while their switch is on: the limits' options
   // are disabled while it is off, and the redirect address hidden.
   function updateDependentControls() {
-    const scrollDisabled = controlsDisabled || !switches.limitInfiniteScroll.checked;
-    scrollLimit.disabled = scrollDisabled;
-    scrollMode.disabled = scrollDisabled;
+    for (const { switchKey, count, mode } of limits) {
+      const disabled = controlsDisabled || !switches[switchKey].checked;
+      count.disabled = disabled;
+      mode.disabled = disabled;
+    }
     redirectUrlOption.hidden = !switches.redirectBlockedPages.checked;
   }
 
@@ -154,8 +170,9 @@ document.addEventListener("DOMContentLoaded", () => {
         Object.entries(switches).map(([key, input]) => [key, input.checked]),
       ),
       ...Object.fromEntries(entryLists.map((list) => [list.key, list.values()])),
-      scrollLimit: lastScrollLimit,
-      scrollMode: scrollMode.value,
+      ...Object.fromEntries(limits.flatMap(({ countKey, modeKey, mode, lastCount }) => [
+        [countKey, lastCount], [modeKey, mode.value],
+      ])),
       theme: colorTheme.value,
       redirectUrl: lastRedirectUrl,
     };
@@ -572,12 +589,14 @@ document.addEventListener("DOMContentLoaded", () => {
       showSetting(key, (checked) => { input.checked = checked; });
     }
     for (const list of entryLists) showSetting(list.key, list.show);
-    showSetting("scrollLimit", (limit) => {
-      // A number still being typed stays unless the stored limit changed.
-      if (limit !== lastScrollLimit) scrollLimit.value = String(limit);
-      lastScrollLimit = limit;
-    });
-    showSetting("scrollMode", (mode) => { scrollMode.value = mode; });
+    for (const limit of limits) {
+      showSetting(limit.countKey, (value) => {
+        // A number still being typed stays unless the stored one changed.
+        if (value !== limit.lastCount) limit.count.value = String(value);
+        limit.lastCount = value;
+      });
+      showSetting(limit.modeKey, (mode) => { limit.mode.value = mode; });
+    }
     showSetting("theme", (theme) => { colorTheme.value = applyTheme(theme); });
     showSetting("redirectUrl", (url) => {
       // So does an address still being typed, unless the stored one changed.
@@ -696,17 +715,19 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  scrollLimit.addEventListener("change", () => {
-    const value = Number(scrollLimit.value);
-    if (!Number.isSafeInteger(value) || value < 1) {
-      showToast("Enter a positive whole number of posts", "error");
-      scrollLimit.value = String(lastScrollLimit);
-      return;
-    }
-    lastScrollLimit = value;
-    scheduleAutoSave(["scrollLimit"], true);
-  });
-  scrollMode.addEventListener("change", () => scheduleAutoSave(["scrollMode"], true));
+  for (const limit of limits) {
+    limit.count.addEventListener("change", () => {
+      const value = Number(limit.count.value);
+      if (!Number.isSafeInteger(value) || value < 1) {
+        showToast(`Enter a positive whole number of ${limit.noun}`, "error");
+        limit.count.value = String(limit.lastCount);
+        return;
+      }
+      limit.lastCount = value;
+      scheduleAutoSave([limit.countKey], true);
+    });
+    limit.mode.addEventListener("change", () => scheduleAutoSave([limit.modeKey], true));
+  }
   // The address shows as it is saved, with its scheme; clearing it is allowed.
   redirectUrl.addEventListener("change", () => {
     const url = FrontFilter.normalizeRedirectUrl(redirectUrl.value);
