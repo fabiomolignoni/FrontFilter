@@ -242,9 +242,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // the user types until the field loses focus; it is then normalized and
   // merged into an earlier row for the same rule. Saves store the
   // normalized list. With modes, each rule is blocked in HOME or ALL mode.
+  // A list pasted in a row adds a row for each of its entries.
   function createEntryList({
     key, listId, countId, addId, itemClass, normalizeList, modes = false,
-    getRuleKey = (value) => value.toLowerCase(),
+    getRuleKey = (value) => value.toLowerCase(), splitList = FrontFilter.splitList,
     placeholder, label, removeLabel, emptyMessage, invalidMessage, countNouns,
   }) {
     const listEl = document.getElementById(listId);
@@ -257,13 +258,16 @@ document.addEventListener("DOMContentLoaded", () => {
       return (modes ? normalized?.name : normalized) ?? "";
     }
 
-    function values() {
-      return normalizeList(entries.map(({ value, mode }) => (modes ? { name: value, mode } : value)));
+    function values(list = entries) {
+      return normalizeList(list.map(({ value, mode }) => (modes ? { name: value, mode } : value)));
+    }
+
+    function formatCount(count) {
+      return `${count} ${count === 1 ? countNouns[0] : countNouns[1]}`;
     }
 
     function updateCount() {
-      const count = values().length;
-      countEl.textContent = `${count} ${count === 1 ? countNouns[0] : countNouns[1]}`;
+      countEl.textContent = formatCount(values().length);
     }
 
     function save(immediate = true) {
@@ -315,7 +319,19 @@ document.addEventListener("DOMContentLoaded", () => {
         entry.value = input.value;
         save(false);
       });
+      // A single entry pastes as usual. A list replaces the row, with what
+      // the row already holds around the place it is pasted.
+      input.addEventListener("paste", (event) => {
+        const pasted = event.clipboardData?.getData("text/plain") ?? "";
+        if (splitList(pasted).length < 2) return;
+        event.preventDefault();
+        const start = input.selectionStart ?? input.value.length;
+        const end = input.selectionEnd ?? start;
+        addList(splitList(input.value.slice(0, start) + pasted + input.value.slice(end)), entry);
+      });
       input.addEventListener("blur", () => {
+        // Some browsers blur a row that a pasted list removed.
+        if (!entries.includes(entry)) return;
         const normalized = normalize(input.value);
         if (invalidMessage && input.value.trim() && !normalized) {
           showToast(invalidMessage, "error");
@@ -392,6 +408,38 @@ document.addEventListener("DOMContentLoaded", () => {
       if (normalized) save();
     }
 
+    // Adds a pasted list's entries in place of the row it was pasted in,
+    // in that row's mode, and tells how many rules are new. Entries that
+    // cannot be used are left out; if none can, the row stays as it was.
+    function addList(list, row) {
+      const added = list.map(normalize).filter(Boolean);
+      if (added.length === 0) {
+        showToast(invalidMessage, "error");
+        return;
+      }
+      const others = entries.filter((other) => other !== row);
+      const previousCount = values(others).length;
+      entries = [...added.map((value) => ({ value, mode: row.mode })), ...others];
+      mergeDuplicates();
+      render();
+      save();
+
+      const pasted = new Set(added);
+      const items = Array.from(listEl.querySelectorAll(`.${itemClass}`))
+        .filter((item) => pasted.has(item.querySelector("input").value));
+      for (const item of items) item.classList.add("pop-in");
+      items[0]?.querySelector("input").focus();
+
+      const newCount = values().length - previousCount;
+      const skipped = list.length - added.length;
+      const message = newCount > 0 ? `Added ${formatCount(newCount)}` : `No new ${countNouns[1]}`;
+      if (skipped === 0) {
+        showToast(message, newCount > 0 ? "success" : "info");
+      } else {
+        showToast(`${message}; ${skipped} ${skipped === 1 ? "entry" : "entries"} could not be used`, "error");
+      }
+    }
+
     // Shows stored rules. A list that already shows them, in any order,
     // stays as it is; new rows that are still empty stay in any case.
     function show(list) {
@@ -448,6 +496,7 @@ document.addEventListener("DOMContentLoaded", () => {
     countNouns: ["exception", "exceptions"],
   });
   const KEYWORD_INVALID_MESSAGE = "Enter a keyword, or a valid regular expression between slashes";
+  const splitKeywordList = (text) => FrontFilter.splitList(text, { keywords: true });
   const entryLists = [
     blockedList,
     allowedList,
@@ -473,6 +522,7 @@ document.addEventListener("DOMContentLoaded", () => {
       itemClass: "keyword-item",
       normalizeList: FrontFilter.normalizeTitleKeywords,
       getRuleKey: FrontFilter.getKeywordKey,
+      splitList: splitKeywordList,
       placeholder: "Keyword, phrase, or /regex/",
       label: "Keyword, phrase, or regular expression",
       removeLabel: "Remove keyword",
@@ -488,6 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
       itemClass: "allowed-keyword-item",
       normalizeList: FrontFilter.normalizeTitleKeywords,
       getRuleKey: FrontFilter.getKeywordKey,
+      splitList: splitKeywordList,
       placeholder: "Keyword, phrase, or /regex/",
       label: "Allowed keyword, phrase, or regular expression",
       removeLabel: "Remove keyword exception",

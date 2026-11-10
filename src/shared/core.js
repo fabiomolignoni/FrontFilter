@@ -428,6 +428,31 @@ var FrontFilter = (() => {
     return normalizeTextList(keywords, getKeywordKey);
   }
 
+  // A pasted list as its entries: one per line, or separated by commas.
+  // In a list of keywords, a regular expression keeps its commas, as in
+  // /a{1,3}/.
+  function splitList(text, { keywords = false } = {}) {
+    if (typeof text !== "string") return [];
+
+    return text.split(/\r\n|[\r\n]/).flatMap((line) => {
+      const parts = line.split(",");
+      if (!keywords) return parts;
+      const entries = [];
+      for (let start = 0; start < parts.length; start += 1) {
+        let end = start;
+        if (parts[start].trimStart().startsWith("/")) {
+          // The shortest run of parts that is an expression between slashes.
+          end = parts.findIndex((_, index) => index >= start
+            && getKeywordRegexSource(parts.slice(start, index + 1).join(",").trim()) !== null);
+          if (end === -1) end = start;
+        }
+        entries.push(parts.slice(start, end + 1).join(","));
+        start = end;
+      }
+      return entries;
+    }).map(normalizeText).filter(Boolean);
+  }
+
   // Flairs are free text chosen by each subreddit: keep their spelling, but
   // compare them case-insensitively and allow * wildcards.
   function normalizeBlockedFlairs(flairs = []) {
@@ -800,6 +825,7 @@ var FrontFilter = (() => {
     normalizeUserName,
     normalizeBlockedUsers,
     normalizeTitleKeywords,
+    splitList,
     getKeywordKey,
     upgradeSettings,
     normalizeBlockedFlairs,

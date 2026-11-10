@@ -299,6 +299,26 @@ test("keeps keywords that match differently, and only usable ones", () => {
   );
 });
 
+test("splits pasted lists at lines and commas, keeping regular expressions whole", () => {
+  const split = (text, options) => JSON.parse(JSON.stringify(FrontFilter.splitList(text, options)));
+  assert.deepEqual(split(" r/Firefox, news,,\r\nAskReddit\r\n\n *pics* \rcats  dogs\n"), [
+    "r/Firefox", "news", "AskReddit", "*pics*", "cats dogs",
+  ]);
+  assert.deepEqual(split("spez"), ["spez"]);
+  assert.deepEqual(split(" , \n "), []);
+  assert.deepEqual(split(42), []);
+  // Only keywords are regular expressions: subreddit paths split at their commas.
+  assert.deepEqual(split("/r/foo, /r/bar/"), ["/r/foo", "/r/bar/"]);
+
+  const keywords = (text) => split(text, { keywords: true });
+  assert.deepEqual(keywords("/a{1,3}/, spoiler*\n/(x|y)/,/[,;]/ , climate change"), [
+    "/a{1,3}/", "spoiler*", "/(x|y)/", "/[,;]/", "climate change",
+  ]);
+  assert.deepEqual(keywords("/a/, /b, c/"), ["/a/", "/b, c/"]);
+  // Text that never closes its slashes splits as any other.
+  assert.deepEqual(keywords("/unclosed, x\n/, y"), ["/unclosed", "x", "/", "y"]);
+});
+
 test("lets a star at a keyword's end match inside words there", () => {
   const matches = (keyword, text) => FrontFilter.createKeywordMatcher([keyword])(text);
   assert.equal(matches("spoiler*", "Spoilers ahead"), true);

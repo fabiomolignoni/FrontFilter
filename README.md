@@ -61,7 +61,9 @@ Open FrontFilter from the browser toolbar or extensions menu. The
 **Controls** tab turns features on and off, **Filters** holds subreddit,
 user, keyword, and flair rules, and **Settings** covers the theme, the Block
 buttons, the block page, and backups. Changes are saved automatically and
-apply right away. The **?** button next to a setting or list explains it.
+apply right away. To add several rules at once, paste a list into a field of
+the **Filters** tab, one per line or separated by commas. The **?** button
+next to a setting or list explains it.
 
 ## Privacy
 

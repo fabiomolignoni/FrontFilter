@@ -18,6 +18,9 @@ Notable changes to FrontFilter, newest first.
   expressions, matched ignoring case.
 - **Allowed keywords**, in the **Filters** tab: keyword filters never hide a
   post or comment that contains one of them.
+- A list of subreddits, users, keywords or flairs pasted into a field of the
+  **Filters** tab, one per line or separated by commas, adds a rule for each.
+  Commas inside a regular expression, as in `/a{1,3}/`, do not split it.
 
 ### Changed
 
