@@ -25,6 +25,9 @@ var FrontFilter = (() => {
     hideSuggestedCommunities: false,
     hideSuggestedPosts: false,
     hideAds: false,
+    // Posts tagged NSFW, or from communities tagged NSFW. Not blockNsfw, a
+    // setting of an earlier release that updates remove (background/main.js).
+    hideNsfw: false,
     hideSocialSignals: false,
     hideVotes: false,
     hideKarma: false,

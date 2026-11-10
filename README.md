@@ -39,6 +39,9 @@ To install from source, see [Development](#development). The
   disappear from every Reddit page, and their profiles are blocked.
 - Hide posts by flair, with `*` wildcards.
 - Hide suggested posts in the Home feed, and ads and promoted posts.
+- Hide NSFW content: posts tagged NSFW and posts from NSFW communities, on
+  every Reddit page, Old Reddit included, with the comments on an NSFW
+  post's own page.
 
 ### Simplify
 

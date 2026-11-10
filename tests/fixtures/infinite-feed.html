@@ -14,7 +14,9 @@ shreddit-feed, shreddit-post, shreddit-comment, reddit-sidebar-nav,
 shreddit-ad-post, shreddit-comments-page-ad, shreddit-comment-tree, shreddit-comment-tree-ad,
 shreddit-async-loader, faceplate-hovercard, shreddit-comment-action-row,
 left-nav-top-section, faceplate-loader, faceplate-tracker,
-faceplate-expandable-section-helper { display: block; }
+faceplate-expandable-section-helper, shreddit-comment-tree-stats, comment-body-header,
+community-highlight-carousel, shreddit-gallery-carousel, community-highlight-card,
+pdp-right-rail, reddit-pdp-right-rail-post, search-telemetry-tracker { display: block; }
 search-dynamic-id-cache-controller, reddit-search-large, reddit-chat-header-button,
 rpl-dropdown { display: inline-block; }
 article { padding: 10px; }
@@ -165,6 +167,50 @@ article { padding: 10px; }
   </div>
 </section>
 <aside><article><shreddit-post id="t3_sidebar" subreddit-name="safe">Sidebar post</shreddit-post></article></aside>
+<!-- Beyond feeds, Reddit tags NSFW posts in highlights with an attribute,
+  in the right rail and search results in their tracking data, which for
+  search results also names the post's community, and on Old Reddit with a
+  class and a stamp. Old Reddit's post pages hold the post, then its
+  comments. -->
+<section id="nsfw-content">
+  <community-highlight-carousel>
+    <shreddit-gallery-carousel slot="content">
+      <li id="highlight-safe"><a href="/r/test/comments/h1/highlight/"><community-highlight-card
+        id="highlight_card_t3_h1" subreddit-prefixed-name="r/test"><h2 slot="title">Highlight</h2></community-highlight-card></a></li>
+      <li id="highlight-nsfw"><a href="/r/test/comments/h2/highlight/"><community-highlight-card
+        id="highlight_card_t3_h2" subreddit-prefixed-name="r/test" nsfw><h2 slot="title">NSFW highlight</h2></community-highlight-card></a></li>
+    </shreddit-gallery-carousel>
+  </community-highlight-carousel>
+  <pdp-right-rail><div slot="tab-panel"><div><ul>
+    <li id="rail-safe"><reddit-pdp-right-rail-post right-rail-post-id="t3_r1"
+      data-faceplate-tracking-context='{"post":{"id":"t3_r1","nsfw":false,"subreddit_name":"test"},"action_info":{"position":1,"type":"right_rail"}}'><a
+      href="https://www.reddit.com/r/test/comments/r1/rail/">Rail post</a></reddit-pdp-right-rail-post></li>
+    <li id="rail-nsfw"><reddit-pdp-right-rail-post right-rail-post-id="t3_r2"
+      data-faceplate-tracking-context='{"post":{"id":"t3_r2","nsfw":true,"subreddit_name":"test"},"action_info":{"position":2,"type":"right_rail"}}'><a
+      href="https://www.reddit.com/r/test/comments/r2/rail/">NSFW rail post</a></reddit-pdp-right-rail-post></li>
+  </ul></div></div></pdp-right-rail>
+  <div>
+    <search-telemetry-tracker id="search-safe" data-testid="search-sdui-post"
+      data-faceplate-tracking-context='{"post":{"id":"t3_s1","nsfw":false},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'>Search result</search-telemetry-tracker>
+    <search-telemetry-tracker id="search-nsfw-post" data-testid="search-sdui-post"
+      data-faceplate-tracking-context='{"post":{"id":"t3_s2","nsfw":true},"subreddit":{"id":"t5_1","name":"test","nsfw":false}}'>NSFW search result</search-telemetry-tracker>
+    <search-telemetry-tracker id="search-nsfw-community" data-testid="search-sdui-post"
+      data-faceplate-tracking-context='{"post":{"id":"t3_s3","nsfw":false},"subreddit":{"id":"t5_2","name":"adult","nsfw":true}}'>Result from an NSFW community</search-telemetry-tracker>
+  </div>
+  <div class="content" id="old-safe-thread">
+    <div class="sitetable linklisting" id="siteTable"><div class="thing link"
+      id="old-safe-post" data-nsfw="false">Old Reddit post</div></div>
+    <div class="commentarea" id="old-safe-comments">Old Reddit comments</div>
+  </div>
+  <div class="content" id="old-nsfw-thread">
+    <div class="sitetable linklisting"><div class="thing link over18" id="old-nsfw-post"
+      data-nsfw="true"><p class="tagline"><span class="nsfw-stamp stamp">NSFW</span></p></div></div>
+    <div class="commentarea" id="old-nsfw-comments">Old Reddit comments on an NSFW post</div>
+  </div>
+  <div class="search-result search-result-link" id="old-search-safe">Old Reddit search result</div>
+  <div class="search-result search-result-link" id="old-search-nsfw"><span
+    class="nsfw-stamp stamp">NSFW</span> Old Reddit search result</div>
+</section>
 <script>
   window.loadCalls = 0;
   window.loadLog = [];
@@ -287,6 +333,10 @@ article { padding: 10px; }
       card.setAttribute("permalink", `/r/${row.subreddit}/comments/${row.id}/title`);
       card.setAttribute("post-title", row.title || `Post ${row.id}`);
       if (row.ad) card.setAttribute("is-promoted", "");
+      // Reddit tags NSFW posts, and posts from NSFW communities, with
+      // attributes present only when true.
+      if (row.nsfw) card.setAttribute("nsfw", "");
+      if (row.subredditNsfw) card.setAttribute("subreddit-nsfw", "");
       // Reddit adds ad cards straight to the feed, as unwrapped rows do.
       if (row.adPost) card.setAttribute("promoted", "");
       // The credit bar as Reddit renders it: subreddit and time on the left,
@@ -586,6 +636,51 @@ article { padding: 10px; }
     if (current) current.replaceWith(tree);
     else document.querySelector("main").append(tree);
   };
+  // A post's page as Reddit renders it: in main, the post, the comment
+  // count and sort, the comment header, and the comment tree in an anchor,
+  // before other posts, which the feed stands for here.
+  window.setThreadPost = ({ nsfw = false, subredditNsfw = false } = {}) => {
+    const post = document.createElement("shreddit-post");
+    post.id = "t3_thread";
+    post.setAttribute("subreddit-name", "test");
+    post.setAttribute("permalink", "/r/test/comments/abc/post/");
+    post.setAttribute("post-title", "Thread post");
+    post.setAttribute("view-context", "FullPost");
+    if (nsfw) post.setAttribute("nsfw", "");
+    if (subredditNsfw) post.setAttribute("subreddit-nsfw", "");
+    post.textContent = "Thread post";
+    const current = document.querySelector("#t3_thread");
+    if (current) {
+      current.replaceWith(post);
+      return;
+    }
+    const stats = document.createElement("shreddit-comment-tree-stats");
+    stats.id = "comment-stats";
+    stats.textContent = "Sort by: Best";
+    const header = document.createElement("comment-body-header");
+    header.id = "comment-header";
+    header.textContent = "Join the conversation";
+    const anchor = document.createElement("div");
+    anchor.id = "comment-tree-content-anchor-abc";
+    const tree = document.querySelector("#comment-tree") || document.createElement("shreddit-comment-tree");
+    tree.id = "comment-tree";
+    anchor.append(tree);
+    document.querySelector("main").prepend(post, stats, header, anchor);
+  };
+  window.threadVisibility = () => {
+    const visible = (element) => Boolean(element?.getClientRects().length)
+      && getComputedStyle(element).display !== "none";
+    return Object.fromEntries([
+      ["post", "#t3_thread"], ["stats", "#comment-stats"], ["header", "#comment-header"],
+      ["comments", "#comment-tree shreddit-comment"], ["controls", ".frontfilter-comment-controls"],
+      ["morePosts", "main shreddit-feed shreddit-post"],
+    ].map(([name, selector]) => [name, visible(document.querySelector(selector))]));
+  };
+  window.nsfwVisibility = () => Object.fromEntries(Array.from(
+    document.querySelectorAll("#nsfw-content [id]:not(community-highlight-card)"),
+    (element) => [element.id, Boolean(element.getClientRects().length)
+      && getComputedStyle(element).display !== "none"],
+  ));
   // What the comment tree shows: its top-level comments and replies, the ad
   // slots between them, its loader and the comment limit's controls.
   window.commentTreeState = () => {
