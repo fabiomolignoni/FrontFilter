@@ -46,6 +46,10 @@ async function loadContent({
       queriedSelectors.push(selector);
       return querySelectorAll(selector);
     },
+    querySelector(selector) {
+      queriedSelectors.push(selector);
+      return querySelectorAll(selector)[0] ?? null;
+    },
     // Live collections re-read the fake DOM on every iteration.
     getElementsByTagName: (name) => liveCollection(name),
     getElementsByClassName: (names) => liveCollection(`.${names.split(" ").join(".")}`),
@@ -69,8 +73,11 @@ async function loadContent({
         sentMessages.push(JSON.parse(JSON.stringify(message)));
         return sendMessage(message);
       },
+      onMessage: { addListener: (listener) => messageListeners.push(listener) },
     },
   };
+  // Listeners for messages to this page, as from the settings page.
+  const messageListeners = [];
   const sentMessages = [];
   const observers = [];
   class MutationObserver {
@@ -189,6 +196,17 @@ async function loadContent({
       page.focused = value;
       (documentListeners.visibilitychange || []).forEach((listener) => listener());
       (windowListeners[value ? "focus" : "blur"] || []).forEach((listener) => listener());
+    },
+    // Sends the page a message, as the settings page does, and returns its
+    // answer, copied as browsers copy it, or undefined if no listener answers.
+    ask(message) {
+      return new Promise((resolve) => {
+        const respond = (answer) => resolve(answer === undefined ? answer : JSON.parse(JSON.stringify(answer)));
+        const answering = messageListeners
+          .map((listener) => listener(message, {}, respond))
+          .some((result) => result === true);
+        if (!answering) resolve(undefined);
+      });
     },
     runTimers() {
       for (const [id, callback] of Array.from(timeouts)) {
@@ -1790,6 +1808,55 @@ test("counts the comments of blocked users and those keywords hide", async () =>
   });
   allHidden.runTimers();
   assert.deepEqual(sentRecords(allHidden), []);
+});
+
+test("tells the settings page what filters hide on it, when asked", async () => {
+  const posts = [
+    createTaggedPost({ "data-subreddit": "news", nsfw: "" }),
+    createTaggedPost({ spoiler: "" }),
+    createTaggedPost({ "is-promoted": "" }),
+    createTaggedPost({ "post-title": "Calm" }),
+  ];
+  const comments = [createComment("Breaking: a reply"), createComment("Fine"), createComment("Also fine")];
+  const authors = ["someone", "someone", "Spez"];
+  comments.forEach((comment, index) => {
+    comment.getAttribute = (name) => (name === "author" ? authors[index] : null);
+  });
+  const page = { uncounted: false };
+  const querySelectorAll = (selector) => {
+    if (isPostCollectionSelector(selector) || selector === "shreddit-post") return posts;
+    if (selector === "shreddit-comment") return comments;
+    return selector.includes(".thing") && page.uncounted ? [{}] : [];
+  };
+  const settings = {
+    blockedSubreddits: [{ name: "news", mode: "all" }],
+    blockedUsers: ["spez"],
+    blockedTitleKeywords: ["breaking"],
+    hideNsfw: true,
+    hideAds: true,
+    // The count is not kept, so it does not pause with statistics.
+    pauseStatistics: true,
+  };
+  const content = await loadContent({ querySelectorAll, settings, startUrl: POST_PAGE });
+  content.processFilteredContent();
+  // Each post or comment counts once, whatever hides it.
+  assert.deepEqual(await content.ask({ action: "countHidden" }), { posts: 2, comments: 2 });
+  assert.equal(await content.ask({ action: "somethingElse" }), undefined);
+
+  // It follows the settings.
+  content.storageListeners[0]({ hideSpoilers: { oldValue: false, newValue: true } }, "local");
+  await settle();
+  assert.deepEqual(await content.ask({ action: "countHidden" }), { posts: 3, comments: 2 });
+
+  // Comments hidden with all the others are not filtered.
+  content.storageListeners[0]({ hideComments: { oldValue: false, newValue: true } }, "local");
+  await settle();
+  assert.deepEqual(await content.ask({ action: "countHidden" }), { posts: 3, comments: 0 });
+
+  // A page with posts statistics do not read, as Old Reddit's or search
+  // results, gives no count.
+  page.uncounted = true;
+  assert.equal(await content.ask({ action: "countHidden" }), null);
 });
 
 test("counts a page it leaves for the chosen website as blocked, before leaving", async () => {

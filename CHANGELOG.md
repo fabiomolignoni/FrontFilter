@@ -69,10 +69,11 @@ Notable changes to FrontFilter, newest first.
 - A setting whose name does not say it all says the rest below it, instead
   of behind a **?** button. The **?** buttons that remain show how to write
   a list's rules, with examples.
-- On a subreddit, the **Block** tab opens with a card that names it, says
-  whether your rules block or allow it, and offers **Block** and **Allow**.
-  It replaces the **Add current** buttons, and every list now has one
-  **Add** button.
+- On Reddit, the **Block** tab opens with a card for the page in front,
+  which says how many posts and comments your filters hide on it, and keeps
+  up as the page changes. On a subreddit, it also says whether your rules
+  block or allow it, and offers **Block** and **Allow**. It replaces the
+  **Add current** buttons, and every list now has one **Add** button.
 - A list of more than 8 rules shows its first 6, with **Show all** and a
   field that searches it, ignoring case and accents. Rules just added,
   pasted or merged always show.

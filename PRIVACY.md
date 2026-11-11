@@ -53,9 +53,10 @@ your filter rules, they can reveal your habits.
 
 On Reddit, FrontFilter reads the address of the current page to decide whether
 a rule applies to it, and, for your statistics, which subreddit or user a
-blocked page belongs to. When you click **Add Current** in the settings, it reads
-the address of the active tab to find its subreddit. It does not read your
-browsing history or any page outside Reddit.
+blocked page belongs to. When you open its settings, it reads the address
+of the active tab, if it is a Reddit page, to name the page and find its
+subreddit. It does not read your browsing history or any page outside
+Reddit.
 
 ### Reddit page content (website content)
 
@@ -65,7 +66,9 @@ text, flairs, the usernames of post and comment authors, markers that
 identify ads, suggested posts, NSFW posts or spoilers, and the page elements
 you choose to hide or change. This happens in memory, on your device, and
 nothing is kept once you leave the page, except the counts in your
-statistics.
+statistics. The settings page shows how many posts and comments are hidden
+on the page in front, which it asks that page while open, and does not
+store.
 
 FrontFilter never accesses your passwords or cookies, is not designed to read
 private messages or what you type, and does not use your location.
