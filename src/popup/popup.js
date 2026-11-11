@@ -302,12 +302,31 @@ document.addEventListener("DOMContentLoaded", () => {
     await queuePendingSave();
   }
 
+  // A typed count, or null unless it is a positive whole number.
+  function typedCount(limit) {
+    const value = Number(limit.count.value);
+    return Number.isSafeInteger(value) && value >= 1 ? value : null;
+  }
+
   // A page closed before typing pauses, as a tab closed or the popup left
-  // right after typing, would never save what was typed. It is written at
-  // once: a write queued behind another could start after the page is gone.
+  // right after typing, would never save what was typed, nor a number or
+  // an address typed but not yet committed. Values that can be used are
+  // written at once: a write queued behind another could start after the
+  // page is gone.
   globalThis.addEventListener("pagehide", () => {
     clearTimeout(debounceTimer);
     debounceTimer = null;
+    for (const limit of limits) {
+      const value = typedCount(limit);
+      if (value === null || value === limit.lastCount) continue;
+      limit.lastCount = value;
+      pendingSaveKeys.add(limit.countKey);
+    }
+    const url = FrontFilter.normalizeRedirectUrl(redirectUrl.value);
+    if ((url || !redirectUrl.value.trim()) && url !== lastRedirectUrl) {
+      lastRedirectUrl = url;
+      pendingSaveKeys.add("redirectUrl");
+    }
     if (pendingSaveKeys.size === 0) return;
     const snapshot = getSettingsSnapshot();
     const settings = Object.fromEntries(Array.from(pendingSaveKeys, (key) => [key, snapshot[key]]));
@@ -1254,8 +1273,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   for (const limit of limits) {
     limit.count.addEventListener("change", () => {
-      const value = Number(limit.count.value);
-      if (!Number.isSafeInteger(value) || value < 1) {
+      const value = typedCount(limit);
+      if (value === null) {
         showToast(`Enter a positive whole number of ${limit.noun}`, "error");
         limit.count.value = String(limit.lastCount);
         return;
