@@ -144,10 +144,10 @@ Mozilla, or GitHub.
 
 | Permission | Why FrontFilter needs it |
 | --- | --- |
-| `storage` | Save your settings on your device. |
+| `storage` | Save your settings and statistics on your device. |
 | `declarativeNetRequestWithHostAccess` | Let the browser redirect pages you block to FrontFilter's block page, or to the website you choose. Its rules apply only to `reddit.com`, where FrontFilter has access. |
 | `scripting` (Chrome only) | Count the time you spend on Reddit pages that were already open when FrontFilter was installed or updated: Chrome gives them no content script until they are reloaded, so FrontFilter adds its statistics recorder to them, from its own files, and to no other page. |
-| Access to `reddit.com` and its subdomains | Apply your filters and controls on Reddit pages, and find the subreddit for **Add Current**. |
+| Access to `reddit.com` and its subdomains | Apply your filters and controls on Reddit pages, count your statistics there, and name the Reddit page in front, with its subreddit, on the settings' card for it. |
 
 ## Your choices
 

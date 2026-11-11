@@ -811,8 +811,9 @@ var FrontFilter = (() => {
     return `?${params.toString()}`;
   }
 
-  // The settings page in a tab of its own. Its Add current buttons add the
-  // subreddit given here, as the tab they would read is the settings page.
+  // The settings page in a tab of its own. Its card for the page in front
+  // shows the subreddit given here, as the tab it would read is the
+  // settings page.
   function settingsPagePath(subreddit) {
     const params = new URLSearchParams({ standalone: "true" });
     const [name] = normalizeAllowedSubreddits([subreddit]);
