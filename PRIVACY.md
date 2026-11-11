@@ -127,6 +127,11 @@ own terms:
   place, as if you had opened it. FrontFilter sends it nothing, not even the
   address of the blocked page, but your browser may tell it that you came
   from Reddit, as it would for a link.
+- **Other websites** can tell, in Chrome and browsers based on it, that
+  FrontFilter is installed, as they can for many extensions: its block page
+  is open to every website, so that links from them to a blocked Reddit
+  page lead to it. They learn nothing else: the page holds none of your
+  settings, and counts no visit when another page embeds it.
 - **Your browser and its extension store** install and update FrontFilter
   under their own policies.
 - **GitHub** hosts FrontFilter's project pages, linked from its settings and

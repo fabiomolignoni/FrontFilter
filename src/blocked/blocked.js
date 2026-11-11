@@ -107,8 +107,10 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // Statistics count each visit the page stops once: not again when it is
-// reloaded, or returned to from another page.
+// reloaded, or returned to from another page. Nor when another page embeds
+// it, as any website can: links from other websites lead to it.
 function recordBlockedVisit(target) {
+  if (window.top !== window) return;
   const [navigation] = globalThis.performance?.getEntriesByType?.("navigation") ?? [];
   if (navigation && navigation.type !== "navigate") return;
   // Whatever happens to the count, the page's buttons work.

@@ -437,6 +437,20 @@ class PageTests:
                 self.wait_for_block_page(message)
                 self.assertEqual(self.driver.current_url.split("#", 1)[1], original_url)
 
+    def test_declarative_redirects_for_links_from_other_websites(self):
+        # The fixture page's origin is not the one navigation rules redirect.
+        self.session.store(blockPopular=True)
+        self.open_fixture()
+        original_url = self.server.url("/r/popular/", "localhost")
+        self.js("""
+            const link = document.createElement("a");
+            link.href = arguments[0];
+            document.body.append(link);
+            link.click();
+        """, original_url)
+        self.wait_for_block_page("Popular page is blocked")
+        self.assertEqual(self.driver.current_url.split("#", 1)[1], original_url)
+
     def test_declarative_redirects_survive_a_rule_too_complex_for_the_browser(self):
         # Chrome cannot compile this rule's regular expression in its memory
         # budget, and rejects any update that includes it.

@@ -100,6 +100,8 @@ Notable changes to FrontFilter, newest first.
 
 ### Fixed
 
+- A link from another website to a blocked Reddit page shows the block
+  page, instead of the browser's error page.
 - `ALL` rules also hide crossposts of the subreddit's posts from other
   subreddits and feeds, and the scroll limit no longer counts them.
 
