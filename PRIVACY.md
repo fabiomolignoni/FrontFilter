@@ -76,6 +76,10 @@ advertising, profiling, or any other purpose, and no person reviews it.
   blocked, so FrontFilter can explain the block and return you there after
   undoing it. Your browser may keep these addresses in its history like any
   other page.
+- **Import backup:** importing a file keeps a copy of the settings it replaced
+  in the same local storage, so the settings page can restore them. Restoring
+  them keeps the settings they replace in turn. The next import replaces the
+  copy, and uninstalling FrontFilter deletes it.
 - **Exported files** stay wherever you save them. Imported files are read once
   and not kept.
 

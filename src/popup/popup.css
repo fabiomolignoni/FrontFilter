@@ -54,6 +54,17 @@ body.standalone { width: auto; max-width: 100vw; }
   white-space: nowrap;
 }
 
+.header-actions { display: flex; align-items: center; gap: var(--sp-1); flex-shrink: 0; }
+.icon-button {
+  display: grid; place-items: center;
+  width: 32px; height: 32px; padding: 0;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: none; color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.icon-button:hover { background: var(--bg-hover); color: var(--text-primary); }
+
 #save-indicator {
   display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
   height: 26px; padding: 0 10px 0 8px;
@@ -447,6 +458,25 @@ label.field-row:hover { background: none; }
 }
 .list-no-match:empty { display: none; }
 
+/* Where a rule was removed, with a way back. Undo sits by its message,
+   away from where the remove button was, so a double click cannot undo. */
+.entry-list > .entry-undo {
+  display: flex; align-items: center; gap: var(--sp-2);
+  min-height: 44px; padding: 6px var(--sp-2) 6px 14px;
+  background: var(--bg-subtle);
+  color: var(--text-secondary); font-size: 13px;
+}
+.entry-undo-text { min-width: 0; overflow-wrap: anywhere; }
+.entry-undo-button {
+  flex-shrink: 0; height: 28px; padding: 0 10px;
+  border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--accent-text);
+  font: 600 13px/1 var(--font-sans);
+  cursor: pointer;
+}
+.entry-undo-button:hover:not(:disabled) { background: var(--accent-soft); }
+.entry-undo-button:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .empty-state {
   margin: 0; padding: 18px var(--sp-4);
   text-align: center; color: var(--text-muted); font-size: 13px;
@@ -461,6 +491,26 @@ label.field-row:hover { background: none; }
 /* Settings tab */
 .backup-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
 .backup-actions .btn { flex: 1 1 160px; }
+.import-review {
+  margin-top: var(--sp-3); padding: var(--sp-3);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+.import-review-title { margin: 0 0 6px; font-size: 13px; font-weight: 650; }
+.import-review-title:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.import-review-changes {
+  margin: 0 0 var(--sp-2); padding-left: 18px;
+  color: var(--text-primary); font-size: 13px;
+}
+.import-review-changes:empty { display: none; }
+.import-review-note { margin: 0; color: var(--text-muted); font-size: 12px; }
+.import-review .backup-actions .btn { flex: 0 1 auto; }
+.backup-restore {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-3); padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+.backup-restore .card-text { flex: 1 1 200px; font-size: 12px; }
 .about-card { display: flex; align-items: flex-start; gap: var(--sp-3); }
 .about-card img { width: 36px; height: 36px; flex-shrink: 0; border-radius: 9px; }
 .about-text { min-width: 0; }

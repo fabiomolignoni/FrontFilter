@@ -6,6 +6,15 @@ Notable changes to FrontFilter, newest first.
 
 ### Added
 
+- **Undo**, in place of a rule removed from one of the settings page's
+  lists.
+- Importing a configuration first shows what it would change, with
+  **Import** and **Cancel**, and keeps the settings it replaces:
+  **Restore**, under **Configuration backup**, puts them back, keeping in
+  turn the settings it replaces.
+- The settings page is FrontFilter's options page in the browser's
+  extension settings, and the popup opens it in a tab, for the same
+  subreddit, from the button beside the save state.
 - The **Block** tab can hide the block page's **Open settings** button,
   so a blocked page offers only **Go back**, and **Undo block** after a
   one-click block.

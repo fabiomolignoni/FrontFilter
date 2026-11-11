@@ -17,7 +17,17 @@
             <img src="../icons/icon-48.png" alt="" width="28" height="28" />
             <h1>FrontFilter</h1>
           </div>
-          <span id="save-indicator" role="status">Saved</span>
+          <div class="header-actions">
+            <span id="save-indicator" role="status">Saved</span>
+            <!-- In the popup only: long lists are easier to edit in a tab. -->
+            <button type="button" id="open-in-tab" class="icon-button"
+              aria-label="Open settings in a tab" title="Open settings in a tab">
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M9.5 2.5h4v4M13.5 2.5 7.5 8.5" />
+                <path d="M12 9.5v3a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="tabs-bar">
@@ -692,6 +702,24 @@
                 </button>
               </div>
               <input type="file" id="import-file" accept=".json,application/json" hidden />
+              <!-- What an import would change, before it does. -->
+              <div class="import-review" id="import-review" role="group"
+                aria-labelledby="import-review-title" hidden>
+                <p class="import-review-title" id="import-review-title" tabindex="-1">Import
+                  this file?</p>
+                <ul class="import-review-changes" id="import-review-changes"></ul>
+                <p class="import-review-note" id="import-review-note">Lists in the file replace
+                  yours. Your current settings are kept, so you can restore them.</p>
+                <div class="backup-actions">
+                  <button type="button" id="import-confirm" class="btn btn-primary">Import</button>
+                  <button type="button" id="import-cancel" class="btn btn-secondary">Cancel</button>
+                </div>
+              </div>
+              <!-- The settings the last import or restore replaced. -->
+              <div class="backup-restore" id="backup-restore" hidden>
+                <p class="card-text" id="backup-restore-text"></p>
+                <button type="button" id="restore-backup" class="btn btn-secondary">Restore</button>
+              </div>
             </div>
           </section>
 
