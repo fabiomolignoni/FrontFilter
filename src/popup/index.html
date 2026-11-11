@@ -66,6 +66,22 @@
       <main class="content">
         <section class="tab-panel" id="panel-block" role="tabpanel" aria-labelledby="tab-block"
           tabindex="0">
+          <section class="current-card" id="current-subreddit"
+            aria-labelledby="current-subreddit-name" hidden>
+            <span class="current-badge" aria-hidden="true">r/</span>
+            <div class="current-info">
+              <p class="current-eyebrow">This tab</p>
+              <h2 class="current-name" id="current-subreddit-name"></h2>
+              <p class="current-status" id="current-subreddit-status"></p>
+            </div>
+            <div class="current-actions">
+              <button type="button" id="add-current-subreddit"
+                class="btn btn-primary">Block</button>
+              <button type="button" id="add-current-allowed-subreddit"
+                class="btn btn-secondary">Allow</button>
+            </div>
+          </section>
+
           <section class="section" aria-labelledby="pages-heading">
             <h2 class="section-title" id="pages-heading">Block pages</h2>
             <div class="card">
@@ -109,9 +125,8 @@
                 <p class="list-desc">Blocked on their front page, or everywhere</p>
               </div>
               <div class="list-actions">
-                <button type="button" id="add-current-subreddit" class="btn btn-secondary"
-                  hidden>Add current</button>
-                <button type="button" id="add-subreddit" class="btn btn-tonal">
+                <button type="button" id="add-subreddit" class="btn btn-tonal"
+                  aria-label="Add a blocked subreddit">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
@@ -142,9 +157,8 @@
                 <p class="list-desc">Stay open, whatever blocks them</p>
               </div>
               <div class="list-actions">
-                <button type="button" id="add-current-allowed-subreddit" class="btn btn-secondary"
-                  hidden>Add current</button>
-                <button type="button" id="add-allowed-subreddit" class="btn btn-tonal">
+                <button type="button" id="add-allowed-subreddit" class="btn btn-tonal"
+                  aria-label="Add an allowed subreddit">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
@@ -172,11 +186,12 @@
                 <p class="list-desc">Their posts, comments and profiles are hidden</p>
               </div>
               <div class="list-actions">
-                <button type="button" id="add-blocked-user" class="btn btn-tonal">
+                <button type="button" id="add-blocked-user" class="btn btn-tonal"
+                  aria-label="Add a blocked user">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
-                  Add user
+                  Add
                 </button>
               </div>
             </div>
@@ -308,11 +323,12 @@
                 <p class="list-desc">Hide posts and comments that contain them</p>
               </div>
               <div class="list-actions">
-                <button type="button" id="add-title-keyword" class="btn btn-tonal">
+                <button type="button" id="add-title-keyword" class="btn btn-tonal"
+                  aria-label="Add a keyword">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
-                  Add keyword
+                  Add
                 </button>
               </div>
             </div>
@@ -345,7 +361,8 @@
                 <p class="list-desc">Keep posts and comments that contain them</p>
               </div>
               <div class="list-actions">
-                <button type="button" id="add-allowed-keyword" class="btn btn-tonal">
+                <button type="button" id="add-allowed-keyword" class="btn btn-tonal"
+                  aria-label="Add an allowed keyword">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
@@ -373,11 +390,12 @@
                 <p class="list-desc">Hide posts with these flairs</p>
               </div>
               <div class="list-actions">
-                <button type="button" id="add-blocked-flair" class="btn btn-tonal">
+                <button type="button" id="add-blocked-flair" class="btn btn-tonal"
+                  aria-label="Add a flair">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
-                  Add flair
+                  Add
                 </button>
               </div>
             </div>

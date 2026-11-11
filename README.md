@@ -73,8 +73,9 @@ scrolling and hides parts of Reddit's pages, and **Settings** covers the
 theme, backups, and the project's links. Changes are saved automatically
 and apply right away.
 
-On a subreddit, **Add r/name** adds it to the blocked or allowed
-subreddits. A switch with sections, such as **Hide navbar**, shows them from
+On a subreddit, the **Block** tab opens with a card that names it, says
+whether your rules block or allow it, and blocks or allows it in one click.
+A switch with sections, such as **Hide navbar**, shows them from
 its arrow. To add several rules at once, paste a list into a field of a
 list, one per line or separated by commas. A long list shows its first
 rules, with a field that searches it and a button that shows it all. The

@@ -80,6 +80,16 @@ document.addEventListener("DOMContentLoaded", () => {
       .find((element) => element.getAttribute("data-group") === parent),
   }));
 
+  // The card for the subreddit open in the current tab.
+  const currentCard = {
+    element: document.getElementById("current-subreddit"),
+    name: document.getElementById("current-subreddit-name"),
+    status: document.getElementById("current-subreddit-status"),
+    block: document.getElementById("add-current-subreddit"),
+    allow: document.getElementById("add-current-allowed-subreddit"),
+    subreddit: "",
+  };
+
   let toastTimer = null;
   let indicatorTimer = null;
   let debounceTimer = null;
@@ -113,6 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     updateDependentControls();
     updateGroupControls();
+    updateCurrentCard();
   }
 
   // Options that apply only while their switch is on: the limits' options
@@ -196,6 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const snapshot = getSettingsSnapshot();
     const settings = Object.fromEntries(Array.from(keys, (key) => [key, snapshot[key]]));
     for (const list of entryLists) list.updateCount();
+    updateCurrentCard();
     showSaving();
 
     for (const key of keys) savingKeys.set(key, (savingKeys.get(key) || 0) + 1);
@@ -424,13 +436,14 @@ document.addEventListener("DOMContentLoaded", () => {
       updateVisibility();
     }
 
-    function focus(value, animate) {
+    // Shows a row, and moves the focus to it unless told otherwise.
+    function focus(value, animate, moveFocus = true) {
       const entry = value ? entries.find((other) => other.value === value) : entries[0];
       const item = entry && rows.get(entry);
       if (!item) return;
       reveal([entry]);
       if (animate) item.classList.add("pop-in");
-      item.querySelector("input").focus();
+      if (moveFocus) item.querySelector("input").focus();
     }
 
     function createRow(entry) {
@@ -535,12 +548,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // One-click additions use ALL mode, as the Block buttons on Reddit do.
-    function add(value = "") {
+    // A rule added from elsewhere on the page shows without taking the
+    // focus there.
+    function add(value = "", { moveFocus = true } = {}) {
       const normalized = normalize(value);
       entries.unshift({ value: normalized, mode: "all" });
       mergeDuplicates();
       render();
-      focus(normalized, true);
+      focus(normalized, true, moveFocus);
       if (normalized) save();
     }
 
@@ -750,6 +765,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     updateDependentControls();
     updateGroupControls();
+    updateCurrentCard();
   }
 
   // Reads can finish out of order: an older one never replaces a newer one.
@@ -840,35 +856,59 @@ document.addEventListener("DOMContentLoaded", () => {
     return (url && FrontFilter.getSubredditPath(url.pathname)?.name) || "";
   }
 
-  async function addCurrentSubreddit(list) {
+  async function addCurrentSubreddit(list, message) {
     try {
       const subreddit = await findCurrentSubreddit();
-      if (subreddit) list.add(subreddit);
-      else showToast("No subreddit found on current tab", "error");
+      if (subreddit) {
+        list.add(subreddit, { moveFocus: false });
+        showToast(message(subreddit), "success");
+      } else {
+        showToast("No subreddit found on current tab", "error");
+      }
     } catch {
       showToast("Could not access current tab", "error");
     }
   }
 
-  // Add current buttons name the subreddit they add, and show only when
-  // there is one.
+  // What the rules do to a subreddit: an allowed one stays open, and an
+  // exact name or a pattern may block it everywhere or on its front page.
+  function describeSubreddit(name) {
+    if (allowedList.values().includes(name)) return { text: "Allowed, so it stays open", allowed: true };
+    const rules = blockedList.values()
+      .filter((rule) => FrontFilter.matchesSubredditPattern(rule.name, name));
+    const rule = rules.find((other) => other.mode === "all") || rules[0];
+    const by = rule && rule.name !== name ? ` by ${rule.name}` : "";
+    if (rule?.mode === "all") return { text: `Blocked everywhere${by}`, everywhere: true };
+    if (rule) return { text: `Front page blocked${by}` };
+    if (switches.blockSubHome.checked) return { text: "Front page blocked, like every subreddit's" };
+    return { text: "Not blocked" };
+  }
+
+  // The card shows only on a subreddit. Its buttons are off where they
+  // would change nothing: an allowed subreddit stays open whatever blocks it.
+  function updateCurrentCard() {
+    const { subreddit } = currentCard;
+    currentCard.element.hidden = !subreddit;
+    if (!subreddit) return;
+    const state = describeSubreddit(subreddit);
+    currentCard.status.textContent = state.text;
+    currentCard.block.disabled = controlsDisabled || Boolean(state.everywhere || state.allowed);
+    currentCard.allow.disabled = controlsDisabled || Boolean(state.allowed);
+  }
+
   async function showCurrentSubreddit() {
-    let subreddit = "";
     try {
-      subreddit = await findCurrentSubreddit();
+      currentCard.subreddit = await findCurrentSubreddit();
     } catch {
-      // Without the tab, the buttons stay hidden.
+      // Without the tab, the card stays hidden.
     }
-    for (const [id, listName] of [
-      ["add-current-subreddit", "blocked subreddits"],
-      ["add-current-allowed-subreddit", "allowed subreddits"],
-    ]) {
-      const button = document.getElementById(id);
-      button.hidden = !subreddit;
-      if (!subreddit) continue;
-      button.textContent = `Add r/${subreddit}`;
-      button.setAttribute("aria-label", `Add r/${subreddit} to ${listName}`);
-    }
+    const label = `r/${currentCard.subreddit}`;
+    currentCard.name.textContent = label;
+    // A long name is cut short on screen, and whole here.
+    currentCard.name.setAttribute("title", label);
+    currentCard.block.setAttribute("aria-label", `Block ${label}`);
+    currentCard.allow.setAttribute("aria-label", `Allow ${label}`);
+    updateCurrentCard();
   }
 
   for (const [key, input] of Object.entries(switches)) {
@@ -913,9 +953,13 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("add-current-subreddit")
-    .addEventListener("click", () => addCurrentSubreddit(blockedList));
+    .addEventListener("click", () => addCurrentSubreddit(
+      blockedList, (subreddit) => `r/${subreddit} blocked everywhere`,
+    ));
   document.getElementById("add-current-allowed-subreddit")
-    .addEventListener("click", () => addCurrentSubreddit(allowedList));
+    .addEventListener("click", () => addCurrentSubreddit(
+      allowedList, (subreddit) => `r/${subreddit} allowed`,
+    ));
   document.getElementById("export-config").addEventListener("click", exportConfig);
   document.getElementById("import-config").addEventListener("click", () => importFile.click());
   importFile.addEventListener("change", () => {

@@ -551,16 +551,17 @@ test("adds the current tab's subreddit and reports non-subreddit tabs", async ()
     autoResolveWrites: true,
     tabs: [{ url: "https://www.reddit.com/r/Firefox/comments/abc/post" }],
   });
-  // The buttons name the subreddit they add.
-  for (const [id, list] of [
-    ["add-current-subreddit", "blocked subreddits"],
-    ["add-current-allowed-subreddit", "allowed subreddits"],
-  ]) {
-    const button = currentSubreddit.elements[id];
-    assert.equal(button.hidden, false);
-    assert.equal(button.textContent, "Add r/firefox");
-    assert.equal(button.getAttribute("aria-label"), `Add r/firefox to ${list}`);
-  }
+  // A card names the subreddit, with buttons that block or allow it.
+  const card = currentSubreddit.elements["current-subreddit"];
+  assert.equal(card.hidden, false);
+  assert.equal(currentSubreddit.elements["current-subreddit-name"].textContent, "r/firefox");
+  assert.equal(currentSubreddit.elements["current-subreddit-name"].getAttribute("title"), "r/firefox");
+  assert.equal(currentSubreddit.elements["add-current-subreddit"].textContent, "Block");
+  assert.equal(currentSubreddit.elements["add-current-subreddit"].getAttribute("aria-label"),
+    "Block r/firefox");
+  assert.equal(currentSubreddit.elements["add-current-allowed-subreddit"].textContent, "Allow");
+  assert.equal(currentSubreddit.elements["add-current-allowed-subreddit"].getAttribute("aria-label"),
+    "Allow r/firefox");
 
   await currentSubreddit.elements["add-current-subreddit"].click();
   await settle();
@@ -569,6 +570,9 @@ test("adds the current tab's subreddit and reports non-subreddit tabs", async ()
     "firefox",
   );
   assert.equal(currentSubreddit.writes.length, 1);
+  assert.equal(currentSubreddit.elements["toast"].textContent, "r/firefox blocked everywhere");
+  // The rule shows in its list, while the focus stays on the card.
+  assert.equal(getRenderedItems(currentSubreddit.elements)[0].querySelector("input").focused, false);
 
   await currentSubreddit.elements["add-current-allowed-subreddit"].click();
   await settle();
@@ -587,14 +591,59 @@ test("adds the current tab's subreddit and reports non-subreddit tabs", async ()
   // Outside Reddit, browsers withhold the tab's URL.
   for (const tab of [{ url: "https://www.reddit.com/" }, { id: 7 }]) {
     const nonSubreddit = await loadPopup({ tabs: [tab] });
-    // Nothing to add: the buttons stay hidden.
-    assert.equal(nonSubreddit.elements["add-current-subreddit"].hidden, true);
-    assert.equal(nonSubreddit.elements["add-current-allowed-subreddit"].hidden, true);
+    // Nothing to add: the card stays hidden.
+    assert.equal(nonSubreddit.elements["current-subreddit"].hidden, true);
     await nonSubreddit.elements["add-current-subreddit"].click();
     assert.equal(
       nonSubreddit.elements["toast"].textContent,
       "No subreddit found on current tab",
     );
+  }
+});
+
+test("tells what the rules do to the current subreddit, and offers only what changes it", async () => {
+  const states = [
+    [{}, "Not blocked", false, false],
+    [{ blockSubHome: true }, "Front page blocked, like every subreddit's", false, false],
+    [{ blockedSubreddits: [{ name: "news", mode: "home" }] }, "Front page blocked", false, false],
+    [{ blockedSubreddits: [{ name: "new*", mode: "all" }] }, "Blocked everywhere by new*", true, false],
+    [{ blockedSubreddits: [{ name: "news", mode: "all" }], allowedSubreddits: ["news"] },
+      "Allowed, so it stays open", true, true],
+  ];
+  for (const [storedSettings, status, blockOff, allowOff] of states) {
+    const { elements } = await loadPopup({
+      storedSettings, tabs: [{ url: "https://www.reddit.com/r/News/" }],
+    });
+    assert.equal(elements["current-subreddit-status"].textContent, status);
+    assert.equal(elements["add-current-subreddit"].disabled, blockOff, status);
+    assert.equal(elements["add-current-allowed-subreddit"].disabled, allowOff, status);
+  }
+
+  // Blocking it says so at once, and leaves nothing more to block.
+  const { elements } = await loadPopup({
+    autoResolveWrites: true, tabs: [{ url: "https://www.reddit.com/r/news/" }],
+  });
+  await elements["add-current-subreddit"].click();
+  assert.equal(elements["current-subreddit-status"].textContent, "Blocked everywhere");
+  assert.equal(elements["add-current-subreddit"].disabled, true);
+  assert.equal(elements["add-current-allowed-subreddit"].disabled, false);
+});
+
+test("labels every list's Add button alike, and names each for its list", async () => {
+  const { elements } = await loadPopup();
+  const names = [
+    ["add-subreddit", "Add a blocked subreddit"],
+    ["add-allowed-subreddit", "Add an allowed subreddit"],
+    ["add-blocked-user", "Add a blocked user"],
+    ["add-title-keyword", "Add a keyword"],
+    ["add-allowed-keyword", "Add an allowed keyword"],
+    ["add-blocked-flair", "Add a flair"],
+  ];
+  for (const [id, name] of names) {
+    assert.equal(elements[id].textContent.trim(), "Add", id);
+    // The visible label starts the accessible name.
+    assert.equal(elements[id].getAttribute("aria-label"), name);
+    assert.ok(name.startsWith("Add "));
   }
 });
 
