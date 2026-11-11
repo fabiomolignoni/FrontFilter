@@ -13,7 +13,9 @@ Notable changes to FrontFilter, newest first.
   filters hid, and why. Statistics stay on your device, keep daily figures
   for 30 days and totals since counting began, and are not exported with
   your settings. **Pause statistics** stops counting, and **Reset** deletes
-  them.
+  them. In Chrome, time also counts on Reddit pages already open when
+  FrontFilter is installed or updated, for which it asks for the
+  `scripting` permission; it shows no warning.
 - **Undo**, in place of a rule removed from one of the settings page's
   lists.
 - Importing a configuration first shows what it would change, with

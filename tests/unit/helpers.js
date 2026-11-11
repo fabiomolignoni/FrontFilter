@@ -14,6 +14,12 @@ function readSource(file) {
   return readFileSync(join(SOURCE, file), "utf8");
 }
 
+// What the background script adds to Reddit pages open before an update,
+// in order: the statistics recorder alone.
+const STATS_RECORDER_SCRIPTS = Object.freeze([
+  "shared/core.js", "shared/stats.js", "content/stats-recorder.js", "content/stats-only.js",
+]);
+
 // Runs extension scripts in order, as a page or the manifest loads them.
 function runScripts(context, files) {
   for (const file of files) {
@@ -288,6 +294,7 @@ function loadPage(file) {
 }
 
 module.exports = {
+  STATS_RECORDER_SCRIPTS,
   FakeElement,
   createDocument,
   deferred,
