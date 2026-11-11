@@ -6,7 +6,8 @@
   "homepage_url": "https://github.com/fabiomolignoni/FrontFilter",
   "permissions": [
     "storage",
-    "declarativeNetRequestWithHostAccess"
+    "declarativeNetRequestWithHostAccess",
+    "scripting"
   ],
   "host_permissions": [
     "*://*.reddit.com/*"

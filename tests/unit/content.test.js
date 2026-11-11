@@ -1,13 +1,20 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const vm = require("node:vm");
-const { deferred, runScripts, settle } = require("./helpers");
+const { STATS_RECORDER_SCRIPTS, deferred, runScripts, settle } = require("./helpers");
+
+const CONTENT_SCRIPTS = [
+  "shared/core.js", "shared/stats.js", "content/selectors.js", "content/posts.js",
+  "content/page-style.js", "content/autoplay.js", "content/quick-block.js",
+  "content/stats-recorder.js", "content/main.js",
+];
 
 async function loadContent({
   querySelectorAll = () => [], settings, startUrl, body = {},
   // Whether the page is in front, in the focused window.
   focused = false,
   sendMessage = async () => ({ success: true }),
+  scripts = CONTENT_SCRIPTS,
 }) {
   const redirects = [];
   const readyListeners = [];
@@ -141,11 +148,7 @@ async function loadContent({
     };
   `, context);
 
-  for (const file of [
-    "shared/core.js", "shared/stats.js", "content/selectors.js", "content/posts.js",
-    "content/page-style.js", "content/autoplay.js", "content/quick-block.js",
-    "content/stats-recorder.js", "content/main.js",
-  ]) {
+  for (const file of scripts) {
     runScripts(context, [file]);
     if (file === "shared/core.js") {
       vm.runInContext(`FrontFilter.createFeedLimiter = (options) => {
@@ -1708,6 +1711,51 @@ test("stops counting time 5 minutes after the last input", async () => {
   await spend(content, 40000);
   content.setFocused(false);
   assert.equal(sentTime(content), 5 * 60000 + 40000);
+});
+
+// A Reddit page open when FrontFilter was installed or updated in Chrome,
+// which the background script gives the recorder alone.
+const loadStatsOnly = (options) => loadContent({
+  focused: true, startUrl: "https://www.reddit.com/", ...options, scripts: STATS_RECORDER_SCRIPTS,
+});
+
+test("counts time alone on a page open before an update, as content scripts do", async () => {
+  const content = await loadStatsOnly({ settings: {} });
+  await spend(content, 60000);
+  assert.deepEqual(sentRecords(content), [emptyRecord({ time: 60000 })]);
+
+  // Behind another tab, it stops and sends what it counted.
+  await spend(content, 20000);
+  content.setFocused(false);
+  assert.deepEqual(sentRecords(content).at(-1), emptyRecord({ time: 20000 }));
+  // It stops 5 minutes after the last input.
+  content.setFocused(true);
+  content.dispatchWindow("wheel");
+  await spend(content, 7 * 60000);
+  assert.equal(sentTime(content), 80000 + 5 * 60000);
+  // It reads no page and answers no message, so the settings page treats
+  // the page as one without a content script.
+  assert.deepEqual(content.queriedSelectors, []);
+  assert.equal(await content.ask({ action: "countHidden" }), undefined);
+});
+
+test("counts no time on a page open before an update while statistics are paused", async () => {
+  const content = await loadStatsOnly({ settings: { pauseStatistics: true } });
+  await spend(content, 2 * 60000);
+  assert.deepEqual(sentRecords(content), []);
+
+  // Unpaused, it counts from then on.
+  content.storageListeners.forEach((listener) => listener({ pauseStatistics: { newValue: false } }, "local"));
+  content.dispatchWindow("pointerdown");
+  await spend(content, 60000);
+  assert.deepEqual(sentRecords(content), [emptyRecord({ time: 60000 })]);
+
+  // Paused again, it sends nothing more.
+  content.storageListeners.forEach((listener) => listener({ pauseStatistics: { newValue: true } }, "local"));
+  content.dispatchWindow("pointerdown");
+  await spend(content, 2 * 60000);
+  content.setFocused(false);
+  assert.equal(sentRecords(content).length, 1);
 });
 
 test("counts nothing, and reads no post, while statistics are paused", async () => {

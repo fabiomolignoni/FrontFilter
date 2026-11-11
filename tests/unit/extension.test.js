@@ -8,7 +8,7 @@ const { existsSync, readFileSync } = require("node:fs");
 const { join, posix } = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
-const { readSource } = require("./helpers");
+const { STATS_RECORDER_SCRIPTS, readSource } = require("./helpers");
 
 const ROOT = join(__dirname, "..", "..");
 const PROJECT_URL = "https://github.com/fabiomolignoni/FrontFilter";
@@ -43,10 +43,13 @@ test("asks only for the permissions it uses, and for host access only to Reddit"
   // declarativeNetRequestWithHostAccess shows no install warning of its own,
   // unlike declarativeNetRequest's "Block content on any page": its rules act
   // only where the host permissions below allow, which redirects need anyway.
-  assert.deepEqual(manifest.permissions, ["storage", "declarativeNetRequestWithHostAccess"]);
+  // scripting shows none either, and also acts only there: Chrome needs it
+  // to add the statistics recorder to Reddit pages open before an update,
+  // which Firefox gives their content scripts itself.
+  assert.deepEqual(manifest.permissions, ["storage", "declarativeNetRequestWithHostAccess", "scripting"]);
   assert.equal("optional_permissions" in manifest, false);
   assert.deepEqual(manifest.host_permissions, ["*://*.reddit.com/*"]);
-  assert.deepEqual(firefoxManifest.permissions, manifest.permissions);
+  assert.deepEqual(firefoxManifest.permissions, ["storage", "declarativeNetRequestWithHostAccess"]);
   assert.deepEqual(firefoxManifest.host_permissions, manifest.host_permissions);
 });
 
@@ -68,7 +71,10 @@ test("opens the settings page, in a tab, as the browsers' options page", () => {
 });
 
 test("builds the Firefox manifest from browser-specific overrides only", () => {
-  assert.deepEqual(Object.keys(firefoxOverrides).sort(), ["background", "browser_specific_settings", "name"]);
+  assert.deepEqual(
+    Object.keys(firefoxOverrides).sort(),
+    ["background", "browser_specific_settings", "name", "permissions"],
+  );
   assert.equal("service_worker" in firefoxManifest.background, false);
   assert.ok(firefoxManifest.browser_specific_settings.gecko.id);
   // Firefox Add-ons rejects longer names.
@@ -89,6 +95,7 @@ test("lists only files that exist", () => {
     manifest.background.service_worker,
     ...firefoxManifest.background.scripts,
     ...contentScripts,
+    ...STATS_RECORDER_SCRIPTS,
     ...manifest.content_scripts.flatMap(({ css = [] }) => css),
     ...manifest.web_accessible_resources.flatMap(({ resources }) => resources),
     manifest.action.default_popup,
@@ -118,6 +125,10 @@ test("loads each content script after the modules it uses", () => {
   }
   assert.ok(position("content/posts.js") < position("content/comment-limit.js"));
   assert.ok(position("shared/stats.js") < position("content/stats-recorder.js"));
+  // The recorder alone, for pages open before an update, loads as they do.
+  const recorder = STATS_RECORDER_SCRIPTS.slice(0, -1);
+  assert.deepEqual(recorder, isolated.filter((file) => recorder.includes(file)));
+  assert.equal(STATS_RECORDER_SCRIPTS.at(-1), "content/stats-only.js");
 });
 
 test("loads the statistics' module wherever statistics are recorded or shown", () => {
@@ -136,6 +147,7 @@ test("parses every script, which uses the chrome namespace that both browsers ha
     manifest.background.service_worker,
     ...firefoxManifest.background.scripts,
     ...contentScripts,
+    ...STATS_RECORDER_SCRIPTS,
     ...pageScripts,
   ]);
   for (const file of scripts) {

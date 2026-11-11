@@ -1,17 +1,23 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const vm = require("node:vm");
-const { runScripts, settle } = require("./helpers");
+const { STATS_RECORDER_SCRIPTS, readSource, runScripts, settle } = require("./helpers");
+
+const manifest = JSON.parse(readSource("manifest.json"));
 
 async function loadBackground({
   dynamicRules = [{ id: 42 }],
   settings = {},
+  // Chrome's, as Firefox's manifest asks for no scripting permission.
+  scripting,
+  openTabs = [],
 } = {}) {
   const listeners = {};
   const updates = [];
   const removedKeys = [];
   const storedValues = [];
   const createdTabs = [];
+  const tabQueries = [];
   let storedSettings = { ...settings };
   let rules = dynamicRules.map((rule) => ({ ...rule }));
 
@@ -27,6 +33,7 @@ async function loadBackground({
       },
     },
     runtime: {
+      getManifest: () => structuredClone(manifest),
       getURL: (path) => `chrome-extension://frontfilter/${path}`,
       onInstalled: { addListener(listener) { listeners.installed = listener; } },
       onMessage: { addListener(listener) { listeners.message = listener; } },
@@ -51,8 +58,13 @@ async function loadBackground({
         createdTabs.push(options);
         return options;
       },
+      async query(options) {
+        tabQueries.push(options);
+        return openTabs;
+      },
     },
   };
+  if (scripting) chrome.scripting = scripting;
   // Each background gets its own console, so tests can read its warnings.
   const backgroundConsole = { error: console.error, warn: console.warn };
   const context = vm.createContext({
@@ -77,6 +89,7 @@ async function loadBackground({
     setSettings(value) { storedSettings = { ...value }; },
     storedSettings: () => storedSettings,
     storedValues,
+    tabQueries,
     updates,
   };
 }
@@ -197,6 +210,61 @@ test("marks a new installation's settings as this version's", async () => {
 
   assert.deepEqual(JSON.parse(JSON.stringify(background.storedValues)), [{ settingsVersion: 2 }]);
   assert.equal(background.updates.length, 2);
+});
+
+// Chrome's scripting API for open tabs: in some, the content script runs,
+// and others cannot run scripts at all, as discarded tabs.
+function createScripting({ withContentScript = [], unscriptable = [] } = {}) {
+  const injections = [];
+  return {
+    injections,
+    async executeScript(injection) {
+      injections.push(injection);
+      const { tabId, documentIds } = injection.target;
+      if (unscriptable.includes(tabId)) throw new Error("Cannot access contents of the page");
+      const documentId = documentIds?.[0] ?? `document-${tabId}`;
+      if (!injection.func) return [{ documentId, frameId: 0 }];
+      // Chrome runs the function's source in the content scripts' world,
+      // which holds their globals only.
+      const world = vm.createContext(withContentScript.includes(tabId) ? { FrontFilter: {} } : {});
+      return [{ documentId, frameId: 0, result: vm.runInContext(`(${injection.func})()`, world) }];
+    },
+  };
+}
+
+test("adds the statistics recorder alone to Reddit pages open when installed or updated", async () => {
+  for (const reason of ["install", "update"]) {
+    const scripting = createScripting({ withContentScript: [1], unscriptable: [3] });
+    const background = await loadBackground({ scripting, openTabs: [{ id: 1 }, { id: 2 }, { id: 3 }] });
+
+    background.listeners.installed({ reason });
+    await settle();
+
+    // The pages content scripts run on.
+    assert.deepEqual(JSON.parse(JSON.stringify(background.tabQueries)), [{ url: ["*://*.reddit.com/*"] }]);
+    assert.deepEqual(scripting.injections.map(({ target }) => target.tabId), [1, 2, 3, 2], reason);
+    // Only the page without a content script gets the recorder, and only
+    // the document checked: not one loaded since, which has its own.
+    assert.deepEqual(JSON.parse(JSON.stringify(scripting.injections.at(-1))), {
+      target: { tabId: 2, documentIds: ["document-2"] },
+      files: STATS_RECORDER_SCRIPTS,
+    });
+  }
+});
+
+test("adds no recorder when the browser updates, or in Firefox, which adds content scripts itself", async () => {
+  const scripting = createScripting();
+  let background = await loadBackground({ scripting, openTabs: [{ id: 1 }] });
+  background.listeners.installed({ reason: "browser_update" });
+  background.listeners.installed({ reason: "chrome_update" });
+  await settle();
+  assert.deepEqual(background.tabQueries, []);
+  assert.deepEqual(scripting.injections, []);
+
+  background = await loadBackground({ openTabs: [{ id: 1 }] });
+  background.listeners.installed({ reason: "update" });
+  await settle();
+  assert.deepEqual(background.tabQueries, []);
 });
 
 test("opens standalone settings and reports failures through message responses", async () => {

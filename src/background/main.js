@@ -1,7 +1,8 @@
 /**
  * FrontFilter's background script: keeps the declarative navigation rules in
  * step with the settings, opens the settings page for other pages, and
- * keeps the statistics they record.
+ * keeps the statistics they record, adding the recorder to Reddit pages
+ * open before an update.
  */
 
 // These settings belonged to features removed in previous releases. Removing
@@ -76,12 +77,56 @@ async function upgradeStoredSettings(reason) {
     : FrontFilter.upgradeSettings(stored));
 }
 
+// Chrome gives no content script to the Reddit pages already open when
+// FrontFilter is installed or updated, and the one a page had before an
+// update can no longer reach FrontFilter: the time spent there would go
+// uncounted until the page is reloaded, and moving between Reddit's pages
+// reloads none. Such pages get the statistics recorder alone
+// (content/stats-only.js); their filters wait for their next load, as
+// before. Firefox gives open pages their content scripts itself, and its
+// manifest asks for no permission to add any.
+const STATS_RECORDER_SCRIPTS = Object.freeze([
+  "shared/core.js", "shared/stats.js", "content/stats-recorder.js", "content/stats-only.js",
+]);
+
+async function addStatsRecorder(tabId) {
+  try {
+    // A page whose content script runs has FrontFilter in the content
+    // scripts' world. The recorder goes to the page checked, not to one
+    // loaded since, which has its content script.
+    const [{ result: hasContentScript, documentId }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => typeof FrontFilter !== "undefined",
+    });
+    if (hasContentScript) return;
+    await chrome.scripting.executeScript({
+      target: { tabId, documentIds: [documentId] },
+      files: STATS_RECORDER_SCRIPTS,
+    });
+  } catch {
+    // Some pages run no script, such as discarded tabs, which load again,
+    // with their content script, once shown.
+  }
+}
+
+async function addStatsRecorders() {
+  if (!chrome.scripting) return;
+  const { matches } = chrome.runtime.getManifest().content_scripts.find(({ world }) => world !== "MAIN");
+  const tabs = await chrome.tabs.query({ url: matches });
+  await Promise.all(tabs.map(({ id }) => addStatsRecorder(id)));
+}
+
 chrome.runtime.onInstalled.addListener(({ reason } = {}) => {
   void chrome.storage.local
     .remove(OBSOLETE_STORAGE_KEYS)
     .then(() => upgradeStoredSettings(reason))
     .then(syncNavigationRules)
     .catch((error) => console.error("Could not migrate FrontFilter settings:", error));
+  if (reason === "install" || reason === "update") {
+    void addStatsRecorders().catch((error) => {
+      console.error("Could not count the time on open Reddit pages:", error);
+    });
+  }
 });
 
 chrome.runtime.onStartup.addListener(syncNavigationRulesInBackground);

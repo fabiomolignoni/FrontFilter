@@ -1,5 +1,9 @@
 {
   "name": "FrontFilter",
+  "permissions": [
+    "storage",
+    "declarativeNetRequestWithHostAccess"
+  ],
   "background": {
     "scripts": [
       "shared/core.js",
