@@ -25,8 +25,6 @@ To install from source, see [Development](#development). The
   every page of it and hide its posts, and crossposts of them, from other
   feeds.
 - Allow exceptions that override subreddit rules.
-- Block users by name, `u/name` or profile URL: their posts and comments
-  disappear from every Reddit page, and their profiles are blocked.
 - Optionally add one-click **Block** buttons to feed posts and subreddit
   pages, with undo.
 - Optionally hide the **Open settings** button from the page shown in place
@@ -39,6 +37,8 @@ To install from source, see [Development](#development). The
   `spoiler*`, or that match a regular expression. Allowed keywords keep the
   posts and comments that contain them.
 - Hide posts by flair, with `*` wildcards.
+- Hide the posts and comments of users, by name, `u/name` or profile URL,
+  from every Reddit page, and block their profiles.
 - Hide suggested posts in the Home feed, suggested communities, and ads and
   promoted posts.
 - Hide NSFW content: posts tagged NSFW and posts from NSFW communities, on
@@ -76,9 +76,9 @@ system theme or use a light or dark one.
 ## Usage
 
 Open FrontFilter from the browser toolbar or extensions menu. Its tabs
-follow the features above: **Block** covers pages, subreddits, users, the
-Block buttons and the block page, **Filter** hides suggestions, ads,
-sensitive posts, and posts by keyword or flair, **Simplify** limits
+follow the features above: **Block** covers pages, subreddits, the Block
+buttons and the block page, **Filter** hides suggestions, ads, sensitive
+posts, and posts and comments by keyword, flair or user, **Simplify** limits
 scrolling and hides parts of Reddit's pages, **Stats** shows your
 statistics, and **Settings** covers the theme, backups, and the project's
 links. Changes are saved automatically and apply right away.
