@@ -515,3 +515,29 @@ label.field-row:hover { background: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* High contrast modes replace the page's colors, which alone drew the
+   switches and the selected tab: they draw them in the system's colors. */
+@media (forced-colors: active) {
+  .row input[type="checkbox"] {
+    forced-color-adjust: none;
+    border: 1px solid CanvasText; background: Canvas;
+  }
+  .row input[type="checkbox"]::before {
+    top: 1px; left: 1px; background: CanvasText; box-shadow: none;
+  }
+  .row input[type="checkbox"]:checked { border-color: Highlight; background: Highlight; }
+  .row input[type="checkbox"]:checked::before { background: HighlightText; }
+  .row input[type="checkbox"]:indeterminate { border-color: Highlight; background: Canvas; }
+  .row input[type="checkbox"]:indeterminate::before { background: Highlight; }
+  .row input[type="checkbox"]:disabled { opacity: 1; border-color: GrayText; }
+  .row input[type="checkbox"]:disabled::before { background: GrayText; }
+  .row input[type="checkbox"]:checked:disabled { background: GrayText; }
+  .row input[type="checkbox"]:checked:disabled::before { background: Canvas; }
+  .tabs { border: 1px solid CanvasText; }
+  .tab[aria-selected="true"] {
+    forced-color-adjust: none;
+    background: Highlight; color: HighlightText;
+  }
+  .tab[aria-selected="true"] .icon { color: HighlightText; }
+}
