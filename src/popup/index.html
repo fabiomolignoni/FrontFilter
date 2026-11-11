@@ -80,7 +80,6 @@
             aria-labelledby="current-subreddit-name" hidden>
             <span class="current-badge" aria-hidden="true">r/</span>
             <div class="current-info">
-              <p class="current-eyebrow">This tab</p>
               <h2 class="current-name" id="current-subreddit-name"></h2>
               <p class="current-status" id="current-subreddit-status"></p>
             </div>
@@ -112,13 +111,8 @@
                 <input type="checkbox" role="switch" id="block-news" name="blockNews" />
               </label>
               <label class="row">
-                <span class="row-text">
-                  <span class="row-label" id="block-sub-home-label">All subreddit front pages</span>
-                  <span class="row-desc" id="block-sub-home-desc">Allowed subreddits stay
-                    open</span>
-                </span>
-                <input type="checkbox" role="switch" id="block-sub-home" name="blockSubHome"
-                  aria-labelledby="block-sub-home-label" aria-describedby="block-sub-home-desc" />
+                <span class="row-label">All subreddit front pages</span>
+                <input type="checkbox" role="switch" id="block-sub-home" name="blockSubHome" />
               </label>
             </div>
           </section>
@@ -132,7 +126,6 @@
                   <button type="button" class="help-toggle" aria-expanded="false"
                     aria-controls="blocked-help" aria-label="About blocked subreddits">?</button>
                 </div>
-                <p class="list-desc">Blocked on their front page, or everywhere</p>
               </div>
               <div class="list-actions">
                 <button type="button" id="add-subreddit" class="btn btn-tonal"
@@ -193,7 +186,6 @@
                   <button type="button" class="help-toggle" aria-expanded="false"
                     aria-controls="blocked-user-help" aria-label="About blocked users">?</button>
                 </div>
-                <p class="list-desc">Their posts, comments and profiles are hidden</p>
               </div>
               <div class="list-actions">
                 <button type="button" id="add-blocked-user" class="btn btn-tonal"
@@ -206,8 +198,8 @@
               </div>
             </div>
             <div class="help-text" id="blocked-user-help" hidden>
-              <p>Enter a name, <code>u/name</code> or a profile URL. Replies to their comments hide
-                too.</p>
+              <p>Their posts and comments hide everywhere, with the replies to their comments, and
+                their profiles are blocked. Enter a name, <code>u/name</code> or a profile URL.</p>
               <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
             <div id="blocked-user-list" class="entry-list"></div>
@@ -217,16 +209,11 @@
             <h2 class="section-title" id="block-buttons-heading">Block buttons</h2>
             <div class="card">
               <label class="row">
-                <span class="row-text">
-                  <span class="row-label" id="show-block-subreddit-button-label">Show one-click
-                    Block buttons</span>
-                  <span class="row-desc" id="show-block-subreddit-button-desc">On feed posts and
-                    subreddit pages, with undo</span>
-                </span>
+                <span class="row-label" id="show-block-subreddit-button-label">Show on posts and
+                  subreddit pages</span>
                 <input type="checkbox" role="switch" id="show-block-subreddit-button"
                   name="showBlockSubredditButton"
-                  aria-labelledby="show-block-subreddit-button-label"
-                  aria-describedby="show-block-subreddit-button-desc" />
+                  aria-labelledby="block-buttons-heading show-block-subreddit-button-label" />
               </label>
             </div>
           </section>
@@ -235,28 +222,19 @@
             <h2 class="section-title" id="block-page-heading">Block page</h2>
             <div class="card">
               <label class="row">
-                <span class="row-text">
-                  <span class="row-label" id="hide-block-page-settings-button-label">Hide the Open
-                    settings button</span>
-                  <span class="row-desc" id="hide-block-page-settings-button-desc">Blocked pages
-                    offer only Go back</span>
-                </span>
+                <span class="row-label" id="hide-block-page-settings-button-label">Hide the Open
+                  settings button</span>
                 <input type="checkbox" role="switch" id="hide-block-page-settings-button"
                   name="hideBlockPageSettingsButton"
-                  aria-labelledby="hide-block-page-settings-button-label"
-                  aria-describedby="hide-block-page-settings-button-desc" />
+                  aria-labelledby="block-page-heading hide-block-page-settings-button-label" />
               </label>
               <div class="setting-group">
                 <label class="row">
-                  <span class="row-text">
-                    <span class="row-label" id="redirect-blocked-pages-label">Redirect to another
-                      website</span>
-                    <span class="row-desc" id="redirect-blocked-pages-desc">Instead of showing the
-                      block page</span>
-                  </span>
+                  <span class="row-label" id="redirect-blocked-pages-label">Redirect to another
+                    website</span>
                   <input type="checkbox" role="switch" id="redirect-blocked-pages"
-                    name="redirectBlockedPages" aria-labelledby="redirect-blocked-pages-label"
-                    aria-describedby="redirect-blocked-pages-desc" />
+                    name="redirectBlockedPages"
+                    aria-labelledby="block-page-heading redirect-blocked-pages-label" />
                 </label>
                 <label class="row sub-option field-row redirect-url" id="redirect-url-option"
                   for="redirect-url" hidden>
@@ -301,19 +279,14 @@
             <h2 class="section-title" id="sensitive-heading">Sensitive content</h2>
             <div class="card">
               <label class="row">
-                <span class="row-text">
-                  <span class="row-label" id="hide-nsfw-label">Hide NSFW content</span>
-                  <span class="row-desc" id="hide-nsfw-desc">Posts tagged NSFW or from NSFW
-                    communities</span>
-                </span>
-                <input type="checkbox" role="switch" id="hide-nsfw" name="hideNsfw"
-                  aria-labelledby="hide-nsfw-label" aria-describedby="hide-nsfw-desc" />
+                <span class="row-label">Hide NSFW content</span>
+                <input type="checkbox" role="switch" id="hide-nsfw" name="hideNsfw" />
               </label>
               <label class="row">
                 <span class="row-text">
                   <span class="row-label" id="hide-spoilers-label">Hide spoilers</span>
-                  <span class="row-desc" id="hide-spoilers-desc">Posts tagged as spoilers; keywords
-                    can catch others</span>
+                  <span class="row-desc" id="hide-spoilers-desc">Only posts tagged as
+                    spoilers</span>
                 </span>
                 <input type="checkbox" role="switch" id="hide-spoilers" name="hideSpoilers"
                   aria-labelledby="hide-spoilers-label" aria-describedby="hide-spoilers-desc" />
@@ -397,7 +370,6 @@
                   <button type="button" class="help-toggle" aria-expanded="false"
                     aria-controls="blocked-flair-help" aria-label="About post flairs">?</button>
                 </div>
-                <p class="list-desc">Hide posts with these flairs</p>
               </div>
               <div class="list-actions">
                 <button type="button" id="add-blocked-flair" class="btn btn-tonal"
@@ -425,14 +397,9 @@
             <div class="card">
               <div class="setting-group limit-group">
                 <label class="row">
-                  <span class="row-text">
-                    <span class="row-label" id="limit-infinite-scroll-label">Scroll limit</span>
-                    <span class="row-desc" id="limit-infinite-scroll-desc">Show a set number of
-                      posts in feeds</span>
-                  </span>
+                  <span class="row-label">Scroll limit</span>
                   <input type="checkbox" role="switch" id="limit-infinite-scroll"
-                    name="limitInfiniteScroll" aria-labelledby="limit-infinite-scroll-label"
-                    aria-describedby="limit-infinite-scroll-desc" />
+                    name="limitInfiniteScroll" />
                 </label>
                 <div class="sub-options">
                   <label class="row sub-option field-row" for="scroll-limit">
@@ -451,13 +418,8 @@
               </div>
               <div class="setting-group limit-group">
                 <label class="row">
-                  <span class="row-text">
-                    <span class="row-label" id="limit-comments-label">Comment limit</span>
-                    <span class="row-desc" id="limit-comments-desc">Show a set number of comments,
-                      each with its replies</span>
-                  </span>
-                  <input type="checkbox" role="switch" id="limit-comments" name="limitComments"
-                    aria-labelledby="limit-comments-label" aria-describedby="limit-comments-desc" />
+                  <span class="row-label">Comment limit</span>
+                  <input type="checkbox" role="switch" id="limit-comments" name="limitComments" />
                 </label>
                 <div class="sub-options">
                   <label class="row sub-option field-row" for="comment-limit">
@@ -502,24 +464,29 @@
                 </div>
                 <div class="sub-options" id="social-options" hidden>
                   <label class="row sub-option">
-                    <span class="row-label">Hide votes</span>
-                    <input type="checkbox" role="switch" id="hide-votes" name="hideVotes" />
+                    <span class="row-label" id="hide-votes-label">Votes</span>
+                    <input type="checkbox" role="switch" id="hide-votes" name="hideVotes"
+                      aria-labelledby="social-title hide-votes-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide karma</span>
-                    <input type="checkbox" role="switch" id="hide-karma" name="hideKarma" />
+                    <span class="row-label" id="hide-karma-label">Karma</span>
+                    <input type="checkbox" role="switch" id="hide-karma" name="hideKarma"
+                      aria-labelledby="social-title hide-karma-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide awards</span>
-                    <input type="checkbox" role="switch" id="hide-awards" name="hideAwards" />
+                    <span class="row-label" id="hide-awards-label">Awards</span>
+                    <input type="checkbox" role="switch" id="hide-awards" name="hideAwards"
+                      aria-labelledby="social-title hide-awards-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide avatars</span>
-                    <input type="checkbox" role="switch" id="hide-avatars" name="hideAvatars" />
+                    <span class="row-label" id="hide-avatars-label">Avatars</span>
+                    <input type="checkbox" role="switch" id="hide-avatars" name="hideAvatars"
+                      aria-labelledby="social-title hide-avatars-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide usernames</span>
-                    <input type="checkbox" role="switch" id="hide-usernames" name="hideUsernames" />
+                    <span class="row-label" id="hide-usernames-label">Usernames</span>
+                    <input type="checkbox" role="switch" id="hide-usernames" name="hideUsernames"
+                      aria-labelledby="social-title hide-usernames-label" />
                   </label>
                 </div>
               </div>
@@ -541,9 +508,10 @@
                 </div>
                 <div class="sub-options" id="comments-options" hidden>
                   <label class="row sub-option">
-                    <span class="row-label">Hide comment replies</span>
+                    <span class="row-label" id="hide-comment-replies-label">Replies</span>
                     <input type="checkbox" role="switch" id="hide-comment-replies"
-                      name="hideCommentReplies" />
+                      name="hideCommentReplies"
+                      aria-labelledby="comments-title hide-comment-replies-label" />
                   </label>
                 </div>
               </div>
@@ -571,39 +539,43 @@
                 </div>
                 <div class="sub-options" id="navbar-options" hidden>
                   <label class="row sub-option">
-                    <span class="row-label">Hide the menu button</span>
-                    <input type="checkbox" role="switch" id="hide-navbar-menu"
-                      name="hideNavbarMenu" />
+                    <span class="row-label" id="hide-navbar-menu-label">Menu button</span>
+                    <input type="checkbox" role="switch" id="hide-navbar-menu" name="hideNavbarMenu"
+                      aria-labelledby="navbar-title hide-navbar-menu-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide Search</span>
+                    <span class="row-label" id="hide-navbar-search-label">Search</span>
                     <input type="checkbox" role="switch" id="hide-navbar-search"
-                      name="hideNavbarSearch" />
+                      name="hideNavbarSearch"
+                      aria-labelledby="navbar-title hide-navbar-search-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide Chat</span>
-                    <input type="checkbox" role="switch" id="hide-navbar-chat"
-                      name="hideNavbarChat" />
+                    <span class="row-label" id="hide-navbar-chat-label">Chat</span>
+                    <input type="checkbox" role="switch" id="hide-navbar-chat" name="hideNavbarChat"
+                      aria-labelledby="navbar-title hide-navbar-chat-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide Notifications</span>
+                    <span class="row-label"
+                      id="hide-navbar-notifications-label">Notifications</span>
                     <input type="checkbox" role="switch" id="hide-navbar-notifications"
-                      name="hideNavbarNotifications" />
+                      name="hideNavbarNotifications"
+                      aria-labelledby="navbar-title hide-navbar-notifications-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide the profile menu</span>
+                    <span class="row-label" id="hide-navbar-profile-label">Profile menu</span>
                     <input type="checkbox" role="switch" id="hide-navbar-profile"
-                      name="hideNavbarProfile" />
+                      name="hideNavbarProfile"
+                      aria-labelledby="navbar-title hide-navbar-profile-label" />
                   </label>
                   <label class="row sub-option">
                     <span class="row-text">
-                      <span class="row-label" id="hide-navbar-others-label">Hide other
-                        buttons</span>
+                      <span class="row-label" id="hide-navbar-others-label">Other buttons</span>
                       <span class="row-desc" id="hide-navbar-others-desc">Such as Create and
                         Advertise</span>
                     </span>
                     <input type="checkbox" role="switch" id="hide-navbar-others"
-                      name="hideNavbarOthers" aria-labelledby="hide-navbar-others-label"
+                      name="hideNavbarOthers"
+                      aria-labelledby="navbar-title hide-navbar-others-label"
                       aria-describedby="hide-navbar-others-desc" />
                   </label>
                 </div>
@@ -626,41 +598,43 @@
                 </div>
                 <div class="sub-options" id="left-sidebar-options" hidden>
                   <label class="row sub-option">
-                    <span class="row-label">Hide Games</span>
+                    <span class="row-label" id="hide-left-sidebar-games-label">Games</span>
                     <input type="checkbox" role="switch" id="hide-left-sidebar-games"
-                      name="hideLeftSidebarGames" />
+                      name="hideLeftSidebarGames"
+                      aria-labelledby="left-sidebar-title hide-left-sidebar-games-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide Custom feeds</span>
+                    <span class="row-label" id="hide-left-sidebar-custom-feeds-label">Custom
+                      feeds</span>
                     <input type="checkbox" role="switch" id="hide-left-sidebar-custom-feeds"
-                      name="hideLeftSidebarCustomFeeds" />
+                      name="hideLeftSidebarCustomFeeds"
+                      aria-labelledby="left-sidebar-title hide-left-sidebar-custom-feeds-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide Recent</span>
+                    <span class="row-label" id="hide-left-sidebar-recent-label">Recent</span>
                     <input type="checkbox" role="switch" id="hide-left-sidebar-recent"
-                      name="hideLeftSidebarRecent" />
+                      name="hideLeftSidebarRecent"
+                      aria-labelledby="left-sidebar-title hide-left-sidebar-recent-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide Communities</span>
+                    <span class="row-label"
+                      id="hide-left-sidebar-communities-label">Communities</span>
                     <input type="checkbox" role="switch" id="hide-left-sidebar-communities"
-                      name="hideLeftSidebarCommunities" />
+                      name="hideLeftSidebarCommunities"
+                      aria-labelledby="left-sidebar-title hide-left-sidebar-communities-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide Resources</span>
+                    <span class="row-label" id="hide-left-sidebar-resources-label">Resources</span>
                     <input type="checkbox" role="switch" id="hide-left-sidebar-resources"
-                      name="hideLeftSidebarResources" />
+                      name="hideLeftSidebarResources"
+                      aria-labelledby="left-sidebar-title hide-left-sidebar-resources-label" />
                   </label>
                 </div>
               </div>
               <label class="row">
-                <span class="row-text">
-                  <span class="row-label" id="hide-right-sidebar-label">Hide right sidebar</span>
-                  <span class="row-desc" id="hide-right-sidebar-desc">With the posts suggested
-                    beside a post</span>
-                </span>
-                <input type="checkbox" role="switch" id="hide-right-sidebar" name="hideRelatedPosts"
-                  aria-labelledby="hide-right-sidebar-label"
-                  aria-describedby="hide-right-sidebar-desc" />
+                <span class="row-label">Hide right sidebar</span>
+                <input type="checkbox" role="switch" id="hide-right-sidebar"
+                  name="hideRelatedPosts" />
               </label>
             </div>
           </section>
@@ -685,20 +659,20 @@
           <section class="section" aria-labelledby="backup-heading">
             <h2 class="section-title" id="backup-heading">Configuration backup</h2>
             <div class="card card-padded">
-              <p class="card-text">Save your settings and filters to a file. Importing one changes
-                only the settings it includes.</p>
               <div class="backup-actions">
-                <button type="button" id="export-config" class="btn btn-secondary">
+                <button type="button" id="export-config" class="btn btn-secondary"
+                  aria-label="Export configuration">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 2.5v8M4.75 7.25 8 10.5l3.25-3.25M3 13.5h10" />
                   </svg>
-                  Export configuration
+                  Export
                 </button>
-                <button type="button" id="import-config" class="btn btn-secondary">
+                <button type="button" id="import-config" class="btn btn-secondary"
+                  aria-label="Import configuration">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 10.5v-8M4.75 5.75 8 2.5l3.25 3.25M3 13.5h10" />
                   </svg>
-                  Import configuration
+                  Import
                 </button>
               </div>
               <input type="file" id="import-file" accept=".json,application/json" hidden />
@@ -709,7 +683,8 @@
                   this file?</p>
                 <ul class="import-review-changes" id="import-review-changes"></ul>
                 <p class="import-review-note" id="import-review-note">Lists in the file replace
-                  yours. Your current settings are kept, so you can restore them.</p>
+                  yours. You can
+                  restore your current settings afterwards.</p>
                 <div class="backup-actions">
                   <button type="button" id="import-confirm" class="btn btn-primary">Import</button>
                   <button type="button" id="import-cancel" class="btn btn-secondary">Cancel</button>
@@ -728,8 +703,6 @@
               <img src="../icons/icon-48.png" alt="" width="36" height="36" />
               <div class="about-text">
                 <h2 class="about-title" id="app-version">FrontFilter</h2>
-                <p class="card-text">Works entirely on your device: no accounts, no
-                  analytics, no data sent anywhere.</p>
                 <nav class="about-links" aria-label="Project links">
                   <a href="https://github.com/fabiomolignoni/FrontFilter" target="_blank"
                     rel="noopener noreferrer">GitHub</a>

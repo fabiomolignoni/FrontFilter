@@ -1042,7 +1042,7 @@ document.addEventListener("DOMContentLoaded", () => {
       dateStyle: "medium", timeStyle: "short",
     });
     const event = backup.replacedBy === "restore" ? "your restore" : "your import";
-    backupRestoreText.textContent = `Your settings from before ${event} of ${when} are kept.`;
+    backupRestoreText.textContent = `Your settings before ${event} of ${when}`;
   }
 
   // The subreddit this page was opened for, or that the current tab shows.
