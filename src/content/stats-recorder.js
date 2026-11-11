@@ -11,7 +11,7 @@
  */
 FrontFilter.createStatsRecorder = function ({ isEnabled }) {
   // Time stops counting this long after the last input.
-  const IDLE_AFTER = 3 * 60 * 1000;
+  const IDLE_AFTER = 5 * 60 * 1000;
   const TICK = 10 * 1000;
   // Time is sent once this much has added up; counts this long after the
   // first one.

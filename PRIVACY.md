@@ -40,7 +40,7 @@ FrontFilter counts, for each day:
 
 - how long you use Reddit, and in how many visits: time counts while a
   Reddit tab is in front and you have scrolled, clicked or typed in it in the
-  last 3 minutes, and a new visit starts after 10 minutes away from Reddit;
+  last 5 minutes, and a new visit starts after 10 minutes away from Reddit;
 - how many times it blocked a page, and which: a main page such as Popular,
   a subreddit, or a user's profile; and
 - how many posts and comments its filters hid, for each kind of filter.

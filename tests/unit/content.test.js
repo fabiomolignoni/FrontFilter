@@ -1694,17 +1694,20 @@ test("counts time while the page is in front and in use, and sends it every minu
   assert.deepEqual(sentRecords(content).at(-1), emptyRecord({ time: 30000 }));
 });
 
-test("stops counting time 3 minutes after the last input", async () => {
+const sentTime = (content) => sentRecords(content).reduce((sum, { time }) => sum + time, 0);
+
+test("stops counting time 5 minutes after the last input", async () => {
   const content = await loadContent({ focused: true, settings: {}, startUrl: "https://www.reddit.com/" });
-  await spend(content, 5 * 60000);
-  const total = sentRecords(content).reduce((sum, { time }) => sum + time, 0);
-  assert.equal(total, 3 * 60000);
+  await spend(content, 4 * 60000 + 30000);
+  assert.equal(sentTime(content), 4 * 60000);
+  await spend(content, 2 * 60000 + 30000);
+  assert.equal(sentTime(content), 5 * 60000);
 
   // Input brings it back.
   content.dispatchWindow("keydown");
   await spend(content, 40000);
   content.setFocused(false);
-  assert.equal(sentRecords(content).reduce((sum, { time }) => sum + time, 0), 3 * 60000 + 40000);
+  assert.equal(sentTime(content), 5 * 60000 + 40000);
 });
 
 test("counts nothing, and reads no post, while statistics are paused", async () => {
