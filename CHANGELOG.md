@@ -6,6 +6,14 @@ Notable changes to FrontFilter, newest first.
 
 ### Added
 
+- **Stats**, a new tab of the settings page: how long you spent on Reddit
+  today and on each of the last 7 days, in how many visits, with your daily
+  average and how it compares with the week before; how many pages
+  FrontFilter blocked, and which most; and how many posts and comments its
+  filters hid, and why. Statistics stay on your device, keep daily figures
+  for 30 days and totals since counting began, and are not exported with
+  your settings. **Pause statistics** stops counting, and **Reset** deletes
+  them.
 - **Undo**, in place of a rule removed from one of the settings page's
   lists.
 - Importing a configuration first shows what it would change, with

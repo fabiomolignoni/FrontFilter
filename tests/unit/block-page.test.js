@@ -11,6 +11,8 @@ async function loadBlockPage({
   storedSettings = {},
   // Replaces storage reads; the page then logs its errors to errors.
   getSettings,
+  // How the browser reached the page: navigate, reload or back_forward.
+  navigationType = "navigate",
 } = {}) {
   const page = loadPage("blocked/index.html");
   const errors = [];
@@ -61,6 +63,7 @@ async function loadBlockPage({
     chrome,
     console: getSettings ? { error: (...args) => errors.push(args) } : console,
     document: page.document,
+    performance: { getEntriesByType: (type) => (type === "navigation" ? [{ type: navigationType }] : []) },
     localStorage: {
       getItem: (key) => themeCache.get(key) ?? null,
       setItem: (key, value) => themeCache.set(key, String(value)),
@@ -68,7 +71,7 @@ async function loadBlockPage({
     window,
   });
 
-  runScripts(context, ["shared/theme-bootstrap.js", "shared/core.js", "blocked/blocked.js"]);
+  runScripts(context, page.scripts);
   page.ready();
   await settle();
 
@@ -221,7 +224,11 @@ test("keeps the block page open when settings open successfully", async () => {
   await elements["go-to-settings"].click();
 
   assert.equal(location.href, "moz-extension://frontfilter/blocked/index.html");
+  // After counting the visit it stopped.
   assert.deepEqual(JSON.parse(JSON.stringify(messages)), [{
+    action: "recordStats",
+    record: { blocked: { "subreddit:firefox": 1 } },
+  }, {
     action: "openSettings",
     currentSubreddit: "firefox",
   }]);
@@ -409,4 +416,70 @@ test("keeps hidden action buttons out of the layout", () => {
   assert.equal(elements["undo-block"].hidden, true);
   // Until the settings are read, so it never flashes when they hide it.
   assert.equal(elements["go-to-settings"].hidden, true);
+});
+
+// The visits the block page counted, as the background received them.
+async function countedVisits(options) {
+  const messages = [];
+  await loadBlockPage({
+    ...options,
+    sendMessage: async (message) => {
+      messages.push(JSON.parse(JSON.stringify(message)));
+      return { success: true };
+    },
+  });
+  return messages
+    .filter(({ action }) => action === "recordStats")
+    .map(({ record }) => Object.keys(record.blocked));
+}
+
+test("counts each blocked visit by what it belongs to", async () => {
+  const cases = [
+    [{ search: "?page=homepage", hash: "#https://www.reddit.com/" }, "page:homepage"],
+    [{ search: "?page=popular" }, "page:popular"],
+    // Every subreddit's front page counts as the one it was.
+    [{ search: "?page=subhome", hash: "#https://www.reddit.com/r/Pics/hot/" }, "subreddit:pics"],
+    [{ search: "?target=subreddit&subreddit=news&filter=new*" }, "subreddit:news"],
+    // Navigation rules cannot name a pattern's subreddit: the address does.
+    [{ search: "?target=subreddit&filter=new*", hash: "#https://www.reddit.com/r/newsbot/" }, "subreddit:newsbot"],
+    [{ search: "?target=user&user=Spez" }, "user:spez"],
+    [{ search: "?page=unknown" }, "other"],
+  ];
+  for (const [options, target] of cases) {
+    assert.deepEqual(await countedVisits(options), [[target]], options.search);
+  }
+});
+
+test("counts a blocked visit once, and not the page a one-click block brings", async () => {
+  const visit = { search: "?target=subreddit&subreddit=news", hash: "#https://www.reddit.com/r/news/" };
+  assert.deepEqual(await countedVisits({ ...visit, navigationType: "reload" }), []);
+  assert.deepEqual(await countedVisits({ ...visit, navigationType: "back_forward" }), []);
+  assert.deepEqual(await countedVisits({ ...visit, search: `${visit.search}&undo=token` }), []);
+});
+
+test("keeps the block page working when the visit cannot be counted", async () => {
+  const page = await loadBlockPage({
+    search: "?page=news",
+    getSettings: async () => ({}),
+    sendMessage: async (message) => {
+      if (message.action === "recordStats") throw new Error("no background");
+      return { success: true };
+    },
+  });
+  await settle();
+  assert.equal(page.elements["block-message"].textContent, "News page is blocked");
+  assert.match(String(page.errors.at(-1)?.[0]), /Could not count the blocked visit/);
+});
+
+test("keeps its buttons when messages cannot be sent at all", async () => {
+  const page = await loadBlockPage({
+    search: "?page=news",
+    getSettings: async () => ({}),
+    sendMessage: () => { throw new Error("Extension context invalidated."); },
+    historyLength: 2,
+  });
+  await settle();
+  await page.elements["go-back"].click();
+  assert.equal(page.historyBackCount, 1);
+  assert.match(String(page.errors.at(-1)?.[0]), /Could not count the blocked visit/);
 });

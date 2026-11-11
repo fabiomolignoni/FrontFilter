@@ -5,7 +5,7 @@
  * scripts rely on.
  */
 const { readFileSync } = require("node:fs");
-const { join } = require("node:path");
+const { join, posix } = require("node:path");
 const vm = require("node:vm");
 
 const SOURCE = join(__dirname, "..", "..", "src");
@@ -84,6 +84,7 @@ class FakeElement {
     this.value = attributes.value ?? "";
     this.files = [];
     this.focused = false;
+    this.style = {};
     this.tabIndex = Number(attributes.tabindex ?? 0);
     for (const [name, value] of Object.entries(attributes)) this.setAttribute(name, value);
   }
@@ -275,9 +276,15 @@ function createDocument(html) {
   };
 }
 
-// The fake document for an extension page, built from its real markup.
+// The fake document for an extension page, built from its real markup,
+// with the scripts the page loads, in order, as paths in src/.
 function loadPage(file) {
-  return createDocument(readSource(file));
+  const html = readSource(file);
+  const folder = posix.dirname(file);
+  return {
+    ...createDocument(html),
+    scripts: Array.from(html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g), ([, src]) => posix.join(folder, src)),
+  };
 }
 
 module.exports = {

@@ -1,6 +1,6 @@
 # FrontFilter Privacy Policy
 
-**Last updated: November 9, 2026**
+**Last updated: November 11, 2026**
 
 FrontFilter is a browser extension that helps you use Reddit with fewer
 distractions. This policy explains what data the extension handles and what it
@@ -15,7 +15,7 @@ and to unmodified builds of its
 - It has no servers, accounts, analytics, ads, or tracking, and runs no remote
   code.
 - It reads Reddit pages only to apply the features you turn on, and stores only
-  your own settings, in your browser.
+  your own settings and statistics, in your browser.
 - It runs only on `reddit.com` and its subdomains.
 
 ## What FrontFilter handles
@@ -34,10 +34,26 @@ Block buttons on Reddit:
 Filter rules can reveal your interests, so treat them, and any configuration
 file you export, as private.
 
+### Your statistics
+
+FrontFilter counts, for each day:
+
+- how long you use Reddit, and in how many visits: time counts while a
+  Reddit tab is in front and you have scrolled, clicked or typed in it in the
+  last 3 minutes, and a new visit starts after 10 minutes away from Reddit;
+- how many times it blocked a page, and which: a main page such as Popular,
+  a subreddit, or a user's profile; and
+- how many posts and comments its filters hid, for each kind of filter.
+
+Statistics name the subreddits and users of the pages FrontFilter blocked,
+but hold no other address, and no titles, text, or other usernames. Like
+your filter rules, they can reveal your habits.
+
 ### Reddit addresses (web browsing activity)
 
 On Reddit, FrontFilter reads the address of the current page to decide whether
-a rule applies to it. When you click **Add Current** in the settings, it reads
+a rule applies to it, and, for your statistics, which subreddit or user a
+blocked page belongs to. When you click **Add Current** in the settings, it reads
 the address of the active tab to find its subreddit. It does not read your
 browsing history or any page outside Reddit.
 
@@ -48,7 +64,8 @@ pages you open: subreddit names, post links, titles, text previews, comment
 text, flairs, the usernames of post and comment authors, markers that
 identify ads, suggested posts, NSFW posts or spoilers, and the page elements
 you choose to hide or change. This happens in memory, on your device, and
-nothing is kept once you leave the page.
+nothing is kept once you leave the page, except the counts in your
+statistics.
 
 FrontFilter never accesses your passwords or cookies, is not designed to read
 private messages or what you type, and does not use your location.
@@ -56,8 +73,8 @@ private messages or what you type, and does not use your location.
 ## How FrontFilter uses data
 
 Only to provide the features you turn on: blocking pages and subreddits,
-filtering posts and comments, hiding page elements, limiting feeds, and
-saving, importing, and exporting your settings. Data is never used for
+filtering posts and comments, hiding page elements, limiting feeds, showing
+your statistics, and saving, importing, and exporting your settings. Data is never used for
 advertising, profiling, or any other purpose, and no person reviews it.
 
 ## Where data is stored and for how long
@@ -67,6 +84,10 @@ advertising, profiling, or any other purpose, and no person reviews it.
   devices.
 - **Blocking rules** are also stored by the browser as navigation rules, so
   blocked pages are stopped before they load.
+- **Statistics** are kept in the same local storage: each day's figures for
+  30 days, and totals since counting began. They are not part of exported
+  configurations. **Pause statistics**, in the **Stats** tab, stops counting,
+  **Reset** deletes them, and uninstalling FrontFilter deletes them too.
 - **Theme cache:** your color theme is also cached in the extension's own
   local storage, so its pages open in the right colors.
 - **Undo marker:** a one-click block made on a subreddit's own page stores a
@@ -122,7 +143,7 @@ Mozilla, or GitHub.
 ## Your choices
 
 You can change or remove any setting or rule in FrontFilter's settings at any
-time. Uninstalling FrontFilter deletes everything it stores, except files you
+time, and pause or delete your statistics. Uninstalling FrontFilter deletes everything it stores, except files you
 exported and pages kept in your browser history. Because the developer never
 receives your data, there is nothing the developer can access, correct, or
 delete on your behalf. If you allow FrontFilter in private windows, it works

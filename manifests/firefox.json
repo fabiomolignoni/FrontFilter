@@ -3,6 +3,7 @@
   "background": {
     "scripts": [
       "shared/core.js",
+      "shared/stats.js",
       "background/navigation-rules.js",
       "background/main.js"
     ]

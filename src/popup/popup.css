@@ -525,6 +525,114 @@ label.field-row:hover { background: none; }
 .about-links a:hover { text-decoration: underline; }
 .about-links a:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
+/* Stats tab */
+.stats-notice {
+  margin: 0; padding: 10px var(--sp-3);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-subtle); color: var(--text-secondary); font-size: 13px;
+}
+/* A section title with a ? button beside it, and its help below. */
+.section-header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  margin: 0 var(--sp-1) var(--sp-2);
+}
+.section-header .section-title { margin: 0; }
+.section-header + .help-text { margin-bottom: var(--sp-2); }
+
+/* Today's figures, as tiles: a label, its value, and the week's. */
+.stat-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2);
+  margin: 0;
+}
+.stat-tile {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  padding: var(--sp-3) 14px;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg-surface); box-shadow: var(--shadow-sm);
+}
+.stat-tile dd { margin: 0; }
+.stat-label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+.stat-value {
+  font-size: 22px; font-weight: 650; line-height: 1.25; letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.stat-detail { font-size: 12px; color: var(--text-muted); }
+
+.stats-week > .card + .card { margin-top: var(--sp-3); }
+
+/* The week's time: a column per day, today in the accent and the other
+   days in a recessive gray, from one baseline. */
+.chart-card { padding: 14px 14px var(--sp-3); }
+.chart-header {
+  display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap;
+  gap: 2px var(--sp-3);
+}
+.chart-title { margin: 0; font-size: 14px; font-weight: 600; }
+.chart-readout {
+  display: flex; align-items: baseline; gap: 6px; margin: 0 0 0 auto;
+  color: var(--text-secondary); font-size: 12.5px;
+}
+.chart-readout-value { color: var(--text-primary); font-size: 15px; font-weight: 650; }
+.chart-change { margin: 2px 0 0; color: var(--text-muted); font-size: 12px; text-align: right; }
+.chart {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin: var(--sp-3) 0 0; padding: 0; list-style: none;
+}
+.chart-day {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-1);
+  min-width: 0; padding-top: var(--sp-1);
+  border-radius: var(--radius-xs);
+}
+.chart-day:hover { background: var(--bg-hover); }
+.chart-day:focus-visible { outline-offset: 0; }
+.chart-value {
+  height: 16px; color: var(--text-secondary);
+  font-size: 11px; font-weight: 600; line-height: 16px; white-space: nowrap;
+}
+.chart-track {
+  display: flex; align-items: flex-end; justify-content: center;
+  width: 100%; height: 88px;
+  border-bottom: 1px solid var(--border);
+}
+.chart-bar {
+  width: 22px; max-width: 70%;
+  border-radius: 4px 4px 0 0;
+  background: var(--switch-off);
+  transition: height var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+.chart-day:hover .chart-bar, .chart-day:focus-visible .chart-bar { background: var(--text-muted); }
+.chart-day.today .chart-bar { background: var(--accent); }
+.chart-label { padding-bottom: var(--sp-1); color: var(--text-muted); font-size: 11.5px; }
+.chart-day.today .chart-label { color: var(--text-primary); font-weight: 600; }
+
+/* What was blocked and hidden most: a name, a bar and a figure per row. */
+.rank-list { margin: 0; padding: 0; list-style: none; }
+.rank-list > li + li { border-top: 1px solid var(--border); }
+.rank-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(56px, 34%) minmax(3ch, auto);
+  align-items: center; gap: var(--sp-3);
+  min-height: 40px; padding: 6px 14px;
+}
+.rank-name { display: flex; flex-direction: column; min-width: 0; }
+.rank-label { font-size: 13.5px; overflow-wrap: anywhere; }
+.rank-detail { color: var(--text-muted); font-size: 12px; }
+.rank-meter { display: flex; }
+.rank-bar { height: 8px; border-radius: 0 4px 4px 0; background: var(--accent); }
+.rank-count {
+  font-size: 13px; font-weight: 600; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.rank-list > .empty-state { padding: 14px var(--sp-4); }
+
+/* A destructive action asks first, below its row. */
+.confirm-box { padding: var(--sp-3) 14px; background: var(--bg-subtle); }
+.confirm-title { margin: 0 0 2px; font-size: 13px; font-weight: 650; }
+.confirm-title:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.confirm-note { margin: 0; color: var(--text-muted); font-size: 12px; }
+.confirm-box .backup-actions .btn { flex: 0 1 auto; }
+.btn-danger { background: var(--danger-soft); color: var(--danger); }
+.btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 24%, transparent); }
+
 /* Toast: a short message over the bottom of the page. */
 #toast {
   position: fixed; left: 50%; bottom: var(--sp-4); z-index: 100;
@@ -555,8 +663,14 @@ label.field-row:hover { background: none; }
   background: var(--toast-danger);
 }
 
-@media (max-width: 359px) {
+/* The tabs' labels need all the room the popup has, narrower than its
+   usual width, as in Firefox for Android. */
+@media (max-width: 459px) {
   .tab .icon { display: none; }
+}
+
+@media (max-width: 359px) {
+  .tab { padding: 0 var(--sp-1); font-size: 12.5px; }
   select.field { width: 100%; }
   .field-row > .field { flex: 1 1 100%; max-width: none; }
 }
@@ -589,4 +703,6 @@ label.field-row:hover { background: none; }
     background: Highlight; color: HighlightText;
   }
   .tab[aria-selected="true"] .icon { color: HighlightText; }
+  .chart-bar, .rank-bar { forced-color-adjust: none; background: CanvasText; }
+  .chart-day.today .chart-bar { background: Highlight; }
 }

@@ -97,6 +97,18 @@ test("loads each content script after the modules it uses", () => {
     assert.ok(position(file) < position("content/feed-limit.js"), file);
   }
   assert.ok(position("content/posts.js") < position("content/comment-limit.js"));
+  assert.ok(position("shared/stats.js") < position("content/stats-recorder.js"));
+});
+
+test("loads the statistics' module wherever statistics are recorded or shown", () => {
+  const workerImports = readSource(manifest.background.service_worker);
+  assert.match(workerImports, /"\.\.\/shared\/core\.js", "\.\.\/shared\/stats\.js"/);
+  for (const page of PAGES) {
+    const scripts = Array.from(readSource(page).matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g),
+      ([, src]) => resolve(page, src));
+    assert.ok(scripts.indexOf("shared/core.js") < scripts.indexOf("shared/stats.js"), page);
+    assert.ok(scripts.indexOf("shared/stats.js") < scripts.length - 1, page);
+  }
 });
 
 test("parses every script, which uses the chrome namespace that both browsers have", () => {

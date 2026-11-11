@@ -63,7 +63,7 @@ async function loadBackground({
     console: backgroundConsole,
   });
 
-  runScripts(context, ["shared/core.js", "background/navigation-rules.js", "background/main.js"]);
+  runScripts(context, ["shared/core.js", "shared/stats.js", "background/navigation-rules.js", "background/main.js"]);
   await settle();
   await settle();
 
@@ -328,4 +328,46 @@ test("leaves out only the rules the browser cannot compile", async () => {
     ))),
     { success: false, error: "rule limit reached" },
   );
+});
+
+test("adds the records pages send to the statistics, one at a time", async () => {
+  const background = await loadBackground();
+  const record = (posts) => sendMessage(background.listeners.message, { action: "recordStats", record: { posts } });
+  // Sent together, as from two tabs: neither replaces the other.
+  const responses = await Promise.all([record({ ads: 2 }), record({ keywords: 1 }), record({ ads: 1 })]);
+  assert.deepEqual(JSON.parse(JSON.stringify(responses)), Array(3).fill({ success: true }));
+
+  const { stats } = background.storedSettings();
+  const [day] = Object.values(stats.days);
+  assert.deepEqual(JSON.parse(JSON.stringify(day.posts)), { ads: 3, keywords: 1 });
+  assert.equal(stats.totals.posts, 4);
+  // Empty records write nothing.
+  const writes = background.storedValues.length;
+  await sendMessage(background.listeners.message, { action: "recordStats", record: { posts: { unknown: 1 } } });
+  assert.equal(background.storedValues.length, writes);
+});
+
+test("counts nothing while statistics are paused", async () => {
+  const background = await loadBackground({ settings: { pauseStatistics: true } });
+  const response = await sendMessage(background.listeners.message, {
+    action: "recordStats", record: { time: 60000, blocked: { "page:homepage": 1 } },
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(response)), { success: true });
+  assert.equal("stats" in background.storedSettings(), false);
+});
+
+test("deletes the statistics after the records sent before", async () => {
+  const background = await loadBackground();
+  const recorded = sendMessage(background.listeners.message, {
+    action: "recordStats", record: { posts: { ads: 1 } },
+  });
+  const reset = sendMessage(background.listeners.message, { action: "resetStats" });
+  assert.deepEqual(JSON.parse(JSON.stringify(await reset)), { success: true });
+  await recorded;
+  assert.equal("stats" in background.storedSettings(), false);
+  assert.deepEqual(background.removedKeys.filter((key) => key === "stats"), ["stats"]);
+
+  // Counting starts again from there.
+  await sendMessage(background.listeners.message, { action: "recordStats", record: { posts: { ads: 1 } } });
+  assert.equal(background.storedSettings().stats.totals.posts, 1);
 });

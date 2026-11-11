@@ -1196,7 +1196,10 @@ document.addEventListener("DOMContentLoaded", () => {
     loadSettings().catch((error) => console.error("Could not reload FrontFilter settings:", error));
   });
 
+  const statsTab = FrontFilter.createStatsTab({ showToast });
+
   void showCurrentSubreddit();
+  void statsTab.load();
   setControlsDisabled(true);
   loadSettings()
     .then(() => setControlsDisabled(false))

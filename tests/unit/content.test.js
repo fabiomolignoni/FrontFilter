@@ -3,7 +3,12 @@ const test = require("node:test");
 const vm = require("node:vm");
 const { deferred, runScripts, settle } = require("./helpers");
 
-async function loadContent({ querySelectorAll = () => [], settings, startUrl, body = {} }) {
+async function loadContent({
+  querySelectorAll = () => [], settings, startUrl, body = {},
+  // Whether the page is in front, in the focused window.
+  focused = false,
+  sendMessage = async () => ({ success: true }),
+}) {
   const redirects = [];
   const readyListeners = [];
   const injectedStyles = [];
@@ -16,10 +21,15 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
     },
   };
   const rootAttributes = new Set();
+  const documentListeners = {};
+  const page = { focused };
   const document = {
     body,
+    get visibilityState() { return page.focused ? "visible" : "hidden"; },
+    hasFocus: () => page.focused,
     addEventListener(type, listener) {
       if (type === "DOMContentLoaded") readyListeners.push(listener);
+      else (documentListeners[type] ??= []).push(listener);
     },
     documentElement: {
       appendChild(style) { injectedStyles.push(style); },
@@ -55,8 +65,13 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
     },
     runtime: {
       getURL: (path) => `moz-extension://frontfilter/${path}`,
+      sendMessage: (message) => {
+        sentMessages.push(JSON.parse(JSON.stringify(message)));
+        return sendMessage(message);
+      },
     },
   };
+  const sentMessages = [];
   const observers = [];
   class MutationObserver {
     constructor(callback) {
@@ -68,9 +83,18 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
   const windowListeners = {};
   const window = {
     location,
-    addEventListener(type, listener) { windowListeners[type] = listener; },
+    addEventListener(type, listener) { (windowListeners[type] ??= []).push(listener); },
   };
   const intervals = [];
+  // Timeouts run when a test calls runTimers(); the clock moves when a
+  // test sets clock.now.
+  const timeouts = new Map();
+  let lastTimeout = 0;
+  const clock = { now: new Date(2026, 10, 11, 12).getTime() };
+  class FakeDate extends Date {
+    constructor(...args) { super(...(args.length > 0 ? args : [clock.now])); }
+    static now() { return clock.now; }
+  }
   // Custom elements are defined when a test calls define(name).
   const definitions = new Map();
   const definition = (name) => {
@@ -83,11 +107,18 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
     chrome,
     console,
     customElements: { whenDefined: (name) => definition(name).promise },
+    Date: FakeDate,
     document,
     Event,
     MutationObserver,
     requestAnimationFrame: (callback) => callback(),
     setInterval: (callback) => intervals.push(callback),
+    clearInterval: (id) => { intervals[id - 1] = () => {}; },
+    setTimeout(callback) {
+      timeouts.set(++lastTimeout, callback);
+      return lastTimeout;
+    },
+    clearTimeout: (id) => timeouts.delete(id),
     window,
   });
 
@@ -104,8 +135,9 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
   `, context);
 
   for (const file of [
-    "shared/core.js", "content/selectors.js", "content/posts.js", "content/page-style.js",
-    "content/autoplay.js", "content/quick-block.js", "content/main.js",
+    "shared/core.js", "shared/stats.js", "content/selectors.js", "content/posts.js",
+    "content/page-style.js", "content/autoplay.js", "content/quick-block.js",
+    "content/stats-recorder.js", "content/main.js",
   ]) {
     runScripts(context, [file]);
     if (file === "shared/core.js") {
@@ -145,9 +177,27 @@ async function loadContent({ querySelectorAll = () => [], settings, startUrl, bo
       await settle();
     },
     async popState() {
-      windowListeners.popstate();
+      windowListeners.popstate.forEach((listener) => listener());
       await settle();
     },
+    // Fires an event of the window, such as focus or a kind of input.
+    dispatchWindow(type) {
+      (windowListeners[type] || []).forEach((listener) => listener({ type }));
+    },
+    // Brings the page to the front or sends it behind another tab.
+    setFocused(value) {
+      page.focused = value;
+      (documentListeners.visibilitychange || []).forEach((listener) => listener());
+      (windowListeners[value ? "focus" : "blur"] || []).forEach((listener) => listener());
+    },
+    runTimers() {
+      for (const [id, callback] of Array.from(timeouts)) {
+        timeouts.delete(id);
+        callback();
+      }
+    },
+    clock,
+    sentMessages,
     // Runs code in the content script's scope, to stand in for its modules.
     run: (source) => vm.runInContext(source, context),
     location,
@@ -1088,14 +1138,17 @@ test("skips page-wide post scans when only comments change", async () => {
 
   const initialScans = postScans();
   assert.ok(initialScans > 0);
-  // Comment collections are looked up once and stay live.
-  assert.deepEqual(content.liveCollections, ["shreddit-comment", ".thing.comment"]);
+  // Collections are looked up once and stay live: comments for filters,
+  // and posts for statistics, which count the hidden ones.
+  assert.deepEqual(content.liveCollections, [
+    "shreddit-comment", ".thing.comment", "shreddit-post", "shreddit-ad-post",
+  ]);
 
   content.observers[0].callback([{ target: insideComments }, { target: textInComments }]);
   assert.equal(postScans(), initialScans);
   content.observers[0].callback([{ target: insideComments }, { target: outsideComments }]);
   assert.equal(postScans(), initialScans + 1);
-  assert.equal(content.liveCollections.length, 2);
+  assert.equal(content.liveCollections.length, 4);
 });
 
 test("hides post titles containing configured keywords case-insensitively", async () => {
@@ -1566,4 +1619,196 @@ test("merges storage changes received while the initial config is loading", asyn
   await content.checkCurrentPage({ force: true });
 
   assert.equal(content.redirects.length, 1);
+});
+
+// Statistics
+
+// The records this page sent the background, as it received them.
+function sentRecords(content) {
+  return content.sentMessages
+    .filter(({ action }) => action === "recordStats")
+    .map(({ record }) => record);
+}
+
+const emptyRecord = (fields) => ({ time: 0, posts: {}, comments: {}, blocked: {}, ...fields });
+
+// A modern Reddit post, with its attributes, in a feed.
+function createTaggedPost(attributes = {}) {
+  return {
+    dataset: {},
+    localName: "shreddit-post",
+    getAttribute: (name) => attributes[name] ?? null,
+    hasAttribute: (name) => Object.hasOwn(attributes, name),
+    matches: () => false,
+    closest: (selector) => (selector === "shreddit-feed" ? {} : null),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  };
+}
+
+// Lets the page's 10-second clock run for a while, in its steps.
+async function spend(content, ms) {
+  for (let elapsed = 0; elapsed < ms; elapsed += 10000) {
+    content.clock.now += Math.min(10000, ms - elapsed);
+    await content.poll();
+  }
+}
+
+test("counts time while the page is in front and in use, and sends it every minute", async () => {
+  const content = await loadContent({ focused: true, settings: {}, startUrl: "https://www.reddit.com/" });
+  await spend(content, 50000);
+  assert.deepEqual(sentRecords(content), []);
+  content.dispatchWindow("scroll");
+  await spend(content, 10000);
+  assert.deepEqual(sentRecords(content), [emptyRecord({ time: 60000 })]);
+
+  // Behind another tab, it stops and sends what it counted.
+  await spend(content, 20000);
+  content.setFocused(false);
+  assert.deepEqual(sentRecords(content).at(-1), emptyRecord({ time: 20000 }));
+  await spend(content, 60000);
+  assert.equal(sentRecords(content).length, 2);
+
+  // In front again, it counts once the reader does something.
+  content.setFocused(true);
+  await spend(content, 30000);
+  content.setFocused(false);
+  assert.deepEqual(sentRecords(content).at(-1), emptyRecord({ time: 30000 }));
+});
+
+test("stops counting time 3 minutes after the last input", async () => {
+  const content = await loadContent({ focused: true, settings: {}, startUrl: "https://www.reddit.com/" });
+  await spend(content, 5 * 60000);
+  const total = sentRecords(content).reduce((sum, { time }) => sum + time, 0);
+  assert.equal(total, 3 * 60000);
+
+  // Input brings it back.
+  content.dispatchWindow("keydown");
+  await spend(content, 40000);
+  content.setFocused(false);
+  assert.equal(sentRecords(content).reduce((sum, { time }) => sum + time, 0), 3 * 60000 + 40000);
+});
+
+test("counts nothing, and reads no post, while statistics are paused", async () => {
+  const post = createTaggedPost({ nsfw: "" });
+  const content = await loadContent({
+    focused: true,
+    querySelectorAll: (selector) => (selector === "shreddit-post" ? [post] : []),
+    settings: { pauseStatistics: true, hideNsfw: true },
+    startUrl: "https://www.reddit.com/",
+  });
+  await spend(content, 2 * 60000);
+  content.runTimers();
+  assert.deepEqual(sentRecords(content), []);
+  assert.deepEqual(content.liveCollections, []);
+
+  // Unpaused, it counts from then on.
+  content.storageListeners[0]({ pauseStatistics: { oldValue: true, newValue: false } }, "local");
+  await settle();
+  content.dispatchWindow("pointerdown");
+  await spend(content, 60000);
+  content.runTimers();
+  // What was held back goes together.
+  assert.deepEqual(sentRecords(content), [emptyRecord({ time: 60000, posts: { nsfw: 1 } })]);
+});
+
+test("counts the posts filters and page rules hide, once each, by the first reason", async () => {
+  const posts = [
+    // Blocked subreddits and users come before keywords, then kinds of posts.
+    createTaggedPost({ "data-subreddit": "news", "post-title": "Breaking", nsfw: "" }),
+    createTaggedPost({ author: "Spez", "post-title": "Breaking" }),
+    createTaggedPost({ "post-title": "Breaking news", nsfw: "" }),
+    createTaggedPost({ nsfw: "", spoiler: "" }),
+    createTaggedPost({ spoiler: "" }),
+    createTaggedPost({ "recommendation-source": "similar" }),
+    createTaggedPost({ "is-promoted": "" }),
+    createTaggedPost({ "post-title": "Calm" }),
+  ];
+  const content = await loadContent({
+    querySelectorAll: (selector) => (isPostCollectionSelector(selector) || selector === "shreddit-post" ? posts : []),
+    settings: {
+      blockedSubreddits: [{ name: "news", mode: "all" }],
+      blockedUsers: ["spez"],
+      blockedTitleKeywords: ["breaking"],
+      hideNsfw: true,
+      hideSpoilers: true,
+      hideSuggestedPosts: true,
+      hideAds: true,
+    },
+    startUrl: "https://www.reddit.com/",
+  });
+  content.runTimers();
+  assert.deepEqual(sentRecords(content), [emptyRecord({
+    posts: { subreddits: 1, users: 1, keywords: 1, nsfw: 1, spoilers: 1, suggested: 1, ads: 1 },
+  })]);
+
+  // Later passes count no post again.
+  content.processFilteredContent();
+  content.runTimers();
+  assert.equal(sentRecords(content).length, 1);
+
+  // A post that a new filter hides counts then.
+  content.storageListeners[0]({
+    blockedTitleKeywords: { oldValue: ["breaking"], newValue: ["breaking", "calm"] },
+  }, "local");
+  await settle();
+  content.runTimers();
+  assert.deepEqual(sentRecords(content).at(-1), emptyRecord({ posts: { keywords: 1 } }));
+});
+
+test("counts suggested posts as hidden only in the Home feed", async () => {
+  const post = createTaggedPost({ "recommendation-source": "similar" });
+  const content = await loadContent({
+    querySelectorAll: (selector) => (selector === "shreddit-post" ? [post] : []),
+    settings: { hideSuggestedPosts: true },
+    startUrl: "https://www.reddit.com/r/popular/",
+  });
+  content.runTimers();
+  assert.deepEqual(sentRecords(content), []);
+});
+
+test("counts the comments of blocked users and those keywords hide", async () => {
+  const comments = [createComment("Breaking: a reply"), createComment("Fine"), createComment("Also fine")];
+  const authors = ["someone", "someone", "Spez"];
+  comments.forEach((comment, index) => {
+    comment.getAttribute = (name) => (name === "author" ? authors[index] : null);
+  });
+  const content = await loadContent({
+    querySelectorAll: (selector) => (selector === "shreddit-comment" ? comments : []),
+    settings: { blockedTitleKeywords: ["breaking"], blockedUsers: ["spez"] },
+    startUrl: POST_PAGE,
+  });
+  content.processFilteredContent();
+  content.runTimers();
+  assert.deepEqual(sentRecords(content), [emptyRecord({ comments: { keywords: 1, users: 1 } })]);
+
+  // Comments hidden with all the others are not filtered.
+  const allHidden = await loadContent({
+    querySelectorAll: (selector) => (selector === "shreddit-comment" ? comments : []),
+    settings: { blockedTitleKeywords: ["breaking"], blockedUsers: ["spez"], hideComments: true },
+    startUrl: POST_PAGE,
+  });
+  allHidden.runTimers();
+  assert.deepEqual(sentRecords(allHidden), []);
+});
+
+test("counts a page it leaves for the chosen website as blocked, before leaving", async () => {
+  const content = await loadContent({
+    settings: {
+      blockedSubreddits: [{ name: "news*", mode: "all" }],
+      redirectBlockedPages: true,
+      redirectUrl: "https://example.com/",
+    },
+    startUrl: "https://www.reddit.com/r/newsbot/comments/abc/post",
+  });
+  assert.deepEqual(content.redirects, ["https://example.com/"]);
+  assert.deepEqual(sentRecords(content), [emptyRecord({ blocked: { "subreddit:newsbot": 1 } })]);
+
+  // The block page counts the visits it shows itself.
+  const toBlockPage = await loadContent({
+    settings: { blockPopular: true },
+    startUrl: "https://www.reddit.com/r/popular/",
+  });
+  assert.equal(toBlockPage.redirects.length, 1);
+  assert.deepEqual(sentRecords(toBlockPage), []);
 });

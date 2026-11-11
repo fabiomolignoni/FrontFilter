@@ -493,6 +493,53 @@ class PageTests:
         self.assertFalse(find("go-to-settings").is_displayed())
         self.assertTrue(find("go-back").is_displayed())
 
+    # Statistics
+
+    def read_today_stats(self):
+        """Today's statistics, as the background stored them."""
+        self.session.open_settings_page()
+        return self.driver.execute_async_script("""
+            const done = arguments[0];
+            const date = new Date();
+            const key = [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+              .map((part) => String(part).padStart(2, "0")).join("-");
+            chrome.storage.local.get("stats").then(({ stats }) => done(stats?.days?.[key] ?? null));
+        """)
+
+    def test_statistics_count_hidden_posts_and_blocked_visits(self):
+        self.js(
+            "resetFeed([post('a'), post('b', 'safe', {nsfw: true}), post('c', 'safe', {spoiler: true}),"
+            " post('d', 'safe', {nsfw: true, spoiler: true}), post('e')])"
+        )
+        # Every tagged post of the page counts once, NSFW first.
+        expected = self.js("""
+            const posts = ':is(shreddit-post, shreddit-ad-post)';
+            return {
+              nsfw: document.querySelectorAll(`${posts}:is([nsfw], [subreddit-nsfw])`).length,
+              spoilers: document.querySelectorAll(
+                `${posts}[spoiler]:not([nsfw]):not([subreddit-nsfw])`).length,
+            };
+        """)
+        self.configure(hideNsfw=True, hideSpoilers=True)
+        self.wait_until(lambda: self.js("return adVisibility().feed.t3_b") == [False, False])
+        # Pages send what they counted within seconds.
+        self.pause(5500)
+        self.wait_until(lambda: (self.read_today_stats() or {}).get("posts") == expected,
+                        f"hidden posts were not counted as {expected}")
+
+        self.session.store(blockPopular=True)
+        self.driver.get(self.server.url("/r/popular/", "localhost"))
+        self.wait_for_block_page("Popular page is blocked")
+        self.wait_until(lambda: self.read_today_stats()["blocked"] == {"page:popular": 1},
+                        "the blocked visit was not counted")
+
+        # The Stats tab shows them.
+        find = lambda element_id: self.driver.find_element("id", element_id)
+        find("tab-stats").click()
+        self.wait_until(lambda: find("stat-blocked").text == "1")
+        total = expected["nsfw"] + expected["spoilers"]
+        self.wait_until(lambda: find("stat-hidden").text == str(total))
+
     # Feed filters and the scroll limit
 
     def test_fixed_quota_skips_ads_filtered_duplicate_and_nested_posts(self):

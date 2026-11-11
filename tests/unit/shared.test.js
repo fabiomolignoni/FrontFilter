@@ -618,6 +618,7 @@ test("rejects malformed stored values instead of throwing or enabling flags", ()
       commentLimit: 10,
       commentLimitMode: "fixed",
       theme: "system",
+      pauseStatistics: false,
     },
   );
 });
@@ -720,6 +721,7 @@ test("settings store preserves changes received during its initial load", async 
       commentLimit: 10,
       commentLimitMode: "fixed",
       theme: "system",
+      pauseStatistics: false,
     },
   );
   await store.load();
