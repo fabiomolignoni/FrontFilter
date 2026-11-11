@@ -75,7 +75,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const switchGroups = Object.entries(FrontFilter.SETTING_GROUPS).map(([parent, sections]) => ({
     parent: switches[parent],
     sections: sections.map((section) => switches[section]),
+    // Says how many sections a mixed group hides, as its switch cannot.
+    summary: Array.from(document.querySelectorAll(".group-summary"))
+      .find((element) => element.getAttribute("data-group") === parent),
   }));
+  // The Filters tab shows how many rules its lists hold.
+  const filtersTotal = document.getElementById("filters-total");
 
   let toastTimer = null;
   let indicatorTimer = null;
@@ -124,12 +129,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateGroupControls() {
-    for (const { parent, sections } of switchGroups) {
+    for (const { parent, sections, summary } of switchGroups) {
       for (const section of sections) {
         if (parent.checked) section.checked = true;
         section.disabled = controlsDisabled || parent.checked;
       }
-      parent.indeterminate = !parent.checked && sections.some((section) => section.checked);
+      const hidden = sections.filter((section) => section.checked).length;
+      parent.indeterminate = !parent.checked && hidden > 0;
+      if (summary) {
+        const partial = summary.getAttribute("data-partial") || `${hidden} of ${sections.length} hidden`;
+        summary.textContent = parent.indeterminate ? partial : "";
+      }
     }
   }
 
@@ -145,6 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function showSaving() {
     clearTimeout(indicatorTimer);
     saveIndicator.textContent = "Saving…";
+    saveIndicator.setAttribute("data-state", "saving");
     saveIndicator.classList.add("visible");
   }
 
@@ -153,6 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     clearTimeout(indicatorTimer);
     saveIndicator.textContent = "Saved";
+    saveIndicator.setAttribute("data-state", "saved");
     indicatorTimer = setTimeout(() => saveIndicator.classList.remove("visible"), 1200);
   }
 
@@ -161,6 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     clearTimeout(indicatorTimer);
     saveIndicator.textContent = "Save failed";
+    saveIndicator.setAttribute("data-state", "failed");
     saveIndicator.classList.add("visible");
   }
 
@@ -185,6 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const snapshot = getSettingsSnapshot();
     const settings = Object.fromEntries(Array.from(keys, (key) => [key, snapshot[key]]));
     for (const list of entryLists) list.updateCount();
+    updateFiltersTotal();
     showSaving();
 
     for (const key of keys) savingKeys.set(key, (savingKeys.get(key) || 0) + 1);
@@ -253,6 +267,14 @@ document.addEventListener("DOMContentLoaded", () => {
     clearTimeout(debounceTimer);
     debounceTimer = null;
     await queuePendingSave();
+  }
+
+  const allLists = [];
+
+  function updateFiltersTotal() {
+    const total = allLists.reduce((sum, list) => sum + list.values().length, 0);
+    filtersTotal.textContent = String(total);
+    filtersTotal.hidden = total === 0;
   }
 
   // An editable list of filter rules. Each row is a draft that keeps what
@@ -401,6 +423,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // New drafts come first, then rules in alphabetical order.
     function render() {
       updateCount();
+      updateFiltersTotal();
       if (entries.length === 0) {
         const empty = document.createElement("p");
         empty.className = "empty-state";
@@ -474,13 +497,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     document.getElementById(addId).addEventListener("click", () => add());
-    return {
+    const list = {
       key,
       add,
       show,
       values,
       updateCount,
     };
+    allLists.push(list);
+    return list;
   }
 
   const blockedList = createEntryList({

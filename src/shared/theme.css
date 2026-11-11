@@ -1,27 +1,79 @@
+/*
+ * FrontFilter's design tokens, shared by the settings page and the block
+ * page. The dark palette is the default; the light one applies when chosen,
+ * or when the system mode is light.
+ *
+ * Text colors meet WCAG AA (4.5:1) on every surface they are used on, and
+ * the colors that show a control or its state, such as field borders and
+ * switch tracks, meet 3:1.
+ */
 :root {
   color-scheme: dark;
-  --primary: #ff5700;
-  --primary-hover: #e74d00;
-  --bg-app: #111213;
-  --bg-surface: #1a1a1b;
-  --bg-card: #222324;
-  --bg-input: #1e1e1f;
-  --text-primary: #d7dadc;
-  --text-secondary: #a1a4a6;
-  --text-muted: #929597;
-  --border: #2d2e2f;
-  --border-focus: #ff5700;
-  --success-bg: #0e2318;
-  --success-text: #4caf72;
-  --error-bg: #2a0f11;
-  --error-text: #e06c75;
-  --interactive-bg: rgba(255, 255, 255, 0.06);
-  --interactive-hover: rgba(255, 255, 255, 0.04);
-  --interactive-hover-strong: rgba(255, 255, 255, 0.1);
-  --toggle-off: #4a4b4c;
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.6);
-  --header-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+
+  /* Shape, spacing and type, the same in every mode. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-full: 999px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --duration: 150ms;
+
+  /* Brand */
+  --accent: #ff7a3d;
+  --accent-hover: #ff8f5c;
+  --accent-contrast: #241000;
+  --accent-soft: rgba(255, 122, 61, 0.14);
+  --accent-soft-hover: rgba(255, 122, 61, 0.22);
+  --accent-text: #ff9a6b;
+
+  /* Surfaces */
+  --bg-app: #111113;
+  --bg-surface: #1c1c1f;
+  --bg-subtle: #222226;
+  --bg-field: #151517;
+  --bg-track: #1f1f23;
+  --bg-elevated: #303036;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(255, 255, 255, 0.09);
+
+  /* Text */
+  --text-primary: #ededf0;
+  --text-secondary: #b4b4bc;
+  --text-muted: #8e8e98;
+
+  /* Lines */
+  --border: #2a2a2f;
+  --border-field: #6b6b75;
+  --focus-ring: #ff8f5c;
+
+  /* Status */
+  --success: #4ade80;
+  --danger: #ff7b7b;
+  --danger-soft: rgba(255, 123, 123, 0.14);
+
+  /* Controls */
+  --switch-off: #70707a;
+  --switch-thumb: #ffffff;
+  --toast-bg: #ededf0;
+  --toast-text: #18181b;
+  --toast-success: #15803d;
+  --toast-danger: #c62828;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
 }
 
 /* Used only while an existing installation primes the synchronous theme cache. */
@@ -35,28 +87,38 @@
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --primary: #d94b00;
-  --primary-hover: #bd4100;
-  --bg-app: #eceff1;
+  --accent: #cc4200;
+  --accent-hover: #b33a00;
+  --accent-contrast: #ffffff;
+  --accent-soft: #fff0e6;
+  --accent-soft-hover: #ffe2cf;
+  --accent-text: #b33a00;
+  --bg-app: #f3f3f6;
   --bg-surface: #ffffff;
-  --bg-card: #f7f8fa;
-  --bg-input: #ffffff;
-  --text-primary: #1f2328;
-  --text-secondary: #4b535b;
-  --text-muted: #6e7781;
-  --border: #d0d7de;
-  --border-focus: #d94b00;
-  --success-bg: #dafbe1;
-  --success-text: #137333;
-  --error-bg: #ffebe9;
-  --error-text: #b3261e;
-  --interactive-bg: rgba(31, 35, 40, 0.05);
-  --interactive-hover: rgba(31, 35, 40, 0.05);
-  --interactive-hover-strong: rgba(31, 35, 40, 0.1);
-  --toggle-off: #afb6bd;
-  --shadow-md: 0 4px 16px rgba(31, 35, 40, 0.16);
-  --shadow-lg: 0 4px 24px rgba(31, 35, 40, 0.2);
-  --header-shadow: 0 2px 12px rgba(31, 35, 40, 0.24);
+  --bg-subtle: #f7f7f9;
+  --bg-field: #ffffff;
+  --bg-track: #e6e6eb;
+  --bg-elevated: #ffffff;
+  --bg-hover: rgba(24, 24, 27, 0.045);
+  --bg-active: rgba(24, 24, 27, 0.08);
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #6b6b75;
+  --border: #e4e4e9;
+  --border-field: #8e8e98;
+  --focus-ring: #cc4200;
+  --success: #15803d;
+  --danger: #c62828;
+  --danger-soft: #fdecec;
+  --switch-off: #8e8e98;
+  --switch-thumb: #ffffff;
+  --toast-bg: #27272a;
+  --toast-text: #fafafa;
+  --toast-success: #4ade80;
+  --toast-danger: #ff8a8a;
+  --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.08);
+  --shadow-md: 0 4px 16px rgba(24, 24, 27, 0.12);
+  --shadow-lg: 0 16px 48px rgba(24, 24, 27, 0.16);
 }
 
 /* The light palette again, for the system mode. light-dark() would avoid
@@ -65,27 +127,37 @@
   :root:not([data-theme]),
   :root[data-theme="system"] {
     color-scheme: light;
-    --primary: #d94b00;
-    --primary-hover: #bd4100;
-    --bg-app: #eceff1;
+    --accent: #cc4200;
+    --accent-hover: #b33a00;
+    --accent-contrast: #ffffff;
+    --accent-soft: #fff0e6;
+    --accent-soft-hover: #ffe2cf;
+    --accent-text: #b33a00;
+    --bg-app: #f3f3f6;
     --bg-surface: #ffffff;
-    --bg-card: #f7f8fa;
-    --bg-input: #ffffff;
-    --text-primary: #1f2328;
-    --text-secondary: #4b535b;
-    --text-muted: #6e7781;
-    --border: #d0d7de;
-    --border-focus: #d94b00;
-    --success-bg: #dafbe1;
-    --success-text: #137333;
-    --error-bg: #ffebe9;
-    --error-text: #b3261e;
-    --interactive-bg: rgba(31, 35, 40, 0.05);
-    --interactive-hover: rgba(31, 35, 40, 0.05);
-    --interactive-hover-strong: rgba(31, 35, 40, 0.1);
-    --toggle-off: #afb6bd;
-    --shadow-md: 0 4px 16px rgba(31, 35, 40, 0.16);
-    --shadow-lg: 0 4px 24px rgba(31, 35, 40, 0.2);
-    --header-shadow: 0 2px 12px rgba(31, 35, 40, 0.24);
+    --bg-subtle: #f7f7f9;
+    --bg-field: #ffffff;
+    --bg-track: #e6e6eb;
+    --bg-elevated: #ffffff;
+    --bg-hover: rgba(24, 24, 27, 0.045);
+    --bg-active: rgba(24, 24, 27, 0.08);
+    --text-primary: #18181b;
+    --text-secondary: #52525b;
+    --text-muted: #6b6b75;
+    --border: #e4e4e9;
+    --border-field: #8e8e98;
+    --focus-ring: #cc4200;
+    --success: #15803d;
+    --danger: #c62828;
+    --danger-soft: #fdecec;
+    --switch-off: #8e8e98;
+    --switch-thumb: #ffffff;
+    --toast-bg: #27272a;
+    --toast-text: #fafafa;
+    --toast-success: #4ade80;
+    --toast-danger: #ff8a8a;
+    --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.08);
+    --shadow-md: 0 4px 16px rgba(24, 24, 27, 0.12);
+    --shadow-lg: 0 16px 48px rgba(24, 24, 27, 0.16);
   }
 }

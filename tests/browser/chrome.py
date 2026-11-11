@@ -82,7 +82,7 @@ class ChromeSettingsTests(ExtensionTestCase):
         self.assertEqual(theme.get_property("value"), "system")
         self.assertEqual(
             self.js("return getComputedStyle(document.querySelector('.container')).backgroundColor"),
-            "rgb(26, 26, 27)",
+            "rgb(17, 17, 19)",
         )
         self.js(
             "arguments[0].value = 'light'; arguments[0].dispatchEvent(new Event('change', {bubbles: true}))",
@@ -116,7 +116,7 @@ class ChromeSettingsTests(ExtensionTestCase):
         # The block page uses the saved light theme despite the dark scheme.
         self.wait_until(lambda: driver.find_element("tag name", "html").get_attribute("data-theme") == "light")
         self.assertEqual(self.js("return localStorage.getItem('frontfilter-theme')"), "light")
-        self.assertEqual(self.js("return getComputedStyle(document.body).backgroundColor"), "rgb(236, 239, 241)")
+        self.assertEqual(self.js("return getComputedStyle(document.body).backgroundColor"), "rgb(243, 243, 246)")
 
         self.session.open_settings_page()
         self.wait_until(lambda: find("block-homepage").is_selected())
