@@ -157,10 +157,10 @@ class FirefoxSettingsTests(ExtensionTestCase):
         self.selected("settings")
         self.assertEqual(find("color-theme").get_property("value"), "system")
         self.set_theme("dark")
-        self.assertEqual(self.background(), "rgb(26, 26, 27)")
+        self.assertEqual(self.background(), "rgb(17, 17, 19)")
         self.set_theme("light")
         self.assertEqual(self.js("return localStorage.getItem('frontfilter-theme')"), "light")
-        self.assertEqual(self.background(), "rgb(255, 255, 255)")
+        self.assertEqual(self.background(), "rgb(243, 243, 246)")
 
         find("tab-settings").send_keys(Keys.ARROW_RIGHT)
         self.selected("controls")

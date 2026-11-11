@@ -38,6 +38,15 @@ Notable changes to FrontFilter, newest first.
 
 ### Changed
 
+- The settings page and the block page have a new design. The **Controls**
+  tab groups switches by the part of Reddit they change (**Block pages**,
+  **Feed and posts**, **Comments** and **Page layout**), with the scroll and
+  comment limits next to the features they limit. A switch whose sections
+  are only partly on says how many, as in "2 of 6 hidden", and the
+  **Filters** tab shows how many rules its lists hold. Rules take less
+  space, text is easier to read in both color modes, and the version and
+  project links are at the end of the **Settings** tab. Settings, filters
+  and exported configurations are unchanged.
 - Keywords match whole words and ignore accents: `ai` no longer hides
   "said", and `perche` hides "Perché". A `*` at an end lets a keyword match
   inside words there, as in `spoiler*` or `*ai*`. In Chinese, Japanese,

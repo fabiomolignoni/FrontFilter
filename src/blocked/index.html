@@ -10,32 +10,41 @@
     <link rel="stylesheet" href="blocked.css" />
   </head>
   <body>
-    <div class="card">
-      <div class="card-stripe"></div>
-      <div class="card-body">
-        <img src="../icons/icon-128.png" alt="" class="logo" />
-        <span class="label">FrontFilter</span>
+    <main class="page">
+      <div class="card">
+        <div class="brand">
+          <img src="../icons/icon-48.png" alt="" width="20" height="20" />
+          <span>FrontFilter</span>
+        </div>
+        <div class="emblem" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M3 3l18 18" />
+            <path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c5 0 8.7 3.6 10 7a12.3 12.3 0 0 1-2.9 4.3" />
+            <path d="M6.6 6.6A12.4 12.4 0 0 0 2 12c1.3 3.4 5 7 10 7a10.6 10.6 0 0 0 5.4-1.5" />
+            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+          </svg>
+        </div>
         <h1 id="block-message">This content is blocked</h1>
+        <p class="lede">You asked FrontFilter to keep this out of your way.</p>
         <p id="block-reason" class="reason" hidden></p>
-        <div class="divider"></div>
         <div class="actions">
           <button type="button" id="go-back" class="btn btn-primary">Go back</button>
-          <button type="button" id="go-to-settings" class="btn btn-ghost"
+          <button type="button" id="go-to-settings" class="btn btn-secondary"
             hidden>Open settings</button>
-          <button type="button" id="undo-block" class="btn btn-ghost"
+          <button type="button" id="undo-block" class="btn btn-secondary"
             hidden>Undo block</button>
         </div>
-        <footer class="project-footer">
-          <nav class="project-links" aria-label="Project links">
-            <a href="https://github.com/fabiomolignoni/FrontFilter"
-              target="_blank" rel="noopener noreferrer">GitHub</a>
-            <span aria-hidden="true">&middot;</span>
-            <a href="https://github.com/fabiomolignoni/FrontFilter/issues"
-              target="_blank" rel="noopener noreferrer">Report a bug</a>
-          </nav>
-        </footer>
       </div>
-    </div>
+      <footer class="project-footer">
+        <nav class="project-links" aria-label="Project links">
+          <a href="https://github.com/fabiomolignoni/FrontFilter"
+            target="_blank" rel="noopener noreferrer">GitHub</a>
+          <span aria-hidden="true">&middot;</span>
+          <a href="https://github.com/fabiomolignoni/FrontFilter/issues"
+            target="_blank" rel="noopener noreferrer">Report a bug</a>
+        </nav>
+      </footer>
+    </main>
     <script src="../shared/core.js"></script>
     <script src="blocked.js"></script>
   </body>

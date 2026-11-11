@@ -23,14 +23,25 @@
   position: fixed; left: 50%; bottom: 24px; z-index: 2147483647;
   transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px;
-  max-width: calc(100vw - 32px); padding: 10px 16px; box-sizing: border-box;
-  border-radius: 12px; background: #1a1a1b; color: #f2f4f5;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, .35);
-  font: 14px/1.4 system-ui, sans-serif;
+  max-width: calc(100vw - 32px); min-height: 44px; padding: 6px 8px 6px 16px; box-sizing: border-box;
+  border-radius: 12px; background: #1c1c1f; color: #f2f4f5;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .35), 0 0 0 1px rgba(255, 255, 255, .06);
+  font: 500 14px/1.4 system-ui, sans-serif;
+  animation: frontfilter-toast-in .2s cubic-bezier(.2, 0, 0, 1);
 }
+.frontfilter-block-toast > span { padding: 4px 0; }
+.frontfilter-block-toast > span:only-child { padding-right: 8px; }
 .frontfilter-block-toast button {
-  appearance: none; margin: 0; padding: 4px 6px; border: 0; border-radius: 6px;
-  background: none; color: #ff8700; cursor: pointer;
+  appearance: none; margin: 0; padding: 8px 12px; border: 0; border-radius: 8px;
+  background: none; color: #ff8f5c; cursor: pointer;
   font: 600 14px/1 system-ui, sans-serif;
 }
-.frontfilter-block-toast button:focus-visible { outline: 2px solid #ff8700; outline-offset: 2px; }
+.frontfilter-block-toast button:hover { background: rgba(255, 143, 92, .14); }
+.frontfilter-block-toast button:focus-visible { outline: 2px solid #ff8f5c; outline-offset: 2px; }
+@keyframes frontfilter-toast-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .frontfilter-block-toast { animation: none; }
+}

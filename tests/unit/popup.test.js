@@ -204,12 +204,26 @@ test("does not leave the save indicator in a saving state after a failure", asyn
 
   elements["block-homepage"].checked = true;
   elements["block-homepage"].dispatch("change");
+  assert.equal(elements["save-indicator"].textContent, "Saving…");
+  assert.equal(elements["save-indicator"].getAttribute("data-state"), "saving");
   await settle();
   writes[0].completion.reject(new Error("storage unavailable"));
   await settle();
 
   assert.equal(elements["save-indicator"].textContent, "Save failed");
+  assert.equal(elements["save-indicator"].getAttribute("data-state"), "failed");
   assert.equal(elements["save-indicator"].classList.contains("visible"), true);
+});
+
+test("shows a save that succeeded as saved", async () => {
+  const { elements } = await loadPopup({ autoResolveWrites: true });
+
+  elements["block-homepage"].checked = true;
+  elements["block-homepage"].dispatch("change");
+  await settle();
+
+  assert.equal(elements["save-indicator"].textContent, "Saved");
+  assert.equal(elements["save-indicator"].getAttribute("data-state"), "saved");
 });
 
 test("renders stored entries sorted by name with their saved modes", async () => {
@@ -1462,6 +1476,58 @@ test("tells empty lists apart and counts their rules", async () => {
   assert.equal(elements["allowed-keyword-list"].textContent, "No keyword exceptions yet");
   assert.equal(elements["allowed-keyword-count"].textContent, "0 exceptions");
   assert.equal(elements["blocked-flair-count"].textContent, "1 flair");
+});
+
+test("counts the rules of every list on the Filters tab, hiding the count at zero", async () => {
+  const { elements } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: {
+      blockedSubreddits: [{ name: "news", mode: "all" }, { name: "politics", mode: "home" }],
+      blockedUsers: ["spez"],
+    },
+  });
+  const total = elements["filters-total"];
+  assert.equal(total.textContent, "3");
+  assert.equal(total.hidden, false);
+
+  elements["add-title-keyword"].click();
+  const input = getRenderedKeywords(elements)[0].querySelector("input");
+  input.value = "election";
+  input.dispatch("input");
+  input.dispatch("blur");
+  await settle();
+  assert.equal(total.textContent, "4");
+
+  for (const id of ["title-keyword-list", "blocked-user-list", "blocked-list", "blocked-list"]) {
+    elements[id].querySelector(".remove-btn").click();
+    await settle();
+  }
+  assert.equal(total.textContent, "0");
+  assert.equal(total.hidden, true);
+});
+
+test("tells how much of a mixed group is hidden, and nothing otherwise", async () => {
+  const { documentElement, elements } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { hideNavbarChat: true, hideNavbarProfile: true, hideCommentReplies: true },
+  });
+  const summary = (group) => documentElement.querySelector(`[data-group="${group}"]`).textContent;
+  assert.equal(summary("hideNavbar"), "2 of 6 hidden");
+  assert.equal(summary("hideComments"), "Only replies hidden");
+  assert.equal(summary("hideLeftSidebar"), "");
+  assert.equal(summary("hideSocialSignals"), "");
+
+  // A group that is fully on, or fully off, says so with its switch alone.
+  elements["hide-navbar"].checked = true;
+  elements["hide-navbar"].dispatch("change");
+  assert.equal(summary("hideNavbar"), "");
+  elements["hide-navbar"].checked = false;
+  elements["hide-navbar"].dispatch("change");
+  assert.equal(summary("hideNavbar"), "");
+
+  elements["hide-left-sidebar-games"].checked = true;
+  elements["hide-left-sidebar-games"].dispatch("change");
+  assert.equal(summary("hideLeftSidebar"), "1 of 5 hidden");
 });
 
 test("saves the scroll mode and opens the file picker for imports", async () => {
