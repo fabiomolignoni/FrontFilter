@@ -84,7 +84,7 @@ statistics, and **Settings** covers the theme, backups, and the project's
 links. Changes are saved automatically and apply right away.
 
 In **Stats**, time counts while a Reddit tab is in front and you have
-scrolled, clicked or typed in it in the last 3 minutes, and a new visit
+scrolled, clicked or typed in it in the last 5 minutes, and a new visit
 starts after 10 minutes away from Reddit. Point at a day of the chart, or
 move through the days with the arrow keys, to see its time. The **?**
 button beside **Today** explains each figure.
