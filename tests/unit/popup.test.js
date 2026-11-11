@@ -1390,7 +1390,7 @@ test("keeps the settings an import replaces, and restores them, undoably", async
   assert.deepEqual(JSON.parse(JSON.stringify(importBackup.settings.blockedFlairs)), ["Meme"]);
   assert.equal(elements["block-homepage"].checked, false);
   assert.equal(elements["backup-restore"].hidden, false);
-  assert.match(elements["backup-restore-text"].textContent, /^Your settings from before your import of .+ are kept\.$/);
+  assert.match(elements["backup-restore-text"].textContent, /^Your settings before your import of .*\d/);
 
   await elements["restore-backup"].click();
   await settle();

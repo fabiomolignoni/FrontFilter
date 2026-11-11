@@ -63,8 +63,6 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-.lede { margin: 0; color: var(--text-secondary); font-size: 14px; }
-
 .reason {
   margin: var(--sp-1) 0 0;
   padding: 6px var(--sp-3);
