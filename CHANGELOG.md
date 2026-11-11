@@ -56,6 +56,10 @@ Notable changes to FrontFilter, newest first.
 
 ### Changed
 
+- FrontFilter asks for `declarativeNetRequestWithHostAccess` instead of
+  `declarativeNetRequest`. Its navigation rules still block the same pages,
+  but they can act only on Reddit, where it already has access, and the
+  browser no longer warns that it can "block content on any page".
 - The settings page and the block page have a new design, and the settings
   page's tabs follow what you want to do. **Block** holds the blocked pages,
   subreddits and users, the Block buttons and the block page's options.

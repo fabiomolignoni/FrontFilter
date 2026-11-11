@@ -39,6 +39,17 @@ test("keeps the source manifest directly loadable by Chrome", () => {
   assert.ok(manifest.description.length <= 132);
 });
 
+test("asks only for the permissions it uses, and for host access only to Reddit", () => {
+  // declarativeNetRequestWithHostAccess shows no install warning of its own,
+  // unlike declarativeNetRequest's "Block content on any page": its rules act
+  // only where the host permissions below allow, which redirects need anyway.
+  assert.deepEqual(manifest.permissions, ["storage", "declarativeNetRequestWithHostAccess"]);
+  assert.equal("optional_permissions" in manifest, false);
+  assert.deepEqual(manifest.host_permissions, ["*://*.reddit.com/*"]);
+  assert.deepEqual(firefoxManifest.permissions, manifest.permissions);
+  assert.deepEqual(firefoxManifest.host_permissions, manifest.host_permissions);
+});
+
 test("opens the settings page, in a tab, as the browsers' options page", () => {
   assert.deepEqual(manifest.options_ui, {
     page: "popup/index.html?standalone=true",

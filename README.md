@@ -110,8 +110,8 @@ settings, as FrontFilter's options.
 
 FrontFilter works entirely on your device. It has no servers, accounts,
 analytics, or ads, and never sends your data anywhere. It runs only on
-`reddit.com` and asks only for `storage` and `declarativeNetRequest`
-permissions. See the [privacy policy](PRIVACY.md) for details.
+`reddit.com` and asks only for `storage` and
+`declarativeNetRequestWithHostAccess` permissions. See the [privacy policy](PRIVACY.md) for details.
 
 ## Development
 
