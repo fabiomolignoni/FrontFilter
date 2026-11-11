@@ -416,6 +416,10 @@ label.field-row:hover { background: none; }
 .mode-badge:has(option[value="all"]:checked) {
   border-color: transparent; background-color: var(--accent-soft); color: var(--accent-text);
 }
+/* The list a badge opens takes the badge's colors where its options have
+   none: Chrome lays the badge's see-through background over white, which
+   leaves the dark mode's light text unreadable. */
+.mode-badge option { background-color: var(--bg-elevated); color: var(--text-primary); }
 .mode-badge:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .mode-badge:disabled { opacity: 0.5; cursor: not-allowed; }
 
