@@ -109,6 +109,8 @@ Notable changes to FrontFilter, newest first.
   page, instead of the browser's error page.
 - `ALL` rules also hide crossposts of the subreddit's posts from other
   subreddits and feeds, and the scroll limit no longer counts them.
+- A rule typed in the settings is saved when the settings close right
+  after typing, as when their tab is closed: it was lost.
 
 ## 2.4.0 - 2026-10-12
 

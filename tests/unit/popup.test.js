@@ -69,6 +69,7 @@ async function loadPopup({
   const tabMessages = [];
   const created = [];
   const reloaded = [];
+  const windowListeners = {};
   let closed = false;
   const context = vm.createContext({
     Blob,
@@ -83,6 +84,7 @@ async function loadPopup({
     },
     location: { search: locationSearch },
     close: () => { closed = true; },
+    addEventListener: (type, listener) => (windowListeners[type] ??= []).push(listener),
     setTimeout,
     clearTimeout,
   });
@@ -100,6 +102,10 @@ async function loadPopup({
     createdElements: page.created,
     documentElement: page.document.documentElement,
     elements: page.elements,
+    // Closes the page, as closing its tab or leaving the popup does.
+    hide() {
+      for (const listener of windowListeners.pagehide ?? []) listener({ type: "pagehide" });
+    },
     // Changes settings as another page would, and lets this page catch up.
     async storeElsewhere(settings) {
       store(settings);
@@ -1824,6 +1830,35 @@ test("saves typed text once typing pauses", async (t) => {
   assert.deepEqual(JSON.parse(JSON.stringify(writes[0].settings)), {
     blockedTitleKeywords: ["spoilers"],
   });
+});
+
+test("saves what is typed when the page closes before typing pauses", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { elements, hide, writes } = await loadPopup();
+  // A save still in progress does not hold back the one made on closing.
+  elements["block-news"].checked = true;
+  elements["block-news"].dispatch("change");
+  await settle();
+  assert.equal(writes.length, 1);
+  elements["add-title-keyword"].click();
+  const input = getRenderedKeywords(elements)[0].querySelector("input");
+  input.value = "spoilers";
+  input.dispatch("input");
+  hide();
+  assert.equal(writes.length, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(writes[1].settings)), {
+    blockedTitleKeywords: ["spoilers"],
+  });
+  // Nothing is left to save twice.
+  t.mock.timers.tick(700);
+  await settle();
+  assert.equal(writes.length, 2);
+});
+
+test("saves nothing when the page closes with everything saved", async () => {
+  const { hide, writes } = await loadPopup({ autoResolveWrites: true });
+  hide();
+  assert.equal(writes.length, 0);
 });
 
 test("explains entries that cannot be used, and clears them", async () => {
