@@ -1717,6 +1717,18 @@ test("loads and saves the comment limit apart from the scroll limit", async () =
   assert.equal(elements["scroll-limit"].value, "40");
 });
 
+// "Block pages" chooses the pages to block; the block page's options say
+// what happens on them, under a title that does not read the same.
+test("names the block page's options apart from the pages to block", () => {
+  const { elements } = loadPage("popup/index.html");
+  const nameOf = (id) => elements[id].getAttribute("aria-labelledby").split(" ")
+    .map((part) => elements[part].textContent.replace(/\s+/g, " ").trim())
+    .join(" ");
+  assert.equal(elements["pages-heading"].textContent, "Block pages");
+  assert.equal(nameOf("hide-block-page-settings-button"), "When a page is blocked Hide the Open settings button");
+  assert.equal(nameOf("redirect-blocked-pages"), "When a page is blocked Redirect to another website");
+});
+
 test("saves the website for blocked pages, shown only while its switch is on", async () => {
   // Hidden in the markup, so it never shows before the settings load.
   assert.equal(loadPage("popup/index.html").elements["redirect-url-option"].hidden, true);
