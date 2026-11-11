@@ -79,8 +79,6 @@ document.addEventListener("DOMContentLoaded", () => {
     summary: Array.from(document.querySelectorAll(".group-summary"))
       .find((element) => element.getAttribute("data-group") === parent),
   }));
-  // The Filters tab shows how many rules its lists hold.
-  const filtersTotal = document.getElementById("filters-total");
 
   let toastTimer = null;
   let indicatorTimer = null;
@@ -198,7 +196,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const snapshot = getSettingsSnapshot();
     const settings = Object.fromEntries(Array.from(keys, (key) => [key, snapshot[key]]));
     for (const list of entryLists) list.updateCount();
-    updateFiltersTotal();
     showSaving();
 
     for (const key of keys) savingKeys.set(key, (savingKeys.get(key) || 0) + 1);
@@ -269,28 +266,61 @@ document.addEventListener("DOMContentLoaded", () => {
     await queuePendingSave();
   }
 
-  const allLists = [];
+  // A list longer than this folds to its first rules, with a field that
+  // searches it and a button that shows it all.
+  const FOLD_AFTER = 8;
+  const FOLDED_ROWS = 6;
 
-  function updateFiltersTotal() {
-    const total = allLists.reduce((sum, list) => sum + list.values().length, 0);
-    filtersTotal.textContent = String(total);
-    filtersTotal.hidden = total === 0;
+  // Text as a list search compares it, ignoring case and accents.
+  function foldText(text) {
+    return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   }
 
   // An editable list of filter rules. Each row is a draft that keeps what
   // the user types until the field loses focus; it is then normalized and
   // merged into an earlier row for the same rule. Saves store the
   // normalized list. With modes, each rule is blocked in HOME or ALL mode.
-  // A list pasted in a row adds a row for each of its entries.
+  // A list pasted in a row adds a row for each of its entries. A long list
+  // folds, but rows just added, merged into or pasted always show.
   function createEntryList({
     key, listId, countId, addId, itemClass, normalizeList, modes = false,
     getRuleKey = (value) => value.toLowerCase(), splitList = FrontFilter.splitList,
-    placeholder, label, removeLabel, emptyMessage, invalidMessage, countNouns,
+    placeholder, label, removeLabel, emptyMessage, invalidMessage, countNouns, searchLabel,
   }) {
     const listEl = document.getElementById(listId);
     const countEl = document.getElementById(countId);
     let entries = [];
     let shown = false;
+    let rows = new Map();
+    let expanded = false;
+    let query = "";
+    const revealed = new Set();
+
+    const search = document.createElement("input");
+    search.type = "search";
+    search.className = "field list-search";
+    search.placeholder = searchLabel;
+    search.setAttribute("aria-label", searchLabel);
+    search.setAttribute("aria-controls", listId);
+    search.spellcheck = false;
+    const tools = document.createElement("div");
+    tools.className = "list-tools";
+    tools.hidden = true;
+    tools.append(search);
+    listEl.before(tools);
+
+    const noMatch = document.createElement("p");
+    noMatch.className = "list-no-match";
+    noMatch.setAttribute("role", "status");
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "list-more";
+    more.setAttribute("aria-controls", listId);
+    const footer = document.createElement("div");
+    footer.className = "list-footer";
+    footer.hidden = true;
+    footer.append(noMatch, more);
+    listEl.parentElement.append(footer);
 
     function normalize(value) {
       const [normalized] = normalizeList([value]);
@@ -333,12 +363,64 @@ document.addEventListener("DOMContentLoaded", () => {
       return changed;
     }
 
+    function matches(entry, needle) {
+      return foldText(entry.value).includes(needle);
+    }
+
+    // Shows the rows a search matches; otherwise, unless the list is short
+    // or shown in full, its first rules. Empty drafts and revealed rows
+    // always show.
+    function updateVisibility() {
+      const ruleCount = values().length;
+      const long = ruleCount > FOLD_AFTER;
+      if (!long && query) {
+        query = "";
+        search.value = "";
+      }
+      const needle = foldText(query.trim());
+      const folded = long && !expanded && !needle;
+      let ruleIndex = 0;
+      let matched = 0;
+      for (const entry of entries) {
+        const row = rows.get(entry);
+        if (!row) continue;
+        let visible = true;
+        if (entry.value) {
+          if (needle) {
+            if (matches(entry, needle)) matched += 1;
+            else visible = revealed.has(entry);
+          } else if (folded) {
+            visible = ruleIndex < FOLDED_ROWS || revealed.has(entry);
+          }
+          ruleIndex += 1;
+        }
+        row.hidden = !visible;
+      }
+      tools.hidden = !long;
+      more.hidden = !long || Boolean(needle);
+      more.textContent = expanded ? "Show fewer" : `Show all ${ruleCount}`;
+      more.setAttribute("aria-expanded", String(expanded));
+      noMatch.hidden = !needle || matched > 0;
+      noMatch.textContent = noMatch.hidden ? "" : `No ${countNouns[1]} match “${query.trim()}”`;
+      footer.hidden = more.hidden && noMatch.hidden;
+    }
+
+    // Keeps rows in view, clearing a search that would hide them.
+    function reveal(shownEntries) {
+      for (const entry of shownEntries) revealed.add(entry);
+      const needle = foldText(query.trim());
+      if (needle && shownEntries.some((entry) => entry.value && !matches(entry, needle))) {
+        query = "";
+        search.value = "";
+      }
+      updateVisibility();
+    }
+
     function focus(value, animate) {
-      const items = Array.from(listEl.querySelectorAll(`.${itemClass}`));
-      const item = value
-        ? items.find((element) => element.querySelector("input").value === value)
-        : items[0];
+      const entry = value ? entries.find((other) => other.value === value) : entries[0];
+      const item = entry && rows.get(entry);
       if (!item) return;
+      reveal([entry]);
       if (animate) item.classList.add("pop-in");
       item.querySelector("input").focus();
     }
@@ -423,19 +505,25 @@ document.addEventListener("DOMContentLoaded", () => {
     // New drafts come first, then rules in alphabetical order.
     function render() {
       updateCount();
-      updateFiltersTotal();
+      for (const entry of revealed) {
+        if (!entries.includes(entry)) revealed.delete(entry);
+      }
       if (entries.length === 0) {
         const empty = document.createElement("p");
         empty.className = "empty-state";
         empty.textContent = emptyMessage;
+        rows = new Map();
         listEl.replaceChildren(empty);
+        updateVisibility();
         return;
       }
       entries.sort((a, b) => {
         if (!a.value || !b.value) return Number(Boolean(a.value)) - Number(Boolean(b.value));
         return a.value.localeCompare(b.value, undefined, { sensitivity: "base" });
       });
-      listEl.replaceChildren(...entries.map(createRow));
+      rows = new Map(entries.map((entry) => [entry, createRow(entry)]));
+      listEl.replaceChildren(...rows.values());
+      updateVisibility();
     }
 
     // One-click additions use ALL mode, as the Block buttons on Reddit do.
@@ -465,8 +553,9 @@ document.addEventListener("DOMContentLoaded", () => {
       save();
 
       const pasted = new Set(added);
-      const items = Array.from(listEl.querySelectorAll(`.${itemClass}`))
-        .filter((item) => pasted.has(item.querySelector("input").value));
+      const pastedEntries = entries.filter((entry) => pasted.has(entry.value));
+      reveal(pastedEntries);
+      const items = pastedEntries.map((entry) => rows.get(entry));
       for (const item of items) item.classList.add("pop-in");
       items[0]?.querySelector("input").focus();
 
@@ -496,21 +585,39 @@ document.addEventListener("DOMContentLoaded", () => {
       render();
     }
 
+    search.addEventListener("input", () => {
+      query = search.value;
+      updateVisibility();
+    });
+    // Escape clears the search rather than closing the popup.
+    search.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || !search.value) return;
+      event.preventDefault();
+      search.value = "";
+      query = "";
+      updateVisibility();
+    });
+    more.addEventListener("click", () => {
+      expanded = !expanded;
+      if (!expanded) revealed.clear();
+      updateVisibility();
+      if (!expanded) more.scrollIntoView?.({ block: "nearest" });
+    });
+
     document.getElementById(addId).addEventListener("click", () => add());
-    const list = {
+    return {
       key,
       add,
       show,
       values,
       updateCount,
     };
-    allLists.push(list);
-    return list;
   }
 
   const blockedList = createEntryList({
     key: "blockedSubreddits",
     listId: "blocked-list",
+    searchLabel: "Search blocked subreddits",
     countId: "blocked-count",
     addId: "add-subreddit",
     itemClass: "blocked-item",
@@ -526,6 +633,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const allowedList = createEntryList({
     key: "allowedSubreddits",
     listId: "allowed-list",
+    searchLabel: "Search allowed subreddits",
     countId: "allowed-count",
     addId: "add-allowed-subreddit",
     itemClass: "allowed-item",
@@ -545,6 +653,7 @@ document.addEventListener("DOMContentLoaded", () => {
     createEntryList({
       key: "blockedUsers",
       listId: "blocked-user-list",
+      searchLabel: "Search blocked users",
       countId: "blocked-user-count",
       addId: "add-blocked-user",
       itemClass: "user-item",
@@ -559,6 +668,7 @@ document.addEventListener("DOMContentLoaded", () => {
     createEntryList({
       key: "blockedTitleKeywords",
       listId: "title-keyword-list",
+      searchLabel: "Search keywords",
       countId: "title-keyword-count",
       addId: "add-title-keyword",
       itemClass: "keyword-item",
@@ -575,6 +685,7 @@ document.addEventListener("DOMContentLoaded", () => {
     createEntryList({
       key: "allowedKeywords",
       listId: "allowed-keyword-list",
+      searchLabel: "Search allowed keywords",
       countId: "allowed-keyword-count",
       addId: "add-allowed-keyword",
       itemClass: "allowed-keyword-item",
@@ -591,6 +702,7 @@ document.addEventListener("DOMContentLoaded", () => {
     createEntryList({
       key: "blockedFlairs",
       listId: "blocked-flair-list",
+      searchLabel: "Search flairs",
       countId: "blocked-flair-count",
       addId: "add-blocked-flair",
       itemClass: "flair-item",

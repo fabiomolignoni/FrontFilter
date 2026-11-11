@@ -72,6 +72,7 @@ class ChromeSettingsTests(ExtensionTestCase):
 
         self.check_switch_groups()
         self.check_help_button()
+        find("tab-simplify").click()
         suggested_communities = find("hide-suggested-communities")
         self.assertFalse(suggested_communities.is_selected())
         suggested_communities.click()
@@ -91,6 +92,7 @@ class ChromeSettingsTests(ExtensionTestCase):
         self.wait_until(lambda: driver.find_element("tag name", "html").get_attribute("data-theme") == "light")
         self.assertEqual(self.js("return localStorage.getItem('frontfilter-theme')"), "light")
 
+        find("tab-block").click()
         explore_toggle.click()
         news_toggle.click()
         find("block-homepage").click()

@@ -24,6 +24,8 @@ To install from source, see [Development](#development). The
   subreddit's front page and sort views; `ALL` rules block every page of it and
   hide its posts, and crossposts of them, from other feeds.
 - Allow exceptions that override subreddit rules.
+- Block users by name, `u/name` or profile URL: their posts and comments
+  disappear from every Reddit page, and their profiles are blocked.
 - Optionally add one-click **Block** buttons to feed posts and subreddit
   pages, with undo.
 - Optionally hide the **Open settings** button from the page shown in place
@@ -35,8 +37,6 @@ To install from source, see [Development](#development). The
   case and with or without accents, or inside words with `*`, as in
   `spoiler*`, or that match a regular expression. Allowed keywords keep the
   posts and comments that contain them.
-- Block users by name, `u/name` or profile URL: their posts and comments
-  disappear from every Reddit page, and their profiles are blocked.
 - Hide posts by flair, with `*` wildcards.
 - Hide suggested posts in the Home feed, and ads and promoted posts.
 - Hide NSFW content: posts tagged NSFW and posts from NSFW communities, on
@@ -64,15 +64,17 @@ system theme or use a light or dark one.
 
 ## Usage
 
-Open FrontFilter from the browser toolbar or extensions menu. The
-**Controls** tab turns features on and off, grouped by the part of Reddit
-they change, **Filters** holds subreddit, user, keyword, and flair rules,
-and **Settings** covers the theme, the Block buttons, the block page,
-backups, and the project's links. Changes are saved automatically and apply
-right away. A switch with sections, such as **Hide navbar**, shows them from
-its arrow. To add several rules at once, paste a list into a field of the
-**Filters** tab, one per line or separated by commas. The **?** button next
-to a setting or list explains it.
+Open FrontFilter from the browser toolbar or extensions menu. Its tabs
+follow the features above: **Block** covers pages, subreddits, users, the
+Block buttons and the block page, **Filter** hides posts by type, keyword,
+and flair, **Simplify** hides parts of Reddit's pages and limits scrolling,
+and **Settings** covers the theme, backups, and the project's links.
+Changes are saved automatically and apply right away. A switch with
+sections, such as **Hide navbar**, shows them from its arrow. To add several
+rules at once, paste a list into a field of a list, one per line or
+separated by commas. A long list shows its first rules, with a field that
+searches it and a button that shows it all. The **?** button next to a
+setting or list explains it.
 
 ## Privacy
 

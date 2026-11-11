@@ -6,47 +6,53 @@ Notable changes to FrontFilter, newest first.
 
 ### Added
 
-- The **Settings** tab can hide the block page's **Open settings** button,
+- The **Block** tab can hide the block page's **Open settings** button,
   so a blocked page offers only **Go back**, and **Undo block** after a
   one-click block.
 - Blocked pages can lead to a website of your choice instead of the block
-  page, from the **Settings** tab. A one-click **Block** on a subreddit's
+  page, from the **Block** tab. A one-click **Block** on a subreddit's
   own page still shows the block page, which offers **Undo block**, and so
   does any blocked page while the chosen website is a blocked Reddit page
   itself.
 - Keywords written between slashes, such as `/colou?r/`, are regular
   expressions, matched ignoring case.
-- **Allowed keywords**, in the **Filters** tab: keyword filters never hide a
+- **Allowed keywords**, in the **Filter** tab: keyword filters never hide a
   post or comment that contains one of them.
-- A list of subreddits, users, keywords or flairs pasted into a field of the
-  **Filters** tab, one per line or separated by commas, adds a rule for each.
+- A list of subreddits, users, keywords or flairs pasted into a field of one
+  of the settings page's lists, one per line or separated by commas, adds a
+  rule for each.
   Commas inside a regular expression, as in `/a{1,3}/`, do not split it.
-- **Comment limit**, in the **Controls** tab: a post's page shows only its
+- **Comment limit**, in the **Simplify** tab: a post's page shows only its
   first comments, each with its replies, and stops there or shows the next
   group on request, as the scroll limit does with posts. Comments hidden by
   filters do not count, and Reddit loads no more comments while the limit
   is reached.
-- **Hide NSFW content**, in the **Controls** tab: posts tagged NSFW, and
+- **Hide NSFW content**, in the **Filter** tab: posts tagged NSFW, and
   posts from communities tagged NSFW, hide from feeds, search results,
   community highlights, the posts suggested beside a post, and Old Reddit.
   On an NSFW post's own page, its comments hide with it. Hidden posts do not
   count toward the scroll limit.
-- **Hide spoilers**, in the **Controls** tab: posts tagged as spoilers hide
+- **Hide spoilers**, in the **Filter** tab: posts tagged as spoilers hide
   from feeds, search results, community highlights, the posts suggested
   beside a post, and Old Reddit. On a spoiler's own page, its comments hide
   with it. Hidden posts do not count toward the scroll limit.
 
 ### Changed
 
-- The settings page and the block page have a new design. The **Controls**
-  tab groups switches by the part of Reddit they change (**Block pages**,
-  **Feed and posts**, **Comments** and **Page layout**), with the scroll and
-  comment limits next to the features they limit. A switch whose sections
-  are only partly on says how many, as in "2 of 6 hidden", and the
-  **Filters** tab shows how many rules its lists hold. Rules take less
-  space, text is easier to read in both color modes, and the version and
-  project links are at the end of the **Settings** tab. Settings, filters
-  and exported configurations are unchanged.
+- The settings page and the block page have a new design, and the settings
+  page's tabs follow what you want to do. **Block** holds the blocked pages,
+  subreddits and users, the Block buttons and the block page's options.
+  **Filter** hides posts by type, keyword and flair. **Simplify** hides parts
+  of Reddit's pages, and holds the scroll and comment limits next to the
+  feeds and comments they limit. **Settings** keeps the theme, backups, and
+  the version and project links. Settings, filters and exported
+  configurations are unchanged.
+- A list of more than 8 rules shows its first 6, with **Show all** and a
+  field that searches it, ignoring case and accents. Rules just added,
+  pasted or merged always show.
+- A switch whose sections are only partly on says how many, as in "2 of 6
+  hidden". Rules take less space, and text is easier to read in both color
+  modes.
 - Keywords match whole words and ignore accents: `ai` no longer hides
   "said", and `perche` hides "Perché". A `*` at an end lets a keyword match
   inside words there, as in `spoiler*` or `*ai*`. In Chinese, Japanese,
