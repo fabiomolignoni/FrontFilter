@@ -1885,12 +1885,12 @@ test("saves a cleared address, and no address that cannot be used, when the page
 });
 
 test("saves nothing when the page closes with everything saved", async () => {
-  const { hide, writes } = await loadPopup({
-    autoResolveWrites: true,
-    storedSettings: { scrollLimit: 13, redirectUrl: "https://example.com/" },
-  });
-  hide();
-  assert.equal(writes.length, 0);
+  // Defaults included: the fields start with them before settings load.
+  for (const storedSettings of [{}, { scrollLimit: 13, redirectUrl: "https://example.com/" }]) {
+    const { hide, writes } = await loadPopup({ autoResolveWrites: true, storedSettings });
+    hide();
+    assert.equal(writes.length, 0, JSON.stringify(storedSettings));
+  }
 });
 
 test("explains entries that cannot be used, and clears them", async () => {
