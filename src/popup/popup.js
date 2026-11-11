@@ -302,6 +302,19 @@ document.addEventListener("DOMContentLoaded", () => {
     await queuePendingSave();
   }
 
+  // A page closed before typing pauses, as a tab closed or the popup left
+  // right after typing, would never save what was typed. It is written at
+  // once: a write queued behind another could start after the page is gone.
+  globalThis.addEventListener("pagehide", () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+    if (pendingSaveKeys.size === 0) return;
+    const snapshot = getSettingsSnapshot();
+    const settings = Object.fromEntries(Array.from(pendingSaveKeys, (key) => [key, snapshot[key]]));
+    pendingSaveKeys.clear();
+    void chrome.storage.local.set(settings).catch(() => undefined);
+  });
+
   // Subreddit rules block a front page (HOME) or everything (ALL). The
   // stored names are kept; these read better beside Reddit's own Home
   // feed and r/all.
