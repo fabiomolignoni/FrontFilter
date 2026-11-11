@@ -60,8 +60,8 @@ Notable changes to FrontFilter, newest first.
   field that searches it, ignoring case and accents. Rules just added,
   pasted or merged always show.
 - A switch whose sections are only partly on says how many, as in "2 of 6
-  hidden". Rules take less space, and text is easier to read in both color
-  modes.
+  hidden". Rules take less space, text is easier to read in both color
+  modes, and switches and tabs show in high contrast modes.
 - Keywords match whole words and ignore accents: `ai` no longer hides
   "said", and `perche` hides "Perché". A `*` at an end lets a keyword match
   inside words there, as in `spoiler*` or `*ai*`. In Chinese, Japanese,
