@@ -103,9 +103,6 @@ def build_extension(destination, browser, fixture_port=None):
         )
         isolated_script["js"].insert(0, "fixture-bridge.js")
         manifest["host_permissions"].extend([fixture_origin, redirect_origin])
-        manifest["web_accessible_resources"][0]["matches"].extend(
-            [fixture_origin, redirect_origin],
-        )
         rules = "background/navigation-rules.js"
         files[rules] = files[rules].decode().replace(r"reddit\\.com", "localhost").encode()
         files["fixture-bridge.js"] = FIXTURE_BRIDGE.encode()

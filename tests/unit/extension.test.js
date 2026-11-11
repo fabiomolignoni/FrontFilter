@@ -50,6 +50,15 @@ test("asks only for the permissions it uses, and for host access only to Reddit"
   assert.deepEqual(firefoxManifest.host_permissions, manifest.host_permissions);
 });
 
+test("opens only the block page to websites, and to all of them", () => {
+  // Browsers let a navigation reach an extension page only from the sites it
+  // is open to, and navigation rules redirect links from any website.
+  assert.deepEqual(manifest.web_accessible_resources, [
+    { resources: ["blocked/index.html"], matches: ["<all_urls>"] },
+  ]);
+  assert.deepEqual(firefoxManifest.web_accessible_resources, manifest.web_accessible_resources);
+});
+
 test("opens the settings page, in a tab, as the browsers' options page", () => {
   assert.deepEqual(manifest.options_ui, {
     page: "popup/index.html?standalone=true",

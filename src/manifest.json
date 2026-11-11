@@ -65,7 +65,7 @@
     {
       "resources": ["blocked/index.html"],
       "matches": [
-        "*://*.reddit.com/*"
+        "<all_urls>"
       ]
     }
   ],

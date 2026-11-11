@@ -13,6 +13,8 @@ async function loadBlockPage({
   getSettings,
   // How the browser reached the page: navigate, reload or back_forward.
   navigationType = "navigate",
+  // Whether another page embeds it in a frame.
+  framed = false,
 } = {}) {
   const page = loadPage("blocked/index.html");
   const errors = [];
@@ -57,6 +59,7 @@ async function loadBlockPage({
     },
     location,
   };
+  window.top = framed ? {} : window;
   const context = vm.createContext({
     URL,
     URLSearchParams,
@@ -455,6 +458,12 @@ test("counts a blocked visit once, and not the page a one-click block brings", a
   assert.deepEqual(await countedVisits({ ...visit, navigationType: "reload" }), []);
   assert.deepEqual(await countedVisits({ ...visit, navigationType: "back_forward" }), []);
   assert.deepEqual(await countedVisits({ ...visit, search: `${visit.search}&undo=token` }), []);
+});
+
+test("counts no visit when another page embeds the block page", async () => {
+  const visit = { search: "?target=subreddit&subreddit=news", hash: "#https://www.reddit.com/r/news/" };
+  assert.deepEqual(await countedVisits(visit), [["subreddit:news"]]);
+  assert.deepEqual(await countedVisits({ ...visit, framed: true }), []);
 });
 
 test("keeps the block page working when the visit cannot be counted", async () => {
