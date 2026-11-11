@@ -2322,6 +2322,7 @@ test("shows today's statistics, the last 7 days, and what they blocked and hid",
   assert.equal(today.classList.contains("today"), true);
   assert.match(today.getAttribute("aria-label"), /: 42 min, 1 visit$/);
   assert.equal(today.querySelector(".chart-value").textContent, "42m");
+  assert.equal(today.querySelector(".chart-minutes"), null);
   assert.equal(today.querySelector(".chart-bar").style.height, "100%");
   assert.equal(days[0].querySelector(".chart-bar").style.height, "0");
   // Counting began today: no day is over to average yet.
@@ -2335,6 +2336,41 @@ test("shows today's statistics, the last 7 days, and what they blocked and hid",
     ["Ads", "1 post", "1"],
   ]);
   assert.match(elements["stats-since"].textContent, /^Since .+: 42 min on Reddit, 3 pages blocked, 6 hidden$/);
+});
+
+test("groups the digits of large figures, hours included", async () => {
+  const context = vm.createContext({ URL, URLSearchParams });
+  runScripts(context, ["shared/core.js", "shared/stats.js"]);
+  const { dayKey, shiftDay } = context.FrontFilter.stats;
+  const HOUR = 60 * MINUTE;
+  const today = dayKey(Date.now());
+  // A minute a day the week before, then 9 h 58 min a day, and today less.
+  const days = {};
+  for (let offset = -13; offset < 0; offset++) {
+    days[shiftDay(today, offset)] = { time: offset < -6 ? MINUTE : 9 * HOUR + 58 * MINUTE, visits: 1 };
+  }
+  days[today] = {
+    time: 2 * HOUR + 5 * MINUTE, visits: 1,
+    blocked: { "page:homepage": 12345 }, posts: { keywords: 1234567 },
+  };
+  const stats = {
+    since: Date.now() - 20 * 24 * HOUR,
+    totals: { time: 1234 * HOUR, visits: 14, blocked: 12345, posts: 1234567, comments: 0 },
+    days,
+  };
+  const { elements } = await loadPopup({ storedSettings: { stats } });
+  const group = (number) => number.toLocaleString();
+
+  assert.equal(elements["stat-blocked"].textContent, group(12345));
+  assert.equal(elements["stat-hidden"].textContent, group(1234567));
+  assert.equal(elements["chart-change"].textContent, `${group(59700)}% more than the week before`);
+  assert.match(elements["stats-since"].textContent, new RegExp(`: ${group(1234)} h on Reddit, `
+    + `${group(12345)} pages blocked, ${group(1234567)} hidden$`));
+  // A narrow chart hides a value's minutes, which have an element of their own.
+  const chartDays = elements["time-chart"].querySelectorAll(".chart-day");
+  assert.equal(chartDays[0].querySelector(".chart-value").textContent, "9h 58m");
+  assert.equal(chartDays[0].querySelector(".chart-minutes").textContent, " 58m");
+  assert.equal(chartDays.at(-1).querySelector(".chart-value").textContent, "2h 5m");
 });
 
 test("shows empty statistics, and those recorded while it is open", async () => {

@@ -282,7 +282,8 @@ FrontFilter.stats = (() => {
   }
 
   // Durations as the Stats tab shows them: 0 min, < 1 min, 38 min, 1 h 5 min,
-  // and in whole hours from 10 hours. Compact, for the chart: 38m, 1h 5m.
+  // and in whole hours from 10 hours, grouped as the tab's counts are:
+  // 1,234 h. Compact, for the chart: 38m, 1h 5m.
   function formatDuration(ms, { compact = false } = {}) {
     const minutes = Math.floor(count(ms) / 60000);
     const [h, m] = compact ? ["h", "m"] : [" h", " min"];
@@ -290,7 +291,9 @@ FrontFilter.stats = (() => {
     if (minutes < 60) return `${minutes}${m}`;
     const hours = Math.floor(minutes / 60);
     const rest = minutes % 60;
-    return hours >= 10 || rest === 0 ? `${hours}${h}` : `${hours}${h} ${rest}${m}`;
+    return hours >= 10 || rest === 0
+      ? `${hours.toLocaleString()}${h}`
+      : `${hours}${h} ${rest}${m}`;
   }
 
   return Object.freeze({

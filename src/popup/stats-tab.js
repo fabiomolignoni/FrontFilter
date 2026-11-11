@@ -95,7 +95,14 @@ FrontFilter.createStatsTab = function ({ showToast }) {
     // Only today and the busiest day carry their values; the readout and
     // each day's label give the others.
     const labelled = (today || index === busiest) && day.time > 0;
-    const value = element("span", "chart-value", labelled ? STATS.formatDuration(day.time, { compact: true }) : "");
+    const value = element("span", "chart-value");
+    if (labelled) {
+      // A narrow chart leaves the minutes out, so that two values side by
+      // side stay apart (popup.css).
+      const [hours, minutes] = STATS.formatDuration(day.time, { compact: true }).split(" ");
+      value.append(hours);
+      if (minutes) value.append(element("span", "chart-minutes", ` ${minutes}`));
+    }
     const track = element("span", "chart-track");
     const bar = element("span", "chart-bar");
     // A day with any time shows, however short it is.
@@ -131,7 +138,7 @@ FrontFilter.createStatsTab = function ({ showToast }) {
     const percent = Math.round(Math.abs(summary.change) * 100);
     change.textContent = percent === 0
       ? "About the same as the week before"
-      : `${percent}% ${summary.change < 0 ? "less" : "more"} than the week before`;
+      : `${formatCount(percent)}% ${summary.change < 0 ? "less" : "more"} than the week before`;
   }
 
   // Ranked bars, longest first. A ranking that can grow long folds the

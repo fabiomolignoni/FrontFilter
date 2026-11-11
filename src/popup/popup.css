@@ -556,12 +556,16 @@ label.field-row:hover { background: none; }
   padding: var(--sp-3) 14px;
   border: 1px solid var(--border); border-radius: var(--radius-md);
   background: var(--bg-surface); box-shadow: var(--shadow-sm);
+  container-type: inline-size;
 }
 .stat-tile dd { margin: 0; }
 .stat-label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+/* Narrower tiles, as on small phones, shrink their figure so that one of
+   millions stays on a line: only a longer one breaks, and not in a number
+   that fits. */
 .stat-value {
-  font-size: 22px; font-weight: 650; line-height: 1.25; letter-spacing: -0.01em;
-  overflow-wrap: anywhere;
+  font-size: clamp(16px, 16cqi, 22px); font-weight: 650; line-height: 1.25;
+  letter-spacing: -0.01em; overflow-wrap: anywhere;
 }
 .stat-detail { font-size: 12px; color: var(--text-muted); }
 
@@ -584,6 +588,12 @@ label.field-row:hover { background: none; }
 .chart {
   display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
   margin: var(--sp-3) 0 0; padding: 0; list-style: none;
+  container-type: inline-size;
+}
+/* Columns narrower than a value with minutes, 9h 58m, show whole hours:
+   two such values side by side would run together. */
+@container (max-width: 307px) {
+  .chart-minutes { display: none; }
 }
 .chart-day {
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-1);
