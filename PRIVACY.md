@@ -140,7 +140,7 @@ Mozilla, or GitHub.
 | Permission | Why FrontFilter needs it |
 | --- | --- |
 | `storage` | Save your settings on your device. |
-| `declarativeNetRequest` | Let the browser redirect pages you block to FrontFilter's block page, or to the website you choose. |
+| `declarativeNetRequestWithHostAccess` | Let the browser redirect pages you block to FrontFilter's block page, or to the website you choose. Its rules apply only to `reddit.com`, where FrontFilter has access. |
 | Access to `reddit.com` and its subdomains | Apply your filters and controls on Reddit pages, and find the subreddit for **Add Current**. |
 
 ## Your choices
