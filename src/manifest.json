@@ -45,6 +45,7 @@
       ],
       "js": [
         "shared/core.js",
+        "shared/stats.js",
         "content/selectors.js",
         "content/posts.js",
         "content/page-style.js",
@@ -53,6 +54,7 @@
         "content/feed-limit.js",
         "content/comment-limit.js",
         "content/quick-block.js",
+        "content/stats-recorder.js",
         "content/main.js"
       ],
       "css": ["content/feed-limit.css", "content/quick-block.css"],

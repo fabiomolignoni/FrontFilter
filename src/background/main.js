@@ -1,6 +1,7 @@
 /**
  * FrontFilter's background script: keeps the declarative navigation rules in
- * step with the settings, and opens the settings page for other pages.
+ * step with the settings, opens the settings page for other pages, and
+ * keeps the statistics they record.
  */
 
 // These settings belonged to features removed in previous releases. Removing
@@ -92,6 +93,30 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+// Statistics have one writer, which adds pages' records one at a time:
+// writes from several tabs at once would otherwise drop each other's.
+let statsQueue = Promise.resolve();
+
+function updateStats(operation) {
+  statsQueue = statsQueue.catch(() => undefined).then(operation);
+  return statsQueue;
+}
+
+// Nothing is counted while statistics are paused.
+function recordStats(record) {
+  if (FrontFilter.stats.isEmptyRecord(record)) return Promise.resolve();
+  return updateStats(async () => {
+    const key = FrontFilter.stats.STORAGE_KEY;
+    const { [key]: stored, pauseStatistics } = await chrome.storage.local.get([key, "pauseStatistics"]);
+    if (pauseStatistics === true) return;
+    await chrome.storage.local.set({ [key]: FrontFilter.stats.addRecord(stored, record, Date.now()) });
+  });
+}
+
+function resetStats() {
+  return updateStats(() => chrome.storage.local.remove([FrontFilter.stats.STORAGE_KEY]));
+}
+
 // Answers a message with whether the operation succeeded.
 function respond(operation, sendResponse) {
   operation.then(
@@ -109,6 +134,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // Extension pages wait for the rules before revisiting an unblocked page.
   if (message?.action === "syncNavigationRules") {
     return respond(syncNavigationRules(), sendResponse);
+  }
+  if (message?.action === "recordStats") {
+    return respond(recordStats(message.record), sendResponse);
+  }
+  if (message?.action === "resetStats") {
+    return respond(resetStats(), sendResponse);
   }
   return false;
 });

@@ -51,6 +51,12 @@ document.addEventListener("DOMContentLoaded", () => {
     void offerUndo(sub, undoToken);
     params.delete("undo");
     window.history.replaceState(null, "", `?${params}${window.location.hash}`);
+  } else {
+    // A one-click block brings the page itself: it is no blocked visit.
+    let route = { type: "page", page: params.get("page") };
+    if (sub) route = { type: "subreddit", subreddit: sub };
+    else if (user) route = { type: "user", user };
+    recordBlockedVisit(FrontFilter.stats.blockedTarget(route, returnPath));
   }
 
   document.getElementById("go-back").addEventListener("click", async () => {
@@ -99,6 +105,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+
+// Statistics count each visit the page stops once: not again when it is
+// reloaded, or returned to from another page.
+function recordBlockedVisit(target) {
+  const [navigation] = globalThis.performance?.getEntriesByType?.("navigation") ?? [];
+  if (navigation && navigation.type !== "navigate") return;
+  // Whatever happens to the count, the page's buttons work.
+  Promise.resolve()
+    .then(() => chrome.runtime.sendMessage({ action: "recordStats", record: { blocked: { [target]: 1 } } }))
+    .catch((error) => console.error("Could not count the blocked visit:", error));
+}
 
 async function offerUndo(subreddit, token) {
   const key = FrontFilter.QUICK_BLOCK_UNDO_KEY;

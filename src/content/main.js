@@ -2,7 +2,8 @@
  * FrontFilter content script. Page rules hide whole features with CSS
  * (page-style.js); post, comment and community filters mark the elements
  * that match; navigation to a blocked page goes to the block page, or to
- * the website chosen in the settings.
+ * the website chosen in the settings. Statistics count the time spent here
+ * and what the filters hid (stats-recorder.js).
  */
 
 const SELECTORS = FrontFilter.SELECTORS;
@@ -73,6 +74,14 @@ const quickBlock = FrontFilter.createQuickBlock({
   isAllowed: (name) => filterIndex.allowedSubreddits.has(name),
 });
 
+const stats = FrontFilter.createStatsRecorder({ isEnabled: statsEnabled });
+// Each post and comment hidden counts once, for the first reason that
+// hides it (see FrontFilter.stats.POST_REASONS). Posts found visible are
+// checked again once the settings or the post change.
+const countedHidden = new WeakSet();
+const visibleAtVersion = new WeakMap();
+let statsCollections = null;
+
 // What filters match against, and which of them scan the page, for the
 // current settings.
 function createFilterIndex(settings) {
@@ -121,7 +130,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
     return;
   }
   setConfig(settingsStore.applyChanges(changes));
-  if (configLoaded) updateLimits();
+  if (configLoaded) {
+    updateLimits();
+    stats.update();
+  }
 
   void checkCurrentPage({ force: true });
   void filterPosts();
@@ -134,6 +146,7 @@ async function loadConfig() {
       setConfig(loadedConfig);
       configLoaded = true;
       updateLimits();
+      stats.update();
     }
   }
   return config;
@@ -162,6 +175,11 @@ function redirectToBlock(route, returnUrl) {
   // goes to the block page in any case, as only it offers the undo.
   const undoToken = route.type === "subreddit" ? quickBlock.takeUndo(route.subreddit) : "";
   const redirectUrl = undoToken ? "" : FrontFilter.getBlockRedirectUrl(config);
+  // The block page counts the visits it shows; this page, the others.
+  if (redirectUrl) {
+    stats.countBlocked(FrontFilter.stats.blockedTarget(route, window.location.pathname));
+    stats.send();
+  }
   window.location.replace(redirectUrl || (
     chrome.runtime.getURL("blocked/index.html") + FrontFilter.blockPageQuery(route)
     + (undoToken ? `&undo=${encodeURIComponent(undoToken)}` : "") + `#${returnUrl}`
@@ -240,11 +258,13 @@ function getPostSubredditNames(postElement) {
   return names;
 }
 
+// Why the post is hidden, as statistics name the reason, or "".
 function isPostBlocked(subredditNames, postElement) {
-  return Array.from(subredditNames).some(isSubredditNameBlocked)
-    || (filterIndex.hasKeywords
-      && containsBlockedText([POSTS.title(postElement), ...POSTS.bodyTexts(postElement)]))
-    || (filterIndex.blockedFlairs.length > 0 && isFlairBlocked(POSTS.flair(postElement)));
+  if (Array.from(subredditNames).some(isSubredditNameBlocked)) return "subreddits";
+  if (filterIndex.hasKeywords
+    && containsBlockedText([POSTS.title(postElement), ...POSTS.bodyTexts(postElement)])) return "keywords";
+  if (filterIndex.blockedFlairs.length > 0 && isFlairBlocked(POSTS.flair(postElement))) return "flairs";
+  return "";
 }
 
 function getPostPermalink(link) {
@@ -333,13 +353,17 @@ function processPostElements() {
 
 // Runs on every processed mutation, so each comment's text is read and
 // matched once per settings version; later passes are a WeakMap lookup.
-function processComments() {
-  // Live collections avoid walking the whole page, unlike querySelectorAll.
+// Live collections avoid walking the whole page, unlike querySelectorAll.
+function getCommentCollections() {
   commentCollections ??= [
     document.getElementsByTagName(SELECTORS.comment.modern),
     document.getElementsByClassName(SELECTORS.comment.oldClassName),
   ];
-  for (const collection of commentCollections) {
+  return commentCollections;
+}
+
+function processComments() {
+  for (const collection of getCommentCollections()) {
     for (const comment of collection) {
       // Already matched and marked for the current settings.
       if (commentFilterResults.get(comment) === filterVersion) continue;
@@ -418,6 +442,77 @@ function processCommunityPanels() {
     collectCommunityCandidates(),
     (subredditNames) => Array.from(subredditNames).some(isSubredditFrontBlocked),
   );
+}
+
+// Statistics
+
+function statsEnabled() {
+  return configLoaded && !config.pauseStatistics;
+}
+
+// Hidden posts are counted in modern Reddit's feeds and pages, where the
+// scroll limit reads them too, while a filter or page rule hides any.
+function countsHiddenPosts() {
+  return statsEnabled() && (filterIndex.filtersPosts || filterIndex.blockedUsers.size > 0
+    || config.hideAds || config.hideNsfw || config.hideSpoilers || config.hideSuggestedPosts);
+}
+
+// Comments hidden with all the others are not filtered.
+function countsHiddenComments() {
+  return statsEnabled() && !config.hideComments
+    && (filterIndex.filtersComments || filterIndex.blockedUsers.size > 0);
+}
+
+// Why filters or page rules hide a post, in the order of the reasons
+// statistics count, or "". Filters have judged the post already.
+function hiddenPostReason(post) {
+  const verdict = postVerdicts.get(post);
+  const judged = verdict?.version === filterVersion ? verdict.blocked : "";
+  if (judged === "subreddits") return judged;
+  if (filterIndex.blockedUsers.size > 0 && isUserBlocked(POSTS.author(post))) return "users";
+  if (judged) return judged;
+  if (config.hideNsfw && POSTS.isNsfw(post)) return "nsfw";
+  if (config.hideSpoilers && POSTS.isSpoiler(post)) return "spoilers";
+  if (areSuggestedPostsHidden() && POSTS.isRecommended(post)
+    && post.closest(SELECTORS.feed.feed)) return "suggested";
+  if (config.hideAds && POSTS.isAd(post)) return "ads";
+  return "";
+}
+
+function countHiddenPosts() {
+  statsCollections ??= [
+    document.getElementsByTagName("shreddit-post"),
+    document.getElementsByTagName("shreddit-ad-post"),
+  ];
+  for (const collection of statsCollections) {
+    for (const post of collection) {
+      if (countedHidden.has(post) || visibleAtVersion.get(post) === filterVersion) continue;
+      const reason = hiddenPostReason(post);
+      if (reason) {
+        countedHidden.add(post);
+        stats.countPost(reason);
+      } else {
+        visibleAtVersion.set(post, filterVersion);
+      }
+    }
+  }
+}
+
+// Comments by blocked users hide with page rules; keyword filters mark
+// the others.
+function countHiddenComments() {
+  const { datasetKey } = PAGE_STYLE.markers.comment;
+  for (const collection of getCommentCollections()) {
+    for (const comment of collection) {
+      if (countedHidden.has(comment)) continue;
+      let reason = "";
+      if (filterIndex.blockedUsers.size > 0 && isUserBlocked(POSTS.author(comment))) reason = "users";
+      else if (comment.dataset[datasetKey] === "true") reason = "keywords";
+      if (!reason) continue;
+      countedHidden.add(comment);
+      stats.countComment(reason);
+    }
+  }
 }
 
 // Hidden markers
@@ -585,7 +680,9 @@ function needsDynamicContentProcessing() {
     || config.disableAutoplay
     || config.showBlockSubredditButton
     || PAGE_STYLE.hasShadowSignals(config)
-    || PAGE_STYLE.blocksMainPageLinks(config);
+    || PAGE_STYLE.blocksMainPageLinks(config)
+    || countsHiddenPosts()
+    || countsHiddenComments();
 }
 
 // Attribute and text changes only matter to filters that read them.
@@ -631,6 +728,7 @@ function forgetChangedPost({ target }) {
   let post = element?.closest(SELECTORS.post.any);
   while (post) {
     postVerdicts.delete(post);
+    visibleAtVersion.delete(post);
     post = post.parentElement?.closest(SELECTORS.post.any);
   }
 }
@@ -694,6 +792,9 @@ function processFilteredContent({ outsideComments = true } = {}) {
   }
 
   if (outsideComments) quickBlock.update();
+  // After the filters, which mark what they hide.
+  if (outsideComments && countsHiddenPosts()) countHiddenPosts();
+  if (countsHiddenComments()) countHiddenComments();
 
   if (isOrWas("commentActions")) syncShadowCommentActions();
   if (isOrWas("autoplay")) syncVideoAutoplay();

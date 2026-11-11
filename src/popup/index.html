@@ -56,6 +56,13 @@
               </svg>
               <span>Simplify</span>
             </button>
+            <button type="button" class="tab" id="tab-stats" role="tab" aria-selected="false"
+              aria-controls="panel-stats" tabindex="-1">
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M2.5 13.5h11M4.5 11V8.5M8 11V4M11.5 11V6.5" />
+              </svg>
+              <span>Stats</span>
+            </button>
             <button type="button" class="tab" id="tab-settings" role="tab" aria-selected="false"
               aria-controls="panel-settings" tabindex="-1">
               <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
@@ -640,6 +647,123 @@
           </section>
         </section>
 
+        <!-- Filled from the statistics (popup/stats-tab.js). -->
+        <section class="tab-panel" id="panel-stats" role="tabpanel" aria-labelledby="tab-stats"
+          tabindex="0" hidden>
+          <p class="stats-notice" id="stats-paused" hidden>Statistics are paused: nothing new is
+            counted.</p>
+
+          <section class="section" aria-labelledby="stats-today-heading">
+            <div class="section-header">
+              <h2 class="section-title" id="stats-today-heading">Today</h2>
+              <button type="button" class="help-toggle" aria-expanded="false"
+                aria-controls="stats-help" aria-label="About statistics">?</button>
+            </div>
+            <div class="help-text" id="stats-help" hidden>
+              <p><strong>Time</strong> counts while a Reddit tab is in front and you have scrolled,
+                clicked or typed in it in the last 3 minutes. A new visit starts after 10 minutes
+                away from Reddit.</p>
+              <p><strong>Pages blocked</strong> counts each visit FrontFilter stopped. While blocked
+                pages lead to another website, only those reached from Reddit's own pages count.</p>
+              <p><strong>Hidden</strong> counts each post and comment your filters hid, once per page
+                and by the first filter that hides it, in Reddit's current design.</p>
+              <p>The daily average leaves out today, which isn't over yet. Statistics never leave
+                this device, and daily figures are kept for 30 days.</p>
+            </div>
+            <dl class="stat-grid">
+              <div class="stat-tile">
+                <dt class="stat-label">On Reddit</dt>
+                <dd class="stat-value" id="stat-time">0 min</dd>
+                <dd class="stat-detail" id="stat-time-week"></dd>
+              </div>
+              <div class="stat-tile">
+                <dt class="stat-label">Visits</dt>
+                <dd class="stat-value" id="stat-visits">0</dd>
+                <dd class="stat-detail" id="stat-visits-week"></dd>
+              </div>
+              <div class="stat-tile">
+                <dt class="stat-label">Pages blocked</dt>
+                <dd class="stat-value" id="stat-blocked">0</dd>
+                <dd class="stat-detail" id="stat-blocked-week"></dd>
+              </div>
+              <div class="stat-tile">
+                <dt class="stat-label">Hidden by filters</dt>
+                <dd class="stat-value" id="stat-hidden">0</dd>
+                <dd class="stat-detail" id="stat-hidden-week"></dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="section stats-week" aria-labelledby="stats-week-heading">
+            <h2 class="section-title" id="stats-week-heading">Last 7 days</h2>
+            <div class="card card-padded chart-card">
+              <div class="chart-header">
+                <h3 class="chart-title" id="time-chart-title">Time on Reddit</h3>
+                <p class="chart-readout">
+                  <span class="chart-readout-label" id="chart-readout-label"></span>
+                  <span class="chart-readout-value" id="chart-readout-value"></span>
+                </p>
+              </div>
+              <p class="chart-change" id="chart-change" hidden></p>
+              <!-- One item per day; arrows move between them. -->
+              <ol class="chart" id="time-chart" aria-labelledby="time-chart-title"></ol>
+            </div>
+
+            <div class="card list-card">
+              <div class="list-header">
+                <h3 class="list-title">Blocked most</h3>
+              </div>
+              <ol class="rank-list" id="blocked-ranking" aria-label="Blocked most"></ol>
+            </div>
+
+            <div class="card list-card">
+              <div class="list-header">
+                <h3 class="list-title">Hidden by</h3>
+              </div>
+              <ol class="rank-list" id="hidden-ranking" aria-label="Hidden by"></ol>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="stats-settings-heading">
+            <h2 class="section-title" id="stats-settings-heading">Statistics</h2>
+            <div class="card">
+              <label class="row">
+                <span class="row-text">
+                  <span class="row-label" id="pause-statistics-label">Pause statistics</span>
+                  <span class="row-desc" id="pause-statistics-desc">Nothing new is counted; what
+                    is counted stays</span>
+                </span>
+                <input type="checkbox" role="switch" id="pause-statistics" name="pauseStatistics"
+                  aria-labelledby="pause-statistics-label"
+                  aria-describedby="pause-statistics-desc" />
+              </label>
+              <div class="setting-group">
+                <div class="row">
+                  <span class="row-text">
+                    <span class="row-label" id="reset-stats-label">Reset statistics</span>
+                    <span class="row-desc" id="stats-since"></span>
+                  </span>
+                  <button type="button" id="reset-stats" class="btn btn-secondary"
+                    aria-labelledby="reset-stats-label" aria-describedby="stats-since">Reset</button>
+                </div>
+                <!-- Resetting cannot be undone, so it asks first. -->
+                <div class="confirm-box" id="reset-stats-confirm" role="group"
+                  aria-labelledby="reset-stats-question" hidden>
+                  <p class="confirm-title" id="reset-stats-question" tabindex="-1">Delete all
+                    statistics?</p>
+                  <p class="confirm-note">This can't be undone.</p>
+                  <div class="backup-actions">
+                    <button type="button" id="reset-stats-delete" class="btn btn-danger">Delete
+                      statistics</button>
+                    <button type="button" id="reset-stats-cancel"
+                      class="btn btn-secondary">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
         <section class="tab-panel" id="panel-settings" role="tabpanel"
           aria-labelledby="tab-settings" tabindex="0" hidden>
           <section class="section" aria-labelledby="appearance-heading">
@@ -717,6 +841,8 @@
       </main>
     </div>
     <script src="../shared/core.js"></script>
+    <script src="../shared/stats.js"></script>
+    <script src="stats-tab.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

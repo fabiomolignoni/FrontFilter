@@ -28,7 +28,9 @@ async function loadPopup({
   const chrome = {
     storage: {
       local: {
-        get: () => getSettings ? getSettings() : currentSettings,
+        // The Stats tab reads the statistics, and their switch, apart
+        // from the settings: tests of settings reads count only those.
+        get: (keys) => (getSettings && !isStatsRead(keys) ? getSettings() : currentSettings),
         set(settings) {
           const completion = deferred();
           writes.push({ settings, completion });
@@ -74,7 +76,7 @@ async function loadPopup({
     clearTimeout,
   });
 
-  runScripts(context, ["shared/theme-bootstrap.js", "shared/core.js", "popup/popup.js"]);
+  runScripts(context, page.scripts);
   page.ready();
   await settle();
 
@@ -94,6 +96,10 @@ async function loadPopup({
     themeCache,
     writes,
   };
+}
+
+function isStatsRead(keys) {
+  return Array.isArray(keys) && keys.includes("stats") && !keys.includes("blockHomepage");
 }
 
 function getRenderedItems(elements) {
@@ -181,7 +187,7 @@ test("fills a tab of its own, which it offers no tab to open", async () => {
 test("navigates settings tabs with arrows, Home and End without saving configuration", async () => {
   const { elements, writes } = await loadPopup();
   function expectSelected(name) {
-    for (const section of ["block", "filter", "simplify", "settings"]) {
+    for (const section of ["block", "filter", "simplify", "stats", "settings"]) {
       const selected = section === name;
       assert.equal(elements[`tab-${section}`].getAttribute("aria-selected"), String(selected));
       assert.equal(elements[`tab-${section}`].tabIndex, selected ? 0 : -1);
@@ -193,7 +199,8 @@ test("navigates settings tabs with arrows, Home and End without saving configura
   expectSelected("filter");
   for (const [from, key, to] of [
     ["filter", "ArrowRight", "simplify"],
-    ["simplify", "ArrowRight", "settings"],
+    ["simplify", "ArrowRight", "stats"],
+    ["stats", "ArrowRight", "settings"],
     ["settings", "ArrowRight", "block"],
     ["block", "ArrowLeft", "settings"],
     ["settings", "Home", "block"],
@@ -2089,4 +2096,163 @@ test("never shows a read older than this page's own save", async () => {
   await settle();
   assert.equal(elements["block-popular"].checked, true);
   assert.equal(elements["block-news"].checked, true);
+});
+
+// Statistics as the background stores them, from records made now.
+function buildStats(records) {
+  const context = vm.createContext({ URL, URLSearchParams });
+  runScripts(context, ["shared/core.js", "shared/stats.js"]);
+  const now = Date.now();
+  return JSON.parse(JSON.stringify(records.reduce(
+    (stats, record) => context.FrontFilter.stats.addRecord(stats, record, now),
+    undefined,
+  )));
+}
+
+const MINUTE = 60000;
+
+function rankingRows(list) {
+  return list.querySelectorAll(".rank-row").map((row) => [
+    row.querySelector(".rank-label").textContent,
+    row.querySelector(".rank-detail")?.textContent ?? "",
+    row.querySelector(".rank-count").textContent,
+  ]);
+}
+
+test("shows today's statistics, the last 7 days, and what they blocked and hid", async () => {
+  const stats = buildStats([
+    { time: 15 * MINUTE }, { time: 15 * MINUTE }, { time: 12 * MINUTE },
+    { blocked: { "page:homepage": 2, "subreddit:news": 1 } },
+    { posts: { keywords: 4, ads: 1 }, comments: { keywords: 1 } },
+  ]);
+  const { elements } = await loadPopup({ storedSettings: { stats } });
+
+  assert.equal(elements["stat-time"].textContent, "42 min");
+  assert.equal(elements["stat-time-week"].textContent, "42 min in 7 days");
+  assert.equal(elements["stat-visits"].textContent, "1");
+  assert.equal(elements["stat-blocked"].textContent, "3");
+  assert.equal(elements["stat-hidden"].textContent, "6");
+  assert.equal(elements["stat-hidden-week"].textContent, "6 in 7 days");
+  assert.equal(elements["stats-paused"].hidden, true);
+
+  const days = elements["time-chart"].querySelectorAll(".chart-day");
+  assert.equal(days.length, 7);
+  const today = days.at(-1);
+  assert.equal(today.classList.contains("today"), true);
+  assert.match(today.getAttribute("aria-label"), /: 42 min, 1 visit$/);
+  assert.equal(today.querySelector(".chart-value").textContent, "42m");
+  assert.equal(today.querySelector(".chart-bar").style.height, "100%");
+  assert.equal(days[0].querySelector(".chart-bar").style.height, "0");
+  // Counting began today: no day is over to average yet.
+  assert.equal(elements["chart-readout-label"].textContent, "Today");
+  assert.equal(elements["chart-readout-value"].textContent, "42 min");
+  assert.equal(elements["chart-change"].hidden, true);
+
+  assert.deepEqual(rankingRows(elements["blocked-ranking"]), [["Homepage", "", "2"], ["r/news", "", "1"]]);
+  assert.deepEqual(rankingRows(elements["hidden-ranking"]), [
+    ["Keywords", "4 posts, 1 comment", "5"],
+    ["Ads", "1 post", "1"],
+  ]);
+  assert.match(elements["stats-since"].textContent, /^Since .+: 42 min on Reddit, 3 pages blocked, 6 hidden$/);
+});
+
+test("shows empty statistics, and those recorded while it is open", async () => {
+  const popup = await loadPopup();
+  const { elements } = popup;
+  assert.equal(elements["stat-time"].textContent, "0 min");
+  assert.equal(elements["stats-since"].textContent, "Nothing counted yet");
+  assert.equal(elements["blocked-ranking"].querySelector(".empty-state").textContent,
+    "Nothing blocked in the last 7 days");
+  assert.equal(elements["hidden-ranking"].querySelector(".empty-state").textContent,
+    "Nothing hidden in the last 7 days");
+
+  await popup.storeElsewhere({ stats: buildStats([{ blocked: { "user:spez": 1 } }]) });
+  assert.equal(elements["stat-blocked"].textContent, "1");
+  assert.deepEqual(rankingRows(elements["blocked-ranking"]), [["u/spez", "", "1"]]);
+  assert.equal(popup.writes.length, 0);
+});
+
+test("folds blocked pages past the first five into one row", async () => {
+  const blocked = Object.fromEntries(["a", "b", "c", "d", "e", "f", "g"].map((name, index) =>
+    [`subreddit:${name}`, 10 - index]));
+  const { elements } = await loadPopup({ storedSettings: { stats: buildStats([{ blocked }]) } });
+  assert.deepEqual(rankingRows(elements["blocked-ranking"]).map(([label, , count]) => [label, count]), [
+    ["r/a", "10"], ["r/b", "9"], ["r/c", "8"], ["r/d", "7"], ["r/e", "6"], ["2 more", "9"],
+  ]);
+});
+
+test("moves through the chart's days with arrows, and says what each holds", async () => {
+  const { elements } = await loadPopup({ storedSettings: { stats: buildStats([{ time: 5 * MINUTE }]) } });
+  const days = () => elements["time-chart"].querySelectorAll(".chart-day");
+  // One stop in the tab order: today.
+  assert.deepEqual(days().map(({ tabIndex }) => tabIndex), [-1, -1, -1, -1, -1, -1, 0]);
+
+  let prevented = false;
+  days()[6].dispatch("keydown", { key: "ArrowLeft", preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(days()[5].focused, true);
+  assert.deepEqual(days().map(({ tabIndex }) => tabIndex), [-1, -1, -1, -1, -1, 0, -1]);
+  days()[5].dispatch("keydown", { key: "Home", preventDefault() {} });
+  assert.equal(days()[0].focused, true);
+
+  days()[6].dispatch("focus");
+  assert.equal(elements["chart-readout-value"].textContent, "5 min");
+  assert.notEqual(elements["chart-readout-label"].textContent, "Today");
+  days()[6].dispatch("blur");
+  assert.equal(elements["chart-readout-label"].textContent, "Today");
+});
+
+test("asks before deleting the statistics, which the background deletes", async () => {
+  const popup = await loadPopup({
+    storedSettings: { stats: buildStats([{ posts: { ads: 1 } }]) },
+    sendMessage: async (message) => {
+      if (message.action === "resetStats") await popup.storeElsewhere({ stats: undefined });
+      return { success: true };
+    },
+  });
+  const { elements } = popup;
+  elements["reset-stats"].click();
+  assert.equal(elements["reset-stats-confirm"].hidden, false);
+  assert.equal(elements["reset-stats-question"].focused, true);
+
+  // Cancel, or Escape, keeps them.
+  elements["reset-stats-cancel"].click();
+  assert.equal(elements["reset-stats-confirm"].hidden, true);
+  assert.equal(elements["reset-stats"].focused, true);
+  elements["reset-stats"].click();
+  elements["reset-stats-confirm"].dispatch("keydown", { key: "Escape", preventDefault() {} });
+  assert.equal(elements["reset-stats-confirm"].hidden, true);
+  assert.equal(popup.sentMessages.length, 0);
+
+  elements["reset-stats"].click();
+  await elements["reset-stats-delete"].click();
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(popup.sentMessages)), [{ action: "resetStats" }]);
+  assert.equal(elements["reset-stats-confirm"].hidden, true);
+  assert.equal(elements.toast.textContent, "Statistics deleted");
+  assert.equal(elements["stats-since"].textContent, "Nothing counted yet");
+  assert.equal(elements["stat-hidden"].textContent, "0");
+});
+
+test("says when the statistics could not be deleted", async () => {
+  const { elements } = await loadPopup({
+    storedSettings: { stats: buildStats([{ posts: { ads: 1 } }]) },
+    sendMessage: async () => ({ success: false, error: "storage is full" }),
+  });
+  elements["reset-stats"].click();
+  await elements["reset-stats-delete"].click();
+  assert.equal(elements.toast.textContent, "Could not delete statistics: storage is full");
+  assert.equal(elements["stat-hidden"].textContent, "1");
+});
+
+test("pauses the statistics from their switch, and says so", async () => {
+  const popup = await loadPopup({ autoResolveWrites: true });
+  const { elements } = popup;
+  assert.equal(elements["pause-statistics"].checked, false);
+  elements["pause-statistics"].checked = true;
+  elements["pause-statistics"].dispatch("change");
+  await settle();
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(popup.writes.at(-1).settings)), { pauseStatistics: true });
+  assert.equal(elements["stats-paused"].hidden, false);
 });

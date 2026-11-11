@@ -60,6 +60,16 @@ To install from source, see [Development](#development). The
 - Show only the first comments on a post's page, each with its replies, a
   fixed number of them or in groups of your chosen size.
 
+### Statistics
+
+- See how long you spend on Reddit today and on each of the last 7 days, in
+  how many visits, with your daily average and how it compares with the week
+  before.
+- See how many pages FrontFilter blocked, and which most, and how many posts
+  and comments its filters hid, and why.
+- Statistics stay on your device and are not exported with your settings.
+  You can pause them or delete them at any time.
+
 Settings can be exported and imported as JSON. FrontFilter's pages follow your
 system theme or use a light or dark one.
 
@@ -69,9 +79,15 @@ Open FrontFilter from the browser toolbar or extensions menu. Its tabs
 follow the features above: **Block** covers pages, subreddits, users, the
 Block buttons and the block page, **Filter** hides suggestions, ads,
 sensitive posts, and posts by keyword or flair, **Simplify** limits
-scrolling and hides parts of Reddit's pages, and **Settings** covers the
-theme, backups, and the project's links. Changes are saved automatically
-and apply right away.
+scrolling and hides parts of Reddit's pages, **Stats** shows your
+statistics, and **Settings** covers the theme, backups, and the project's
+links. Changes are saved automatically and apply right away.
+
+In **Stats**, time counts while a Reddit tab is in front and you have
+scrolled, clicked or typed in it in the last 3 minutes, and a new visit
+starts after 10 minutes away from Reddit. Point at a day of the chart, or
+move through the days with the arrow keys, to see its time. The **?**
+button beside **Today** explains each figure.
 
 On a subreddit, the **Block** tab opens with a card that names it, says
 whether your rules block or allow it, and blocks or allows it in one click.

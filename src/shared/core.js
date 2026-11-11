@@ -64,6 +64,8 @@ var FrontFilter = (() => {
     commentLimit: 10,
     commentLimitMode: "fixed",
     theme: "system",
+    // The statistics themselves are not settings (shared/stats.js).
+    pauseStatistics: false,
   });
   const STORAGE_KEYS = Object.freeze(Object.keys(DEFAULT_SETTINGS));
   // Switches that imply their sections: while one is on, so are they.
