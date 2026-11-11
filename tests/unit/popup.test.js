@@ -1855,8 +1855,40 @@ test("saves what is typed when the page closes before typing pauses", async (t) 
   assert.equal(writes.length, 2);
 });
 
+test("saves numbers and an address typed but not committed when the page closes", async () => {
+  const { elements, hide, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { limitInfiniteScroll: true, limitComments: true, scrollLimit: 25 },
+  });
+  elements["scroll-limit"].value = "7";
+  elements["comment-limit"].value = "0";
+  elements["redirect-url"].value = "example.com";
+  hide();
+  assert.equal(writes.length, 1);
+  // A number that cannot be used is left as it was saved.
+  assert.deepEqual(JSON.parse(JSON.stringify(writes[0].settings)), {
+    scrollLimit: 7, redirectUrl: "https://example.com/",
+  });
+});
+
+test("saves a cleared address, and no address that cannot be used, when the page closes", async () => {
+  const stored = { redirectBlockedPages: true, redirectUrl: "https://example.com/" };
+  const cleared = await loadPopup({ autoResolveWrites: true, storedSettings: stored });
+  cleared.elements["redirect-url"].value = " ";
+  cleared.hide();
+  assert.deepEqual(JSON.parse(JSON.stringify(cleared.writes[0].settings)), { redirectUrl: "" });
+
+  const invalid = await loadPopup({ autoResolveWrites: true, storedSettings: stored });
+  invalid.elements["redirect-url"].value = "not a website";
+  invalid.hide();
+  assert.equal(invalid.writes.length, 0);
+});
+
 test("saves nothing when the page closes with everything saved", async () => {
-  const { hide, writes } = await loadPopup({ autoResolveWrites: true });
+  const { hide, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { scrollLimit: 13, redirectUrl: "https://example.com/" },
+  });
   hide();
   assert.equal(writes.length, 0);
 });
