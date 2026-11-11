@@ -1070,17 +1070,56 @@ document.addEventListener("DOMContentLoaded", () => {
     return (tab && FrontFilter.getSubredditPath(tab.url.pathname)?.name) || "";
   }
 
+  // Returns whether a subreddit was found to add.
   async function addCurrentSubreddit(list, message) {
     try {
       const subreddit = await findCurrentSubreddit();
       if (subreddit) {
         list.add(subreddit, { moveFocus: false });
         showToast(message(subreddit), "success");
-      } else {
-        showToast("No subreddit found on current tab", "error");
+        return true;
       }
+      showToast("No subreddit found on current tab", "error");
     } catch {
       showToast("Could not access current tab", "error");
+    }
+    return false;
+  }
+
+  // Whether the page has a content script that listens: one loaded before
+  // FrontFilter was installed, updated or reloaded has none, as browsers
+  // add none to pages already open.
+  async function pageListens(tabId) {
+    try {
+      await chrome.tabs.sendMessage(tabId, { action: "countHidden" });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Blocking the subreddit in front sends its page to the block page. Its
+  // content script does so once the rule is saved; a page without one is
+  // reloaded, once the navigation rules block it, which also gives it one.
+  async function blockCurrentSubreddit() {
+    const { tabId } = currentCard;
+    const listens = tabId === null || await pageListens(tabId);
+    const added = await addCurrentSubreddit(
+      blockedList, (subreddit) => `r/${subreddit} blocked everywhere`,
+    );
+    if (!added || listens) return;
+    try {
+      await flushPendingSave();
+    } catch {
+      // The rule was not saved, and the save says so.
+      return;
+    }
+    try {
+      // Without the rules, the reloaded page's content script blocks it.
+      await chrome.runtime.sendMessage({ action: "syncNavigationRules" }).catch(() => undefined);
+      await chrome.tabs.reload(tabId);
+    } catch (error) {
+      console.error("Could not reload the blocked page:", error);
     }
   }
 
@@ -1230,10 +1269,7 @@ document.addEventListener("DOMContentLoaded", () => {
     scheduleAutoSave(["theme"], true);
   });
 
-  document.getElementById("add-current-subreddit")
-    .addEventListener("click", () => addCurrentSubreddit(
-      blockedList, (subreddit) => `r/${subreddit} blocked everywhere`,
-    ));
+  currentCard.block.addEventListener("click", blockCurrentSubreddit);
   document.getElementById("add-current-allowed-subreddit")
     .addEventListener("click", () => addCurrentSubreddit(
       allowedList, (subreddit) => `r/${subreddit} allowed`,

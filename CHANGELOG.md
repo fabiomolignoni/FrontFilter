@@ -100,6 +100,9 @@ Notable changes to FrontFilter, newest first.
 
 ### Fixed
 
+- **Block**, on the settings' card for the subreddit in front, shows the
+  block page at once, also when the page was opened before FrontFilter was
+  installed, updated or reloaded: such a page stayed until reloaded.
 - A link from another website to a blocked Reddit page shows the block
   page, instead of the browser's error page.
 - `ALL` rules also hide crossposts of the subreddit's posts from other
