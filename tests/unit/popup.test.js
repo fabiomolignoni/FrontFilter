@@ -108,22 +108,23 @@ test("shows the extension version from its manifest", async () => {
 test("navigates settings tabs with arrows, Home and End without saving configuration", async () => {
   const { elements, writes } = await loadPopup();
   function expectSelected(name) {
-    for (const section of ["controls", "filters", "settings"]) {
+    for (const section of ["block", "filter", "simplify", "settings"]) {
       const selected = section === name;
       assert.equal(elements[`tab-${section}`].getAttribute("aria-selected"), String(selected));
       assert.equal(elements[`tab-${section}`].tabIndex, selected ? 0 : -1);
       assert.equal(elements[`panel-${section}`].hidden, !selected);
     }
   }
-  expectSelected("controls");
-  elements["tab-filters"].click();
-  expectSelected("filters");
+  expectSelected("block");
+  elements["tab-filter"].click();
+  expectSelected("filter");
   for (const [from, key, to] of [
-    ["filters", "ArrowRight", "settings"],
-    ["settings", "ArrowRight", "controls"],
-    ["controls", "ArrowLeft", "settings"],
-    ["settings", "Home", "controls"],
-    ["controls", "End", "settings"],
+    ["filter", "ArrowRight", "simplify"],
+    ["simplify", "ArrowRight", "settings"],
+    ["settings", "ArrowRight", "block"],
+    ["block", "ArrowLeft", "settings"],
+    ["settings", "Home", "block"],
+    ["block", "End", "settings"],
   ]) {
     let prevented = false;
     elements[`tab-${from}`].dispatch("keydown", { key, preventDefault() { prevented = true; } });
@@ -137,14 +138,13 @@ test("navigates settings tabs with arrows, Home and End without saving configura
 
 test("retains filter drafts and pending saves when changing tabs", async () => {
   const { elements, writes } = await loadPopup({ autoResolveWrites: true });
-  elements["tab-filters"].click();
   elements["add-subreddit"].click();
   const input = getRenderedItems(elements)[0].querySelector("input");
   input.value = "Firefox";
   input.dispatch("input");
   elements["tab-settings"].click();
-  elements["tab-controls"].click();
-  elements["tab-filters"].click();
+  elements["tab-simplify"].click();
+  elements["tab-block"].click();
   assert.equal(getRenderedItems(elements)[0].querySelector("input"), input);
   assert.equal(input.value, "Firefox");
   // Export flushes the pending edit even though it lives in another panel.
@@ -1232,7 +1232,7 @@ test("saves the website for blocked pages, shown only while its switch is on", a
   const address = elements["redirect-url"];
   const option = elements["redirect-url-option"];
   const saved = () => JSON.parse(JSON.stringify(writes.at(-1).settings));
-  assert.ok(elements["panel-settings"].querySelector("#redirect-url"));
+  assert.ok(elements["panel-block"].querySelector("#redirect-url"));
   assert.equal(address.value, "");
   assert.equal(option.hidden, true);
 
@@ -1478,32 +1478,134 @@ test("tells empty lists apart and counts their rules", async () => {
   assert.equal(elements["blocked-flair-count"].textContent, "1 flair");
 });
 
-test("counts the rules of every list on the Filters tab, hiding the count at zero", async () => {
+// The rows a list shows, by their rule.
+function shownValues(list) {
+  return list.querySelectorAll(".entry")
+    .filter((item) => !item.hidden)
+    .map((item) => item.querySelector("input").value);
+}
+
+// The search field and the footer button that come with a list.
+function listTools(elements, listId) {
+  const card = elements[listId].parentElement;
+  return {
+    tools: card.querySelector(".list-tools"),
+    search: card.querySelector(".list-search"),
+    more: card.querySelector(".list-more"),
+    noMatch: card.querySelector(".list-no-match"),
+  };
+}
+
+test("shows short lists in full, without a search or a Show all button", async () => {
+  const flairs = Array.from({ length: 8 }, (_, index) => `Flair ${index}`);
+  const { elements } = await loadPopup({ storedSettings: { blockedFlairs: flairs } });
+  const { tools, more } = listTools(elements, "blocked-flair-list");
+  assert.equal(shownValues(elements["blocked-flair-list"]).length, 8);
+  assert.equal(tools.hidden, true);
+  assert.equal(more.hidden, true);
+});
+
+test("folds a long list to its first rules, and shows it all on request", async () => {
+  const keywords = Array.from({ length: 30 }, (_, index) => `keyword ${String(index).padStart(2, "0")}`);
+  const { elements, writes } = await loadPopup({ storedSettings: { blockedTitleKeywords: keywords } });
+  const list = elements["title-keyword-list"];
+  const { tools, more } = listTools(elements, "title-keyword-list");
+  // Every rule is still in the list, so edits and saves see them all.
+  assert.equal(getRenderedKeywords(elements).length, 30);
+  assert.deepEqual(shownValues(list), keywords.slice(0, 6));
+  assert.equal(tools.hidden, false);
+  assert.equal(more.hidden, false);
+  assert.equal(more.textContent, "Show all 30");
+  assert.equal(more.getAttribute("aria-expanded"), "false");
+
+  more.click();
+  assert.equal(shownValues(list).length, 30);
+  assert.equal(more.textContent, "Show fewer");
+  assert.equal(more.getAttribute("aria-expanded"), "true");
+  more.click();
+  assert.equal(shownValues(list).length, 6);
+  assert.equal(writes.length, 0);
+});
+
+test("searches a long list ignoring case and accents, and says when nothing matches", async () => {
+  const subreddits = Array.from({ length: 20 }, (_, index) => ({ name: `sub${index}`, mode: "home" }));
+  subreddits.push({ name: "news", mode: "all" }, { name: "worldnews", mode: "home" });
+  const { elements, writes } = await loadPopup({ storedSettings: { blockedSubreddits: subreddits } });
+  const list = elements["blocked-list"];
+  const { search, more, noMatch } = listTools(elements, "blocked-list");
+  assert.equal(search.getAttribute("aria-label"), "Search blocked subreddits");
+
+  search.value = "NÉWS";
+  search.dispatch("input");
+  assert.deepEqual(shownValues(list), ["news", "worldnews"]);
+  assert.equal(more.hidden, true);
+  assert.equal(noMatch.hidden, true);
+
+  search.value = "politics";
+  search.dispatch("input");
+  assert.deepEqual(shownValues(list), []);
+  assert.equal(noMatch.hidden, false);
+  assert.equal(noMatch.textContent, "No rules match “politics”");
+
+  // Escape clears the search, and keeps the popup open.
+  let prevented = false;
+  search.dispatch("keydown", { key: "Escape", preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(search.value, "");
+  assert.equal(shownValues(list).length, 6);
+  assert.equal(writes.length, 0);
+});
+
+test("keeps rules just added or merged in view, however the list folds", async () => {
+  const subreddits = Array.from({ length: 20 }, (_, index) => ({ name: `sub${String(index).padStart(2, "0")}`, mode: "home" }));
   const { elements } = await loadPopup({
     autoResolveWrites: true,
-    storedSettings: {
-      blockedSubreddits: [{ name: "news", mode: "all" }, { name: "politics", mode: "home" }],
-      blockedUsers: ["spez"],
-    },
+    storedSettings: { blockedSubreddits: subreddits },
+    tabs: [{ url: "https://www.reddit.com/r/zebra/" }],
   });
-  const total = elements["filters-total"];
-  assert.equal(total.textContent, "3");
-  assert.equal(total.hidden, false);
+  const list = elements["blocked-list"];
+  const { search } = listTools(elements, "blocked-list");
 
-  elements["add-title-keyword"].click();
-  const input = getRenderedKeywords(elements)[0].querySelector("input");
-  input.value = "election";
+  // A new draft shows at the top, even while a search hides other rows.
+  search.value = "sub0";
+  search.dispatch("input");
+  elements["add-subreddit"].click();
+  const draft = getRenderedItems(elements)[0];
+  assert.equal(draft.hidden, false);
+  assert.equal(draft.querySelector("input").focused, true);
+
+  // Typing a rule that is folded away merges into it, which then shows,
+  // and the search that would hide it is cleared.
+  const input = draft.querySelector("input");
+  input.value = "sub17";
   input.dispatch("input");
   input.dispatch("blur");
   await settle();
-  assert.equal(total.textContent, "4");
+  assert.equal(search.value, "");
+  const merged = getRenderedItems(elements).find((item) => item.querySelector("input").value === "sub17");
+  assert.equal(merged.hidden, false);
+  assert.equal(merged.querySelector("input").focused, true);
 
-  for (const id of ["title-keyword-list", "blocked-user-list", "blocked-list", "blocked-list"]) {
-    elements[id].querySelector(".remove-btn").click();
-    await settle();
-  }
-  assert.equal(total.textContent, "0");
-  assert.equal(total.hidden, true);
+  // So does a subreddit added from the current tab, sorted after the fold.
+  await elements["add-current-subreddit"].click();
+  await settle();
+  assert.ok(shownValues(list).includes("zebra"));
+  assert.ok(shownValues(list).includes("sub17"));
+  assert.equal(shownValues(list).length, 8);
+});
+
+test("shows the rules of a pasted list, wherever they sort", async () => {
+  const keywords = Array.from({ length: 20 }, (_, index) => `a${String(index).padStart(2, "0")}`);
+  const { elements } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedTitleKeywords: keywords },
+  });
+  elements["add-title-keyword"].click();
+  const input = getRenderedKeywords(elements)[0].querySelector("input");
+  assert.equal(paste(input, "zeta\nyankee"), true);
+  await settle();
+  const shown = shownValues(elements["title-keyword-list"]);
+  assert.ok(shown.includes("zeta") && shown.includes("yankee"), shown.join());
 });
 
 test("tells how much of a mixed group is hidden, and nothing otherwise", async () => {

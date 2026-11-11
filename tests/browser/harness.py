@@ -299,6 +299,7 @@ class ExtensionTestCase(unittest.TestCase):
         with it, and shows a mixed state while only some of them are on.
         """
         find = lambda element_id: self.driver.find_element("id", element_id)
+        find("tab-simplify").click()
         for parent_id, expander_id, section_ids in SWITCH_GROUPS:
             with self.subTest(group=parent_id):
                 parent = find(parent_id)
@@ -324,6 +325,7 @@ class ExtensionTestCase(unittest.TestCase):
         """Checks a setting's ? button, which shows its help text without
         toggling the switch beside it, while the setting's name still does."""
         find = lambda element_id: self.driver.find_element("id", element_id)
+        find("tab-block").click()
         switch = find("block-sub-home")
         help_text = find("sub-home-help")
         toggle = self.driver.find_element("css selector", '[aria-controls="sub-home-help"]')

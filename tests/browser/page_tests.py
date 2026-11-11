@@ -474,7 +474,7 @@ class PageTests:
         self.js("history.pushState({}, '', '/r/popular/')")
         self.wait_until(lambda: self.driver.current_url == website)
 
-    def test_block_page_settings_button_hides_from_the_settings_tab(self):
+    def test_block_page_settings_button_hides_from_the_settings_page(self):
         driver = self.driver
         find = lambda element_id: driver.find_element("id", element_id)
         popular_url = self.server.url("/r/popular/", "localhost")
@@ -483,7 +483,7 @@ class PageTests:
         self.wait_for_block_page("Popular page is blocked")
         self.wait_until(lambda: find("go-to-settings").is_displayed())
         self.session.open_settings_page()
-        find("tab-settings").click()
+        find("tab-block").click()
         find("hide-block-page-settings-button").click()
         self.wait_until(lambda: find("save-indicator").text == "Saved")
         driver.get(popular_url)
@@ -1061,7 +1061,7 @@ class PageTests:
         fixture_window = driver.current_window_handle
         driver.switch_to.new_window("window")
         self.session.open_settings_page()
-        find("tab-filters").click()
+        find("tab-block").click()
         self.assertEqual(find("blocked-user-list").text, "No users blocked yet")
         find("add-blocked-user").click()
         driver.switch_to.active_element.send_keys("https://www.reddit.com/user/Spez/", Keys.TAB)

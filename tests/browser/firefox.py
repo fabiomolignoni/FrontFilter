@@ -44,6 +44,10 @@ class FirefoxPageTests(PageTests, ExtensionTestCase):
     pass
 
 
+# The settings page's tabs, in order.
+TABS = ("block", "filter", "simplify", "settings")
+
+
 class FirefoxSettingsTests(ExtensionTestCase):
     def selected(self, name):
         tab = self.driver.find_element("css selector", "[role=tab][aria-selected=true]")
@@ -110,6 +114,7 @@ class FirefoxSettingsTests(ExtensionTestCase):
             self.wait_until(lambda: any(
                 field.is_enabled() for field in driver.find_elements("id", "scroll-limit")
             ))
+            driver.find_element("id", "tab-simplify").click()
             return driver.find_element("id", "scroll-limit")
 
         field = open_settings()
@@ -130,28 +135,31 @@ class FirefoxSettingsTests(ExtensionTestCase):
         self.session.open_settings_page()
         find = lambda element_id: driver.find_element("id", element_id)
 
-        self.selected("controls")
+        self.selected("block")
         self.assertTrue(find("block-explore").is_enabled())
         self.assertTrue(find("block-news").is_enabled())
         self.check_switch_groups()
         self.check_help_button()
+        find("tab-simplify").click()
         suggested_communities = find("hide-suggested-communities")
         self.assertFalse(suggested_communities.is_selected())
         suggested_communities.click()
         self.wait_until(lambda: suggested_communities.is_selected())
 
-        find("tab-controls").send_keys(Keys.ARROW_RIGHT)
-        self.selected("filters")
-        self.assertEqual(driver.switch_to.active_element.get_dom_attribute("id"), "tab-filters")
+        find("tab-simplify").send_keys(Keys.ARROW_LEFT)
+        self.selected("filter")
+        self.assertEqual(driver.switch_to.active_element.get_dom_attribute("id"), "tab-filter")
+        find("add-title-keyword").click()
+        keyword_draft = driver.find_element("css selector", ".keyword-item input")
+        keyword_draft.send_keys("Trump")
+        find("tab-filter").send_keys(Keys.ARROW_LEFT)
+        self.selected("block")
         find("add-subreddit").click()
         draft = driver.find_element("css selector", ".blocked-item input")
         draft.send_keys("firefox")
         find("add-allowed-subreddit").click()
         allowed_draft = driver.find_element("css selector", ".allowed-item input")
         allowed_draft.send_keys("ItalyPersonalFinance")
-        find("add-title-keyword").click()
-        keyword_draft = driver.find_element("css selector", ".keyword-item input")
-        keyword_draft.send_keys("Trump")
 
         find("tab-settings").click()
         self.selected("settings")
@@ -163,11 +171,11 @@ class FirefoxSettingsTests(ExtensionTestCase):
         self.assertEqual(self.background(), "rgb(243, 243, 246)")
 
         find("tab-settings").send_keys(Keys.ARROW_RIGHT)
-        self.selected("controls")
-        find("tab-controls").send_keys(Keys.END)
+        self.selected("block")
+        find("tab-block").send_keys(Keys.END)
         self.selected("settings")
         find("tab-settings").send_keys(Keys.HOME, Keys.ARROW_RIGHT)
-        self.selected("filters")
+        self.selected("filter")
         # Drafts survive tab changes, and subreddit names are normalized.
         self.assertEqual(draft.get_property("value"), "firefox")
         self.assertEqual(allowed_draft.get_property("value"), "italypersonalfinance")
@@ -180,7 +188,6 @@ class FirefoxSettingsTests(ExtensionTestCase):
         self.assertEqual(driver.find_element("tag name", "html").get_attribute("data-theme"), "light")
         self.assertEqual(self.js("return localStorage.getItem('frontfilter-theme')"), "light")
         self.assertEqual(find("color-theme").get_property("value"), "light")
-        find("tab-filters").click()
         values = lambda selector: [
             field.get_property("value") for field in driver.find_elements("css selector", selector)
         ]
@@ -198,7 +205,7 @@ class FirefoxSettingsTests(ExtensionTestCase):
         driver.switch_to.new_window("window")
         self.session.open_settings_page()
         settings_window = driver.current_window_handle
-        driver.find_element("id", "tab-filters").click()
+        driver.find_element("id", "tab-block").click()
         values = lambda: [
             field.get_property("value") for field in driver.find_elements("css selector", ".blocked-item input")
         ]
@@ -228,7 +235,7 @@ class FirefoxSettingsTests(ExtensionTestCase):
         self.wait_until(lambda: driver.find_element("id", "blocked-count").get_property("textContent") == "60 rules")
         for width in (560, 320):
             driver.set_window_size(width, 750)
-            for name in ("controls", "filters", "settings"):
+            for name in TABS:
                 with self.subTest(width=width, tab=name):
                     driver.find_element("id", f"tab-{name}").click()
                     self.selected(name)
@@ -237,19 +244,24 @@ class FirefoxSettingsTests(ExtensionTestCase):
                     self.assertLessEqual(root.get_property("scrollWidth"), root.get_property("clientWidth"))
                     self.assertLessEqual(panel.get_property("scrollWidth"), panel.get_property("clientWidth"))
                     top = driver.find_element("css selector", "[role=tablist]").rect["y"]
-                    if name == "filters":
+                    if name == "block":
+                        # A long list folds until it is shown in full.
+                        more = driver.find_element("css selector", "#blocked-list ~ .list-footer .list-more")
+                        if more.get_attribute("aria-expanded") == "false":
+                            self.assertEqual(more.text, "Show all 60")
+                            more.click()
                         driver.find_elements("css selector", ".blocked-item input")[-1].click()
-                    elif name == "controls":
+                    elif name == "simplify":
                         driver.find_element("id", "scroll-limit").click()
                     self.assertEqual(driver.find_element("css selector", "[role=tablist]").rect["y"], top)
-            driver.find_element("id", "tab-filters").click()
-            self.assertGreater(driver.find_element("id", "panel-filters").get_property("scrollTop"), 0)
+            driver.find_element("id", "tab-block").click()
+            self.assertGreater(driver.find_element("id", "panel-block").get_property("scrollTop"), 0)
 
     def test_popup_dimensions_stay_stable_across_tabs(self):
         driver = self.driver
         driver.set_window_size(560, 800)
         self.session.open_settings_page(query="")
-        for name in ("controls", "filters", "settings"):
+        for name in TABS:
             with self.subTest(tab=name):
                 driver.find_element("id", f"tab-{name}").click()
                 self.assertEqual(driver.find_element("css selector", ".container").rect["height"], 600)
