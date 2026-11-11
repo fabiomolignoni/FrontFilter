@@ -42,11 +42,18 @@ Notable changes to FrontFilter, newest first.
 - The settings page and the block page have a new design, and the settings
   page's tabs follow what you want to do. **Block** holds the blocked pages,
   subreddits and users, the Block buttons and the block page's options.
-  **Filter** hides posts by type, keyword and flair. **Simplify** hides parts
-  of Reddit's pages, and holds the scroll and comment limits next to the
-  feeds and comments they limit. **Settings** keeps the theme, backups, and
-  the version and project links. Settings, filters and exported
-  configurations are unchanged.
+  **Filter** hides suggestions, ads, sensitive posts, and posts by keyword
+  or flair. **Simplify** holds the scroll and comment limits, and hides
+  parts of Reddit's pages. **Settings** keeps the theme, backups, and the
+  version and project links. Settings, filters and exported configurations
+  are unchanged.
+- Subreddit rules' modes are called **Front page** and **Everywhere**, for
+  HOME and ALL, which read as Reddit's own Home feed and r/all.
+- A setting whose name does not say it all says the rest below it, instead
+  of behind a **?** button. The **?** buttons that remain show how to write
+  a list's rules, with examples.
+- On a subreddit, **Add current** reads **Add r/name**, and it shows only
+  there.
 - A list of more than 8 rules shows its first 6, with **Show all** and a
   field that searches it, ignoring case and accents. Rules just added,
   pasted or merged always show.

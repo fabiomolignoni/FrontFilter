@@ -242,6 +242,12 @@ test("renders stored entries sorted by name with their saved modes", async () =>
   assert.equal(items[1].querySelector("input").value, "zeta");
   assert.equal(items[0].children[1].children[0].selected, false);
   assert.equal(items[0].children[1].children[1].selected, true);
+  // HOME and ALL rules read as Reddit users would put them.
+  assert.deepEqual(
+    items[0].children[1].children.map((option) => [option.value, option.textContent]),
+    [["home", "Front page"], ["all", "Everywhere"]],
+  );
+  assert.equal(items[0].children[1].getAttribute("aria-label"), "Where to block");
 });
 
 test("normalizes edited entries and saves their selected mode", async () => {
@@ -545,6 +551,16 @@ test("adds the current tab's subreddit and reports non-subreddit tabs", async ()
     autoResolveWrites: true,
     tabs: [{ url: "https://www.reddit.com/r/Firefox/comments/abc/post" }],
   });
+  // The buttons name the subreddit they add.
+  for (const [id, list] of [
+    ["add-current-subreddit", "blocked subreddits"],
+    ["add-current-allowed-subreddit", "allowed subreddits"],
+  ]) {
+    const button = currentSubreddit.elements[id];
+    assert.equal(button.hidden, false);
+    assert.equal(button.textContent, "Add r/firefox");
+    assert.equal(button.getAttribute("aria-label"), `Add r/firefox to ${list}`);
+  }
 
   await currentSubreddit.elements["add-current-subreddit"].click();
   await settle();
@@ -571,6 +587,9 @@ test("adds the current tab's subreddit and reports non-subreddit tabs", async ()
   // Outside Reddit, browsers withhold the tab's URL.
   for (const tab of [{ url: "https://www.reddit.com/" }, { id: 7 }]) {
     const nonSubreddit = await loadPopup({ tabs: [tab] });
+    // Nothing to add: the buttons stay hidden.
+    assert.equal(nonSubreddit.elements["add-current-subreddit"].hidden, true);
+    assert.equal(nonSubreddit.elements["add-current-allowed-subreddit"].hidden, true);
     await nonSubreddit.elements["add-current-subreddit"].click();
     assert.equal(
       nonSubreddit.elements["toast"].textContent,

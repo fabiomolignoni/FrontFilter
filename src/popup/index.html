@@ -22,23 +22,23 @@
 
         <div class="tabs-bar">
           <div class="tabs" role="tablist" aria-label="Settings sections">
-            <button type="button" class="tab" id="tab-block" role="tab"
-              aria-selected="true" aria-controls="panel-block" tabindex="0">
+            <button type="button" class="tab" id="tab-block" role="tab" aria-selected="true"
+              aria-controls="panel-block" tabindex="0">
               <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                 <circle cx="8" cy="8" r="5.75" />
                 <path d="M3.95 3.95l8.1 8.1" />
               </svg>
               <span>Block</span>
             </button>
-            <button type="button" class="tab" id="tab-filter" role="tab"
-              aria-selected="false" aria-controls="panel-filter" tabindex="-1">
+            <button type="button" class="tab" id="tab-filter" role="tab" aria-selected="false"
+              aria-controls="panel-filter" tabindex="-1">
               <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M2.5 3h11L9.25 8.25v4.25l-2.5 1.25V8.25z" />
               </svg>
               <span>Filter</span>
             </button>
-            <button type="button" class="tab" id="tab-simplify" role="tab"
-              aria-selected="false" aria-controls="panel-simplify" tabindex="-1">
+            <button type="button" class="tab" id="tab-simplify" role="tab" aria-selected="false"
+              aria-controls="panel-simplify" tabindex="-1">
               <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M2.5 4.5h6M12.5 4.5h1M2.5 11.5h1M7.5 11.5h6" />
                 <circle cx="10.5" cy="4.5" r="2" />
@@ -46,11 +46,13 @@
               </svg>
               <span>Simplify</span>
             </button>
-            <button type="button" class="tab" id="tab-settings" role="tab"
-              aria-selected="false" aria-controls="panel-settings" tabindex="-1">
+            <button type="button" class="tab" id="tab-settings" role="tab" aria-selected="false"
+              aria-controls="panel-settings" tabindex="-1">
               <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                 <circle cx="8" cy="8" r="2" />
-                <path d="M8 1.75v1.5M8 12.75v1.5M14.25 8h-1.5M3.25 8h-1.5M12.42 3.58l-1.06 1.06M4.64 11.36l-1.06 1.06M12.42 12.42l-1.06-1.06M4.64 4.64 3.58 3.58" />
+                <path d="M8 1.75v1.5M8 12.75v1.5M14.25 8h-1.5M3.25 8h-1.5" />
+                <path d="M12.42 3.58l-1.06 1.06M4.64 11.36l-1.06 1.06" />
+                <path d="M12.42 12.42l-1.06-1.06M4.64 4.64 3.58 3.58" />
               </svg>
               <span>Settings</span>
             </button>
@@ -62,8 +64,8 @@
 
       <!-- Each switch's name is the setting it stores. -->
       <main class="content">
-        <section class="tab-panel" id="panel-block" role="tabpanel"
-          aria-labelledby="tab-block" tabindex="0">
+        <section class="tab-panel" id="panel-block" role="tabpanel" aria-labelledby="tab-block"
+          tabindex="0">
           <section class="section" aria-labelledby="pages-heading">
             <h2 class="section-title" id="pages-heading">Block pages</h2>
             <div class="card">
@@ -83,47 +85,47 @@
                 <span class="row-label">News</span>
                 <input type="checkbox" role="switch" id="block-news" name="blockNews" />
               </label>
-              <div class="help-row">
-                <div class="row">
-                  <label class="row-label" for="block-sub-home">All subreddit front pages</label>
-                  <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="sub-home-help" aria-label="About subreddit front pages">?</button>
-                  <input type="checkbox" role="switch" id="block-sub-home" name="blockSubHome" />
-                </div>
-                <div class="help-text" id="sub-home-help" hidden>
-                  <p>Includes their hot, new, top and rising views. Allowed subreddits, below,
-                    stay open.</p>
-                </div>
-              </div>
+              <label class="row">
+                <span class="row-text">
+                  <span class="row-label" id="block-sub-home-label">All subreddit front pages</span>
+                  <span class="row-desc" id="block-sub-home-desc">Allowed subreddits stay
+                    open</span>
+                </span>
+                <input type="checkbox" role="switch" id="block-sub-home" name="blockSubHome"
+                  aria-labelledby="block-sub-home-label" aria-describedby="block-sub-home-desc" />
+              </label>
             </div>
           </section>
 
           <section class="card list-card" aria-labelledby="blocked-title">
             <div class="list-header">
               <div class="list-heading">
-                <h2 class="list-title" id="blocked-title">Blocked subreddits</h2>
-                <span id="blocked-count" class="count"></span>
+                <div class="list-title-row">
+                  <h2 class="list-title" id="blocked-title">Blocked subreddits</h2>
+                  <span id="blocked-count" class="count"></span>
+                  <button type="button" class="help-toggle" aria-expanded="false"
+                    aria-controls="blocked-help" aria-label="About blocked subreddits">?</button>
+                </div>
+                <p class="list-desc">Blocked on their front page, or everywhere</p>
               </div>
-              <button type="button" class="help-toggle" aria-expanded="false"
-                aria-controls="blocked-help" aria-label="About blocked subreddits">?</button>
               <div class="list-actions">
-                <button type="button" id="add-current-subreddit"
-                  class="btn btn-secondary">Add current</button>
+                <button type="button" id="add-current-subreddit" class="btn btn-secondary"
+                  hidden>Add current</button>
                 <button type="button" id="add-subreddit" class="btn btn-tonal">
-                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 3v10M3 8h10" />
+                  </svg>
                   Add
                 </button>
               </div>
             </div>
             <div class="help-text" id="blocked-help" hidden>
-              <p><strong>HOME</strong> blocks only the subreddit's front page, with its hot,
-                new, top and rising views.</p>
-              <p><strong>ALL</strong> blocks every page of the subreddit and hides its posts
-                from Home and Popular.</p>
-              <p>Use <strong>*</strong> as a wildcard, as in <strong>news*</strong> for every
-                subreddit whose name starts with “news”.</p>
-              <p>To add several at once, paste a list, one per line or separated by
-                commas.</p>
+              <p><strong>Front page</strong> blocks a subreddit's main feed, with its hot, new, top
+                and rising views. <strong>Everywhere</strong> blocks all its pages, and hides its
+                posts from other feeds.</p>
+              <p><code>news*</code> blocks every subreddit whose name starts with “news”. A Reddit
+                URL works too.</p>
+              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
             <div id="blocked-list" class="entry-list"></div>
           </section>
@@ -131,25 +133,29 @@
           <section class="card list-card" aria-labelledby="allowed-title">
             <div class="list-header">
               <div class="list-heading">
-                <h2 class="list-title" id="allowed-title">Allowed subreddits</h2>
-                <span id="allowed-count" class="count"></span>
+                <div class="list-title-row">
+                  <h2 class="list-title" id="allowed-title">Allowed subreddits</h2>
+                  <span id="allowed-count" class="count"></span>
+                  <button type="button" class="help-toggle" aria-expanded="false"
+                    aria-controls="allowed-help" aria-label="About allowed subreddits">?</button>
+                </div>
+                <p class="list-desc">Stay open, whatever blocks them</p>
               </div>
-              <button type="button" class="help-toggle" aria-expanded="false"
-                aria-controls="allowed-help" aria-label="About allowed subreddits">?</button>
               <div class="list-actions">
-                <button type="button" id="add-current-allowed-subreddit"
-                  class="btn btn-secondary">Add current</button>
+                <button type="button" id="add-current-allowed-subreddit" class="btn btn-secondary"
+                  hidden>Add current</button>
                 <button type="button" id="add-allowed-subreddit" class="btn btn-tonal">
-                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 3v10M3 8h10" />
+                  </svg>
                   Add
                 </button>
               </div>
             </div>
             <div class="help-text" id="allowed-help" hidden>
-              <p>These subreddits override blocked subreddit rules and “All subreddit front
-                pages”.</p>
-              <p>To add several at once, paste a list, one per line or separated by
-                commas.</p>
+              <p>They override blocked subreddit rules and “All subreddit front pages”. Use exact
+                names, without <code>*</code>.</p>
+              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
             <div id="allowed-list" class="entry-list"></div>
           </section>
@@ -157,48 +163,75 @@
           <section class="card list-card" aria-labelledby="blocked-user-title">
             <div class="list-header">
               <div class="list-heading">
-                <h2 class="list-title" id="blocked-user-title">Blocked users</h2>
-                <span id="blocked-user-count" class="count"></span>
+                <div class="list-title-row">
+                  <h2 class="list-title" id="blocked-user-title">Blocked users</h2>
+                  <span id="blocked-user-count" class="count"></span>
+                  <button type="button" class="help-toggle" aria-expanded="false"
+                    aria-controls="blocked-user-help" aria-label="About blocked users">?</button>
+                </div>
+                <p class="list-desc">Their posts, comments and profiles are hidden</p>
               </div>
-              <button type="button" class="help-toggle" aria-expanded="false"
-                aria-controls="blocked-user-help" aria-label="About blocked users">?</button>
               <div class="list-actions">
                 <button type="button" id="add-blocked-user" class="btn btn-tonal">
-                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 3v10M3 8h10" />
+                  </svg>
                   Add user
                 </button>
               </div>
             </div>
             <div class="help-text" id="blocked-user-help" hidden>
-              <p>Hides their posts and comments everywhere on Reddit, along with the replies
-                to their comments, and blocks their profile pages.</p>
-              <p>To add several at once, paste a list, one per line or separated by
-                commas.</p>
+              <p>Enter a name, <code>u/name</code> or a profile URL. Replies to their comments hide
+                too.</p>
+              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
             <div id="blocked-user-list" class="entry-list"></div>
           </section>
 
-          <section class="section" aria-labelledby="block-options-heading">
-            <h2 class="section-title" id="block-options-heading">Options</h2>
+          <section class="section" aria-labelledby="block-buttons-heading">
+            <h2 class="section-title" id="block-buttons-heading">Block buttons</h2>
             <div class="card">
               <label class="row">
                 <span class="row-text">
-                  <span class="row-label">Show one-click buttons to block subreddits</span>
-                  <span class="row-desc">On feed posts and subreddit pages, with undo</span>
+                  <span class="row-label" id="show-block-subreddit-button-label">Show one-click
+                    Block buttons</span>
+                  <span class="row-desc" id="show-block-subreddit-button-desc">On feed posts and
+                    subreddit pages, with undo</span>
                 </span>
                 <input type="checkbox" role="switch" id="show-block-subreddit-button"
-                  name="showBlockSubredditButton" />
+                  name="showBlockSubredditButton"
+                  aria-labelledby="show-block-subreddit-button-label"
+                  aria-describedby="show-block-subreddit-button-desc" />
               </label>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="block-page-heading">
+            <h2 class="section-title" id="block-page-heading">Block page</h2>
+            <div class="card">
               <label class="row">
-                <span class="row-label">Hide the Open settings button on block pages</span>
+                <span class="row-text">
+                  <span class="row-label" id="hide-block-page-settings-button-label">Hide the Open
+                    settings button</span>
+                  <span class="row-desc" id="hide-block-page-settings-button-desc">Blocked pages
+                    offer only Go back</span>
+                </span>
                 <input type="checkbox" role="switch" id="hide-block-page-settings-button"
-                  name="hideBlockPageSettingsButton" />
+                  name="hideBlockPageSettingsButton"
+                  aria-labelledby="hide-block-page-settings-button-label"
+                  aria-describedby="hide-block-page-settings-button-desc" />
               </label>
               <div class="setting-group">
                 <label class="row">
-                  <span class="row-label">Redirect blocked pages to another website</span>
+                  <span class="row-text">
+                    <span class="row-label" id="redirect-blocked-pages-label">Redirect to another
+                      website</span>
+                    <span class="row-desc" id="redirect-blocked-pages-desc">Instead of showing the
+                      block page</span>
+                  </span>
                   <input type="checkbox" role="switch" id="redirect-blocked-pages"
-                    name="redirectBlockedPages" />
+                    name="redirectBlockedPages" aria-labelledby="redirect-blocked-pages-label"
+                    aria-describedby="redirect-blocked-pages-desc" />
                 </label>
                 <label class="row sub-option field-row redirect-url" id="redirect-url-option"
                   for="redirect-url" hidden>
@@ -211,80 +244,90 @@
           </section>
         </section>
 
-        <section class="tab-panel" id="panel-filter" role="tabpanel"
-          aria-labelledby="tab-filter" tabindex="0" hidden>
-          <section class="section" aria-labelledby="posts-heading">
-            <h2 class="section-title" id="posts-heading">Hide posts</h2>
+        <section class="tab-panel" id="panel-filter" role="tabpanel" aria-labelledby="tab-filter"
+          tabindex="0" hidden>
+          <section class="section" aria-labelledby="suggestions-heading">
+            <h2 class="section-title" id="suggestions-heading">Suggestions and ads</h2>
             <div class="card">
-              <div class="help-row">
-                <div class="row">
-                  <label class="row-label" for="hide-suggested-posts">Hide suggested posts</label>
-                  <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="suggested-posts-help" aria-label="About suggested posts">?</button>
-                  <input type="checkbox" role="switch" id="hide-suggested-posts"
-                    name="hideSuggestedPosts" />
-                </div>
-                <div class="help-text" id="suggested-posts-help" hidden>
-                  <p>Posts in the Home feed from communities you have not joined.</p>
-                </div>
-              </div>
+              <label class="row">
+                <span class="row-text">
+                  <span class="row-label" id="hide-suggested-posts-label">Hide suggested
+                    posts</span>
+                  <span class="row-desc" id="hide-suggested-posts-desc">In Home, from communities
+                    you haven't joined</span>
+                </span>
+                <input type="checkbox" role="switch" id="hide-suggested-posts"
+                  name="hideSuggestedPosts" aria-labelledby="hide-suggested-posts-label"
+                  aria-describedby="hide-suggested-posts-desc" />
+              </label>
+              <label class="row">
+                <span class="row-label">Hide suggested communities</span>
+                <input type="checkbox" role="switch" id="hide-suggested-communities"
+                  name="hideSuggestedCommunities" />
+              </label>
               <label class="row">
                 <span class="row-label">Hide ads and promoted posts</span>
                 <input type="checkbox" role="switch" id="hide-ads" name="hideAds" />
               </label>
-              <div class="help-row">
-                <div class="row">
-                  <label class="row-label" for="hide-nsfw">Hide NSFW content</label>
-                  <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="nsfw-help" aria-label="About NSFW content">?</button>
-                  <input type="checkbox" role="switch" id="hide-nsfw" name="hideNsfw" />
-                </div>
-                <div class="help-text" id="nsfw-help" hidden>
-                  <p>Posts tagged NSFW and posts from NSFW communities, on every Reddit page.
-                    On an NSFW post's page, its comments hide too.</p>
-                </div>
-              </div>
-              <div class="help-row">
-                <div class="row">
-                  <label class="row-label" for="hide-spoilers">Hide spoilers</label>
-                  <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="spoilers-help" aria-label="About spoilers">?</button>
-                  <input type="checkbox" role="switch" id="hide-spoilers" name="hideSpoilers" />
-                </div>
-                <div class="help-text" id="spoilers-help" hidden>
-                  <p>Posts tagged as spoilers, on every Reddit page. On a spoiler's page, its
-                    comments hide too. Keyword filters can catch untagged spoilers.</p>
-                </div>
-              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="sensitive-heading">
+            <h2 class="section-title" id="sensitive-heading">Sensitive content</h2>
+            <div class="card">
+              <label class="row">
+                <span class="row-text">
+                  <span class="row-label" id="hide-nsfw-label">Hide NSFW content</span>
+                  <span class="row-desc" id="hide-nsfw-desc">Posts tagged NSFW or from NSFW
+                    communities</span>
+                </span>
+                <input type="checkbox" role="switch" id="hide-nsfw" name="hideNsfw"
+                  aria-labelledby="hide-nsfw-label" aria-describedby="hide-nsfw-desc" />
+              </label>
+              <label class="row">
+                <span class="row-text">
+                  <span class="row-label" id="hide-spoilers-label">Hide spoilers</span>
+                  <span class="row-desc" id="hide-spoilers-desc">Posts tagged as spoilers; keywords
+                    can catch others</span>
+                </span>
+                <input type="checkbox" role="switch" id="hide-spoilers" name="hideSpoilers"
+                  aria-labelledby="hide-spoilers-label" aria-describedby="hide-spoilers-desc" />
+              </label>
             </div>
           </section>
 
           <section class="card list-card" aria-labelledby="title-keyword-title">
             <div class="list-header">
               <div class="list-heading">
-                <h2 class="list-title" id="title-keyword-title">Keywords</h2>
-                <span id="title-keyword-count" class="count"></span>
+                <div class="list-title-row">
+                  <h2 class="list-title" id="title-keyword-title">Keywords</h2>
+                  <span id="title-keyword-count" class="count"></span>
+                  <button type="button" class="help-toggle" aria-expanded="false"
+                    aria-controls="title-keyword-help" aria-label="About keywords">?</button>
+                </div>
+                <p class="list-desc">Hide posts and comments that contain them</p>
               </div>
-              <button type="button" class="help-toggle" aria-expanded="false"
-                aria-controls="title-keyword-help" aria-label="About keywords">?</button>
               <div class="list-actions">
                 <button type="button" id="add-title-keyword" class="btn btn-tonal">
-                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 3v10M3 8h10" />
+                  </svg>
                   Add keyword
                 </button>
               </div>
             </div>
             <div class="help-text" id="title-keyword-help" hidden>
-              <p>Hides posts and comments whose title, text preview or comment text contains
-                one of these as whole words: <strong>ai</strong> hides “AI art”, not “said”.
-                Replies to a hidden comment are hidden too.</p>
-              <p>Add <strong>*</strong> to an end to match inside words too, as in
-                <strong>spoiler*</strong> or <strong>*ai*</strong>. Matching ignores case and
-                accents.</p>
-              <p>For other matches, write a regular expression between slashes, as in
-                <strong>/colou?r/</strong>.</p>
-              <p>To add several at once, paste a list, one per line or separated by
-                commas.</p>
+              <dl class="help-examples">
+                <dt><code>ai</code></dt>
+                <dd>Whole words only: hides “AI art”, not “said”.</dd>
+                <dt><code>spoiler*</code></dt>
+                <dd>A <code>*</code> at an end matches inside words too, as in “spoilers”.</dd>
+                <dt><code>/colou?r/</code></dt>
+                <dd>Between slashes, a regular expression.</dd>
+              </dl>
+              <p>Titles, text previews and comments are checked, ignoring case and accents. Replies
+                to a hidden comment hide too.</p>
+              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
             <div id="title-keyword-list" class="entry-list"></div>
           </section>
@@ -292,23 +335,28 @@
           <section class="card list-card" aria-labelledby="allowed-keyword-title">
             <div class="list-header">
               <div class="list-heading">
-                <h2 class="list-title" id="allowed-keyword-title">Allowed keywords</h2>
-                <span id="allowed-keyword-count" class="count"></span>
+                <div class="list-title-row">
+                  <h2 class="list-title" id="allowed-keyword-title">Allowed keywords</h2>
+                  <span id="allowed-keyword-count" class="count"></span>
+                  <button type="button" class="help-toggle" aria-expanded="false"
+                    aria-controls="allowed-keyword-help"
+                    aria-label="About allowed keywords">?</button>
+                </div>
+                <p class="list-desc">Keep posts and comments that contain them</p>
               </div>
-              <button type="button" class="help-toggle" aria-expanded="false"
-                aria-controls="allowed-keyword-help" aria-label="About allowed keywords">?</button>
               <div class="list-actions">
                 <button type="button" id="add-allowed-keyword" class="btn btn-tonal">
-                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 3v10M3 8h10" />
+                  </svg>
                   Add
                 </button>
               </div>
             </div>
             <div class="help-text" id="allowed-keyword-help" hidden>
-              <p>Keyword filters never hide a post or comment that contains one of these.
-                They match as keywords do; other filters still apply.</p>
-              <p>To add several at once, paste a list, one per line or separated by
-                commas.</p>
+              <p>They match as keywords do, and override them. Other filters, such as flairs and
+                blocked users, still apply.</p>
+              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
             <div id="allowed-keyword-list" class="entry-list"></div>
           </section>
@@ -316,23 +364,27 @@
           <section class="card list-card" aria-labelledby="blocked-flair-title">
             <div class="list-header">
               <div class="list-heading">
-                <h2 class="list-title" id="blocked-flair-title">Post flairs</h2>
-                <span id="blocked-flair-count" class="count"></span>
+                <div class="list-title-row">
+                  <h2 class="list-title" id="blocked-flair-title">Post flairs</h2>
+                  <span id="blocked-flair-count" class="count"></span>
+                  <button type="button" class="help-toggle" aria-expanded="false"
+                    aria-controls="blocked-flair-help" aria-label="About post flairs">?</button>
+                </div>
+                <p class="list-desc">Hide posts with these flairs</p>
               </div>
-              <button type="button" class="help-toggle" aria-expanded="false"
-                aria-controls="blocked-flair-help" aria-label="About post flairs">?</button>
               <div class="list-actions">
                 <button type="button" id="add-blocked-flair" class="btn btn-tonal">
-                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 3v10M3 8h10" />
+                  </svg>
                   Add flair
                 </button>
               </div>
             </div>
             <div class="help-text" id="blocked-flair-help" hidden>
-              <p>Hides posts with these flairs, ignoring case. Use <strong>*</strong> as a
-                wildcard, as in <strong>*politic*</strong>.</p>
-              <p>To add several at once, paste a list, one per line or separated by
-                commas.</p>
+              <p>Matching ignores case. A <code>*</code> matches any text: <code>*politic*</code>
+                hides “Politics” and “US politics”.</p>
+              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
             <div id="blocked-flair-list" class="entry-list"></div>
           </section>
@@ -340,14 +392,66 @@
 
         <section class="tab-panel" id="panel-simplify" role="tabpanel"
           aria-labelledby="tab-simplify" tabindex="0" hidden>
-          <section class="section" aria-labelledby="feed-heading">
-            <h2 class="section-title" id="feed-heading">Feed</h2>
+          <section class="section" aria-labelledby="limits-heading">
+            <h2 class="section-title" id="limits-heading">Limit scrolling</h2>
             <div class="card">
-              <label class="row">
-                <span class="row-label">Hide suggested communities</span>
-                <input type="checkbox" role="switch" id="hide-suggested-communities"
-                  name="hideSuggestedCommunities" />
-              </label>
+              <div class="setting-group limit-group">
+                <label class="row">
+                  <span class="row-text">
+                    <span class="row-label" id="limit-infinite-scroll-label">Scroll limit</span>
+                    <span class="row-desc" id="limit-infinite-scroll-desc">Show a set number of
+                      posts in feeds</span>
+                  </span>
+                  <input type="checkbox" role="switch" id="limit-infinite-scroll"
+                    name="limitInfiniteScroll" aria-labelledby="limit-infinite-scroll-label"
+                    aria-describedby="limit-infinite-scroll-desc" />
+                </label>
+                <div class="sub-options">
+                  <label class="row sub-option field-row" for="scroll-limit">
+                    <span class="row-label">Posts at a time</span>
+                    <input type="number" id="scroll-limit" class="field field-number" min="1"
+                      step="1" value="25" />
+                  </label>
+                  <label class="row sub-option field-row" for="scroll-mode">
+                    <span class="row-label">At the limit</span>
+                    <select id="scroll-mode" class="field">
+                      <option value="fixed">Stop</option>
+                      <option value="button">Offer to show more</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="setting-group limit-group">
+                <label class="row">
+                  <span class="row-text">
+                    <span class="row-label" id="limit-comments-label">Comment limit</span>
+                    <span class="row-desc" id="limit-comments-desc">Show a set number of comments,
+                      each with its replies</span>
+                  </span>
+                  <input type="checkbox" role="switch" id="limit-comments" name="limitComments"
+                    aria-labelledby="limit-comments-label" aria-describedby="limit-comments-desc" />
+                </label>
+                <div class="sub-options">
+                  <label class="row sub-option field-row" for="comment-limit">
+                    <span class="row-label">Comments at a time</span>
+                    <input type="number" id="comment-limit" class="field field-number" min="1"
+                      step="1" value="10" />
+                  </label>
+                  <label class="row sub-option field-row" for="comment-limit-mode">
+                    <span class="row-label">At the limit</span>
+                    <select id="comment-limit-mode" class="field">
+                      <option value="fixed">Stop</option>
+                      <option value="button">Offer to show more</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="posts-heading">
+            <h2 class="section-title" id="posts-heading">Posts and comments</h2>
+            <div class="card">
               <label class="row">
                 <span class="row-label">Disable video autoplay</span>
                 <input type="checkbox" role="switch" id="disable-autoplay" name="disableAutoplay" />
@@ -356,14 +460,17 @@
                 <div class="row group-header">
                   <button type="button" class="group-toggle" id="social-toggle"
                     aria-expanded="false" aria-controls="social-options">
-                    <svg class="chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
+                    <svg class="chevron" viewBox="0 0 12 12" aria-hidden="true">
+                      <path d="M4.5 3 7.5 6 4.5 9" />
+                    </svg>
                     <span class="row-text">
                       <span class="row-label" id="social-title">Hide votes and user info</span>
-                      <span class="row-desc group-summary" data-group="hideSocialSignals"></span>
+                      <span class="row-desc group-summary" id="social-summary"
+                        data-group="hideSocialSignals"></span>
                     </span>
                   </button>
                   <input type="checkbox" id="hide-social-signals" name="hideSocialSignals"
-                    aria-labelledby="social-title" />
+                    aria-labelledby="social-title" aria-describedby="social-summary" />
                 </div>
                 <div class="sub-options" id="social-options" hidden>
                   <label class="row sub-option">
@@ -388,86 +495,27 @@
                   </label>
                 </div>
               </div>
-              <div class="setting-group limit-group">
-                <label class="row">
-                  <span class="row-text">
-                    <span class="row-label">Scroll limit</span>
-                    <span class="row-desc">Show a set number of posts in feeds</span>
-                  </span>
-                  <input type="checkbox" role="switch" id="limit-infinite-scroll"
-                    name="limitInfiniteScroll" />
-                </label>
-                <div class="sub-options">
-                  <label class="row sub-option field-row" for="scroll-mode">
-                    <span class="row-label">Mode</span>
-                    <select id="scroll-mode" class="field">
-                      <option value="fixed">Stop at the limit</option>
-                      <option value="button">Show next</option>
-                    </select>
-                  </label>
-                  <label class="row sub-option field-row" for="scroll-limit">
-                    <span class="row-label">Posts per batch</span>
-                    <input type="number" id="scroll-limit" class="field field-number" min="1"
-                      step="1" value="25" />
-                  </label>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section class="section" aria-labelledby="comments-heading">
-            <h2 class="section-title" id="comments-heading">Comments</h2>
-            <div class="card">
               <div class="setting-group" role="group" aria-label="Comment visibility">
                 <div class="row group-header">
                   <button type="button" class="group-toggle" id="comments-toggle"
                     aria-expanded="false" aria-controls="comments-options">
-                    <svg class="chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
+                    <svg class="chevron" viewBox="0 0 12 12" aria-hidden="true">
+                      <path d="M4.5 3 7.5 6 4.5 9" />
+                    </svg>
                     <span class="row-text">
                       <span class="row-label" id="comments-title">Hide comments</span>
-                      <span class="row-desc group-summary" data-group="hideComments"
-                        data-partial="Only replies hidden"></span>
+                      <span class="row-desc group-summary" id="comments-summary"
+                        data-group="hideComments" data-partial="Only replies hidden"></span>
                     </span>
                   </button>
                   <input type="checkbox" id="hide-comments" name="hideComments"
-                    aria-labelledby="comments-title" />
+                    aria-labelledby="comments-title" aria-describedby="comments-summary" />
                 </div>
                 <div class="sub-options" id="comments-options" hidden>
                   <label class="row sub-option">
                     <span class="row-label">Hide comment replies</span>
                     <input type="checkbox" role="switch" id="hide-comment-replies"
                       name="hideCommentReplies" />
-                  </label>
-                </div>
-              </div>
-              <div class="setting-group limit-group">
-                <div class="help-row">
-                  <div class="row">
-                    <label class="row-text" for="limit-comments">
-                      <span class="row-label">Comment limit</span>
-                      <span class="row-desc">Show a set number of comments on a post's page</span>
-                    </label>
-                    <button type="button" class="help-toggle" aria-expanded="false"
-                      aria-controls="comment-limit-help" aria-label="About the comment limit">?</button>
-                    <input type="checkbox" role="switch" id="limit-comments" name="limitComments" />
-                  </div>
-                  <div class="help-text" id="comment-limit-help" hidden>
-                    <p>Counts the comments that reply to the post, each shown with its replies.
-                      Comments hidden by filters do not count.</p>
-                  </div>
-                </div>
-                <div class="sub-options">
-                  <label class="row sub-option field-row" for="comment-limit-mode">
-                    <span class="row-label">Mode</span>
-                    <select id="comment-limit-mode" class="field">
-                      <option value="fixed">Stop at the limit</option>
-                      <option value="button">Show next</option>
-                    </select>
-                  </label>
-                  <label class="row sub-option field-row" for="comment-limit">
-                    <span class="row-label">Comments per batch</span>
-                    <input type="number" id="comment-limit" class="field field-number" min="1"
-                      step="1" value="10" />
                   </label>
                 </div>
               </div>
@@ -481,19 +529,23 @@
                 <div class="row group-header">
                   <button type="button" class="group-toggle" id="navbar-toggle"
                     aria-expanded="false" aria-controls="navbar-options">
-                    <svg class="chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
+                    <svg class="chevron" viewBox="0 0 12 12" aria-hidden="true">
+                      <path d="M4.5 3 7.5 6 4.5 9" />
+                    </svg>
                     <span class="row-text">
                       <span class="row-label" id="navbar-title">Hide navbar</span>
-                      <span class="row-desc group-summary" data-group="hideNavbar"></span>
+                      <span class="row-desc group-summary" id="navbar-summary"
+                        data-group="hideNavbar"></span>
                     </span>
                   </button>
                   <input type="checkbox" id="hide-navbar" name="hideNavbar"
-                    aria-labelledby="navbar-title" />
+                    aria-labelledby="navbar-title" aria-describedby="navbar-summary" />
                 </div>
                 <div class="sub-options" id="navbar-options" hidden>
                   <label class="row sub-option">
-                    <span class="row-label">Hide menu button</span>
-                    <input type="checkbox" role="switch" id="hide-navbar-menu" name="hideNavbarMenu" />
+                    <span class="row-label">Hide the menu button</span>
+                    <input type="checkbox" role="switch" id="hide-navbar-menu"
+                      name="hideNavbarMenu" />
                   </label>
                   <label class="row sub-option">
                     <span class="row-label">Hide Search</span>
@@ -502,7 +554,8 @@
                   </label>
                   <label class="row sub-option">
                     <span class="row-label">Hide Chat</span>
-                    <input type="checkbox" role="switch" id="hide-navbar-chat" name="hideNavbarChat" />
+                    <input type="checkbox" role="switch" id="hide-navbar-chat"
+                      name="hideNavbarChat" />
                   </label>
                   <label class="row sub-option">
                     <span class="row-label">Hide Notifications</span>
@@ -510,14 +563,20 @@
                       name="hideNavbarNotifications" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide Profile menu</span>
+                    <span class="row-label">Hide the profile menu</span>
                     <input type="checkbox" role="switch" id="hide-navbar-profile"
                       name="hideNavbarProfile" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label">Hide Others</span>
+                    <span class="row-text">
+                      <span class="row-label" id="hide-navbar-others-label">Hide other
+                        buttons</span>
+                      <span class="row-desc" id="hide-navbar-others-desc">Such as Create and
+                        Advertise</span>
+                    </span>
                     <input type="checkbox" role="switch" id="hide-navbar-others"
-                      name="hideNavbarOthers" />
+                      name="hideNavbarOthers" aria-labelledby="hide-navbar-others-label"
+                      aria-describedby="hide-navbar-others-desc" />
                   </label>
                 </div>
               </div>
@@ -525,14 +584,17 @@
                 <div class="row group-header">
                   <button type="button" class="group-toggle" id="left-sidebar-toggle"
                     aria-expanded="false" aria-controls="left-sidebar-options">
-                    <svg class="chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
+                    <svg class="chevron" viewBox="0 0 12 12" aria-hidden="true">
+                      <path d="M4.5 3 7.5 6 4.5 9" />
+                    </svg>
                     <span class="row-text">
                       <span class="row-label" id="left-sidebar-title">Hide left sidebar</span>
-                      <span class="row-desc group-summary" data-group="hideLeftSidebar"></span>
+                      <span class="row-desc group-summary" id="left-sidebar-summary"
+                        data-group="hideLeftSidebar"></span>
                     </span>
                   </button>
                   <input type="checkbox" id="hide-left-sidebar" name="hideLeftSidebar"
-                    aria-labelledby="left-sidebar-title" />
+                    aria-labelledby="left-sidebar-title" aria-describedby="left-sidebar-summary" />
                 </div>
                 <div class="sub-options" id="left-sidebar-options" hidden>
                   <label class="row sub-option">
@@ -563,8 +625,14 @@
                 </div>
               </div>
               <label class="row">
-                <span class="row-label">Hide right sidebar</span>
-                <input type="checkbox" role="switch" id="hide-right-sidebar" name="hideRelatedPosts" />
+                <span class="row-text">
+                  <span class="row-label" id="hide-right-sidebar-label">Hide right sidebar</span>
+                  <span class="row-desc" id="hide-right-sidebar-desc">With the posts suggested
+                    beside a post</span>
+                </span>
+                <input type="checkbox" role="switch" id="hide-right-sidebar" name="hideRelatedPosts"
+                  aria-labelledby="hide-right-sidebar-label"
+                  aria-describedby="hide-right-sidebar-desc" />
               </label>
             </div>
           </section>
@@ -587,25 +655,21 @@
           </section>
 
           <section class="section" aria-labelledby="backup-heading">
-            <div class="section-header">
-              <h2 class="section-title" id="backup-heading">Configuration backup</h2>
-              <button type="button" class="help-toggle" aria-expanded="false"
-                aria-controls="backup-help" aria-label="About configuration backups">?</button>
-            </div>
+            <h2 class="section-title" id="backup-heading">Configuration backup</h2>
             <div class="card card-padded">
-              <div class="help-text" id="backup-help" hidden>
-                <p>Importing a file replaces the settings it includes; the others stay as
-                  they are.</p>
-              </div>
-              <p class="card-text">Save your settings and filters to a file, or restore them
-                from one.</p>
+              <p class="card-text">Save your settings and filters to a file. Importing one changes
+                only the settings it includes.</p>
               <div class="backup-actions">
                 <button type="button" id="export-config" class="btn btn-secondary">
-                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v8M4.75 7.25 8 10.5l3.25-3.25M3 13.5h10" /></svg>
+                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 2.5v8M4.75 7.25 8 10.5l3.25-3.25M3 13.5h10" />
+                  </svg>
                   Export configuration
                 </button>
                 <button type="button" id="import-config" class="btn btn-secondary">
-                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10.5v-8M4.75 5.75 8 2.5l3.25 3.25M3 13.5h10" /></svg>
+                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 10.5v-8M4.75 5.75 8 2.5l3.25 3.25M3 13.5h10" />
+                  </svg>
                   Import configuration
                 </button>
               </div>

@@ -132,11 +132,6 @@ body.standalone { width: auto; max-width: 100vw; }
   margin: 0 var(--sp-1) var(--sp-2);
   font-size: 13px; font-weight: 600; color: var(--text-secondary);
 }
-.section-header {
-  display: flex; align-items: center; gap: var(--sp-2);
-  margin: 0 var(--sp-1) var(--sp-2);
-}
-.section-header .section-title { margin: 0; }
 
 /* Cards: inset groups of rows, divided by hairlines. */
 .card {
@@ -150,22 +145,18 @@ body.standalone { width: auto; max-width: 100vw; }
 .card-padded { padding: var(--sp-4); }
 .card-text { margin: 0; color: var(--text-secondary); font-size: 13px; }
 
-/* A row: a label on the left, its control on the right. Rows whose label
-   wraps them toggle their switch from anywhere on the row. */
+/* A row: a label on the left, with what it does below when that is not
+   obvious, and its control on the right. Rows whose label wraps them
+   toggle their switch from anywhere on the row. */
 .row {
   position: relative;
   display: flex; align-items: center; gap: var(--sp-3);
   min-height: 44px; padding: var(--sp-2) 14px;
   transition: background var(--duration) var(--ease);
 }
-label.row, .row > label { cursor: pointer; user-select: none; }
-label.row:hover, .row:has(> label:hover) { background: var(--bg-hover); }
+label.row { cursor: pointer; user-select: none; }
+label.row:hover { background: var(--bg-hover); }
 .row > .row-label, .row > .row-text { flex: 1; min-width: 0; }
-.row > label.row-label, .row > label.row-text {
-  align-self: stretch; display: flex; justify-content: center;
-  margin-block: calc(-1 * var(--sp-2)); padding-block: var(--sp-2);
-}
-.row > label.row-label { flex-direction: column; }
 .row-text { display: flex; flex-direction: column; gap: 1px; }
 .row-label { overflow-wrap: anywhere; }
 .row-desc { font-size: 12px; line-height: 1.35; color: var(--text-muted); }
@@ -220,7 +211,9 @@ select.field, .mode-badge {
   background-repeat: no-repeat;
   cursor: pointer;
 }
-select.field { width: 156px; padding-right: 30px; background-position: right 11px center; }
+select.field {
+  width: auto; min-width: 120px; padding-right: 30px; background-position: right 11px center;
+}
 .field-number { width: 84px; font-variant-numeric: tabular-nums; }
 .field-url { flex: 1 1 180px; }
 .redirect-url > .row-label { flex: none; }
@@ -291,9 +284,20 @@ label.field-row:hover { background: none; }
 .help-text p { margin: 0; }
 .help-text p + p { margin-top: 6px; }
 .help-text strong { color: var(--text-primary); font-weight: 650; }
-.help-row > .help-text { margin: 0 14px var(--sp-3); }
+.help-text code {
+  padding: 1px 5px;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: var(--bg-surface); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap;
+}
+/* Syntax by example: each pattern, then what it matches. */
+.help-examples {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline;
+  gap: 6px 10px; margin: 0 0 var(--sp-2);
+}
+.help-examples dt { white-space: nowrap; }
+.help-examples dd { margin: 0; }
 .card:not(.card-padded) > .help-text { margin: 0 14px var(--sp-3); border-top: 1px solid var(--border); }
-.card-padded > .help-text { margin-bottom: var(--sp-3); }
 
 /* Buttons */
 .btn {
@@ -323,11 +327,21 @@ label.field-row:hover { background: none; }
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) 10px;
   padding: var(--sp-3) var(--sp-3) var(--sp-3) 14px;
 }
-.list-heading { display: flex; flex-direction: column; min-width: 0; }
+.list-heading { display: flex; flex-direction: column; gap: 2px; flex: 1 1 200px; min-width: 0; }
+.list-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px var(--sp-2); }
 .list-title { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.3; }
-.count { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.list-header .help-toggle { margin-right: auto; }
-.list-actions { display: flex; gap: 6px; }
+.count {
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--bg-track); color: var(--text-secondary);
+  font-size: 11.5px; font-weight: 600; line-height: 1.5;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.list-desc { margin: 0; font-size: 12px; line-height: 1.35; color: var(--text-muted); }
+.list-actions {
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px;
+  margin-left: auto;
+}
 
 /* Hairlines between the rows that show: the gaps let the list's color
    through, and hidden rows leave none. */
@@ -352,13 +366,13 @@ label.field-row:hover { background: none; }
 }
 .entry input::placeholder { color: var(--text-muted); }
 
-/* A subreddit rule's mode: ALL stands out from HOME. */
+/* A subreddit rule's mode: Everywhere stands out from Front page. */
 .mode-badge {
-  flex-shrink: 0; height: 26px; padding: 0 24px 0 10px;
+  flex-shrink: 0; height: 28px; padding: 0 26px 0 11px;
   border: 1px solid var(--border-field); border-radius: var(--radius-full);
-  background-color: transparent; background-position: right 9px center;
+  background-color: transparent; background-position: right 10px center;
   color: var(--text-secondary);
-  font: 700 11px/1 var(--font-sans); letter-spacing: 0.04em;
+  font: 600 12px/1 var(--font-sans);
 }
 .mode-badge:has(option[value="all"]:checked) {
   border-color: transparent; background-color: var(--accent-soft); color: var(--accent-text);

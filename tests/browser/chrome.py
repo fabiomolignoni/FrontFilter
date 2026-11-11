@@ -72,7 +72,7 @@ class ChromeSettingsTests(ExtensionTestCase):
 
         self.check_switch_groups()
         self.check_help_button()
-        find("tab-simplify").click()
+        find("tab-filter").click()
         suggested_communities = find("hide-suggested-communities")
         self.assertFalse(suggested_communities.is_selected())
         suggested_communities.click()

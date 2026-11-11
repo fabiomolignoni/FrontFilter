@@ -266,6 +266,11 @@ document.addEventListener("DOMContentLoaded", () => {
     await queuePendingSave();
   }
 
+  // Subreddit rules block a front page (HOME) or everything (ALL). The
+  // stored names are kept; these read better beside Reddit's own Home
+  // feed and r/all.
+  const MODE_LABELS = { home: "Front page", all: "Everywhere" };
+
   // A list longer than this folds to its first rules, with a field that
   // searches it and a button that shows it all.
   const FOLD_AFTER = 8;
@@ -335,8 +340,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return `${count} ${count === 1 ? countNouns[0] : countNouns[1]}`;
     }
 
+    // The count shows once there are rules; an empty list says so itself.
     function updateCount() {
-      countEl.textContent = formatCount(values().length);
+      const count = values().length;
+      countEl.textContent = formatCount(count);
+      countEl.hidden = count === 0;
     }
 
     function save(immediate = true) {
@@ -470,12 +478,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (modes) {
         const select = document.createElement("select");
         select.className = "mode-badge";
-        select.setAttribute("aria-label", "Block mode");
+        select.setAttribute("aria-label", "Where to block");
         select.disabled = controlsDisabled;
         for (const mode of ["home", "all"]) {
           const option = document.createElement("option");
           option.value = mode;
-          option.textContent = mode.toUpperCase();
+          option.textContent = MODE_LABELS[mode];
           option.selected = entry.mode === mode;
           select.append(option);
         }
@@ -823,21 +831,43 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // The subreddit this page was opened for, or that the current tab shows.
+  async function findCurrentSubreddit() {
+    if (standaloneCurrentSubreddit) return standaloneCurrentSubreddit;
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    // Browsers give only the URLs of tabs FrontFilter can access: Reddit's.
+    const url = FrontFilter.getRedditUrl(tab?.url);
+    return (url && FrontFilter.getSubredditPath(url.pathname)?.name) || "";
+  }
+
   async function addCurrentSubreddit(list) {
     try {
-      if (standaloneCurrentSubreddit) {
-        list.add(standaloneCurrentSubreddit);
-        return;
-      }
-
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      // Browsers give only the URLs of tabs FrontFilter can access: Reddit's.
-      const url = FrontFilter.getRedditUrl(tab?.url);
-      const subreddit = url && FrontFilter.getSubredditPath(url.pathname);
-      if (subreddit) list.add(subreddit.name);
+      const subreddit = await findCurrentSubreddit();
+      if (subreddit) list.add(subreddit);
       else showToast("No subreddit found on current tab", "error");
     } catch {
       showToast("Could not access current tab", "error");
+    }
+  }
+
+  // Add current buttons name the subreddit they add, and show only when
+  // there is one.
+  async function showCurrentSubreddit() {
+    let subreddit = "";
+    try {
+      subreddit = await findCurrentSubreddit();
+    } catch {
+      // Without the tab, the buttons stay hidden.
+    }
+    for (const [id, listName] of [
+      ["add-current-subreddit", "blocked subreddits"],
+      ["add-current-allowed-subreddit", "allowed subreddits"],
+    ]) {
+      const button = document.getElementById(id);
+      button.hidden = !subreddit;
+      if (!subreddit) continue;
+      button.textContent = `Add r/${subreddit}`;
+      button.setAttribute("aria-label", `Add r/${subreddit} to ${listName}`);
     }
   }
 
@@ -904,6 +934,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadSettings().catch((error) => console.error("Could not reload FrontFilter settings:", error));
   });
 
+  void showCurrentSubreddit();
   setControlsDisabled(true);
   loadSettings()
     .then(() => setControlsDisabled(false))
