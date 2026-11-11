@@ -1,8 +1,12 @@
 name: CI
 
 on:
+  # Every branch. Tags run these jobs through the release workflow instead.
   push:
+    branches: ["**"]
   pull_request:
+  # The release workflow runs these jobs on the tagged commit before it builds the packages.
+  workflow_call:
 
 permissions:
   contents: read

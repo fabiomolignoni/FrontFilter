@@ -8,6 +8,7 @@
   "scripts": {
     "test": "node --test tests/unit/*.test.js",
     "build": "npm test && python3 scripts/package.py",
+    "release": "node scripts/release.js",
     "test:chrome": "python3 tests/browser/chrome.py",
     "test:firefox": "python3 tests/browser/firefox.py",
     "test:reddit": "python3 tests/reddit/canary.py"

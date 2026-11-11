@@ -99,15 +99,28 @@ it should load a handful of pages. Never commit snapshots.
 
 ## Releasing
 
-1. Set the new version in `src/manifest.json`, and describe user-facing
-   changes in `CHANGELOG.md`.
-2. On `main`, once CI and the [canary](#when-reddit-changes) pass, tag the
-   release (`git tag v<version>`) and run
-   `SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) npm run build`, which writes
-   both packages to `dist/`.
-3. Upload `dist/frontfilter-firefox-<version>.xpi` to Firefox Add-ons and
-   `dist/frontfilter-chrome-<version>.zip` to the Chrome Web Store and to
-   Microsoft Edge Add-ons, with the changelog entry as release notes.
+Describe user-facing changes under `## Unreleased` in `CHANGELOG.md` as
+they are made. A maintainer releases them from an up-to-date `main`, in a
+Python environment with Selenium for the [canary](#when-reddit-changes):
+
+```bash
+npm run release -- minor --push
+```
+
+The version is `x.y.z`, or `patch`, `minor` or `major` to raise the one in
+`src/manifest.json`. The command runs the unit tests and the canary (pass
+`--firefox PATH` for its Firefox, or `--skip-canary` if you have just run
+it), sets the version in `src/manifest.json`, dates the `Unreleased` entry
+of the changelog, commits them and tags the commit `v<version>`. `--push`
+pushes `main` and the tag together. Without it nothing leaves your machine,
+and `--dry-run` shows the release without changing anything.
+
+The tag starts the release workflow. Once CI passes on the tagged commit, it
+builds both packages and drafts a GitHub release with them, their SHA-256
+checksums and the changelog entry. Upload `frontfilter-firefox-<version>.xpi`
+from the draft to Firefox Add-ons and `frontfilter-chrome-<version>.zip` to
+the Chrome Web Store and to Microsoft Edge Add-ons, with the changelog entry
+as release notes, then publish the draft.
 
 ## Pull requests
 
