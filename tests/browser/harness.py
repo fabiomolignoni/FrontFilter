@@ -322,24 +322,29 @@ class ExtensionTestCase(unittest.TestCase):
                 self.wait_until(lambda: not any(section.is_selected() for section in sections))
 
     def check_help_button(self):
-        """Checks a setting's ? button, which shows its help text without
-        toggling the switch beside it, while the setting's name still does."""
+        """Checks a list's ? button, which shows its help text, and a setting's
+        description, which shows under its name: clicking either name or
+        description toggles the switch."""
         find = lambda element_id: self.driver.find_element("id", element_id)
         find("tab-block").click()
-        switch = find("block-sub-home")
-        help_text = find("sub-home-help")
-        toggle = self.driver.find_element("css selector", '[aria-controls="sub-home-help"]')
+        help_text = find("blocked-help")
+        toggle = self.driver.find_element("css selector", '[aria-controls="blocked-help"]')
         self.assertFalse(help_text.is_displayed())
         toggle.click()
         self.wait_until(help_text.is_displayed)
         self.assertEqual(toggle.get_attribute("aria-expanded"), "true")
         toggle.click()
         self.wait_until(lambda: not help_text.is_displayed())
+        switch = find("block-sub-home")
+        description = find("block-sub-home-desc")
+        self.assertTrue(description.is_displayed())
+        # The switch is named by its label alone, and described by the rest.
+        self.assertEqual(switch.get_attribute("aria-labelledby"), "block-sub-home-label")
+        self.assertEqual(switch.get_attribute("aria-describedby"), "block-sub-home-desc")
         self.assertFalse(switch.is_selected())
-        label = self.driver.find_element("css selector", 'label[for="block-sub-home"]')
-        label.click()
+        find("block-sub-home-label").click()
         self.wait_until(switch.is_selected)
-        label.click()
+        description.click()
         self.wait_until(lambda: not switch.is_selected())
 
     def click_feed_button(self):

@@ -1115,7 +1115,7 @@ class PageTests:
         self.expect(["two", "own"])
         self.js("document.querySelector('.frontfilter-block-toast button').click()")
         self.expect(["one", "two", "own"])
-        self.wait_until(lambda: self.js(toast) == "r/alpha is back to HOME")
+        self.wait_until(lambda: self.js(toast) == "r/alpha is blocked on its front page only")
         self.session.open_settings_page()
         self.assertEqual(self.driver.execute_async_script(
             "chrome.storage.local.get('blockedSubreddits')"

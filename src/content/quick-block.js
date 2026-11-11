@@ -141,7 +141,9 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
         await readBlockedSubreddits(), name, previousMode,
       );
       await chrome.storage.local.set({ blockedSubreddits: entries });
-      showToast(previousMode === "home" ? `r/${name} is back to HOME` : `r/${name} unblocked`);
+      showToast(previousMode === "home"
+        ? `r/${name} is blocked on its front page only`
+        : `r/${name} unblocked`);
     } catch (error) {
       showToast(`Could not unblock r/${name}: ${error.message}`);
     }

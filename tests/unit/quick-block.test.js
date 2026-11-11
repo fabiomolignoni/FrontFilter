@@ -123,7 +123,7 @@ test("turns a HOME rule into ALL, and undoing turns it back", async () => {
   page.undoButton().click();
   await settle();
   assert.deepEqual(page.writes.at(-1), { blockedSubreddits: [{ name: "news", mode: "home" }] });
-  assert.equal(page.toastText(), "r/news is back to HOME");
+  assert.equal(page.toastText(), "r/news is blocked on its front page only");
 });
 
 test("does not block an already blocked subreddit again", async () => {
