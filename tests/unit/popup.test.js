@@ -10,6 +10,8 @@ async function loadPopup({
   locationSearch = "",
   tabs = [],
   cachedTheme = "system",
+  // What the background answers to a message.
+  sendMessage = async () => ({ success: true }),
 } = {}) {
   const page = loadPage("popup/index.html");
   const writes = [];
@@ -39,9 +41,22 @@ async function loadPopup({
       },
       onChanged: { addListener: (listener) => storageListeners.push(listener) },
     },
-    runtime: { getManifest: () => ({ version: "9.8.7" }) },
-    tabs: { query: async () => tabs },
+    runtime: {
+      getManifest: () => ({ version: "9.8.7" }),
+      getURL: (path) => `chrome-extension://frontfilter/${path}`,
+      sendMessage: async (message) => {
+        sent.push(message);
+        return sendMessage(message);
+      },
+    },
+    tabs: {
+      query: async () => tabs,
+      create: async (properties) => created.push(properties),
+    },
   };
+  const sent = [];
+  const created = [];
+  let closed = false;
   const context = vm.createContext({
     Blob,
     URL,
@@ -54,6 +69,7 @@ async function loadPopup({
       setItem: (key, value) => themeCache.set(key, String(value)),
     },
     location: { search: locationSearch },
+    close: () => { closed = true; },
     setTimeout,
     clearTimeout,
   });
@@ -63,6 +79,9 @@ async function loadPopup({
   await settle();
 
   return {
+    get closed() { return closed; },
+    createdTabs: created,
+    sentMessages: sent,
     createdElements: page.created,
     documentElement: page.document.documentElement,
     elements: page.elements,
@@ -89,6 +108,16 @@ function getRenderedKeywords(elements) {
   return elements["title-keyword-list"].querySelectorAll(".keyword-item");
 }
 
+// Imports the file the file picker holds, confirming its review.
+async function importChosenFile(elements) {
+  elements["import-file"].dispatch("change");
+  await settle();
+  await settle();
+  await elements["import-confirm"].click();
+  await settle();
+  await settle();
+}
+
 // Pastes text in a field, as the browser would at its selection, and
 // returns whether the page pasted it instead.
 function paste(input, text) {
@@ -103,6 +132,50 @@ function paste(input, text) {
 test("shows the extension version from its manifest", async () => {
   const { elements } = await loadPopup();
   assert.equal(elements["app-version"].textContent, "FrontFilter v9.8.7");
+});
+
+test("opens the settings in a tab, for the same subreddit, after saving what is typed", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    tabs: [{ url: "https://www.reddit.com/r/news/" }],
+  });
+  const button = popup.elements["open-in-tab"];
+  assert.equal(button.hidden, false);
+  assert.equal(button.getAttribute("aria-label"), "Open settings in a tab");
+
+  // A keyword still being typed is saved first.
+  popup.elements["add-title-keyword"].click();
+  const input = getRenderedKeywords(popup.elements)[0].querySelector("input");
+  input.value = "election";
+  input.dispatch("input");
+  await button.click();
+  assert.deepEqual(JSON.parse(JSON.stringify(popup.writes.at(-1).settings)),
+    { blockedTitleKeywords: ["election"] });
+  assert.deepEqual(JSON.parse(JSON.stringify(popup.sentMessages)),
+    [{ action: "openSettings", currentSubreddit: "news" }]);
+  assert.equal(popup.closed, true);
+});
+
+test("opens the settings tab itself when the background cannot", async () => {
+  const popup = await loadPopup({
+    sendMessage: async () => ({ success: false, error: "no tabs" }),
+  });
+  await popup.elements["open-in-tab"].click();
+  assert.deepEqual(JSON.parse(JSON.stringify(popup.createdTabs)),
+    [{ url: "chrome-extension://frontfilter/popup/index.html?standalone=true" }]);
+  assert.equal(popup.closed, true);
+});
+
+test("fills a tab of its own, which it offers no tab to open", async () => {
+  // Opened with the query the options page and the block page give it.
+  const standalone = await loadPopup({ locationSearch: "?standalone=true" });
+  assert.equal(standalone.elements["open-in-tab"].hidden, true);
+  assert.equal(standalone.documentElement.querySelector("body").classList.contains("standalone"), true);
+
+  const popup = await loadPopup();
+  assert.equal(popup.elements["open-in-tab"].hidden, false);
+  assert.equal(popup.documentElement.querySelector("body").classList.contains("standalone"), false);
 });
 
 test("navigates settings tabs with arrows, Home and End without saving configuration", async () => {
@@ -325,6 +398,94 @@ test("removes an entry and persists the resulting list", async () => {
     JSON.parse(JSON.stringify(writes[0].settings.blockedSubreddits)),
     [],
   );
+});
+
+test("offers to undo a removal in the removed rule's place, restoring its mode", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: {
+      blockedSubreddits: [
+        { name: "alpha", mode: "home" },
+        { name: "news", mode: "all" },
+        { name: "zeta", mode: "home" },
+      ],
+    },
+  });
+  const list = elements["blocked-list"];
+  const removeButton = (name) => getRenderedItems(elements)
+    .find((item) => item.querySelector("input").value === name).children[2];
+
+  removeButton("news").click();
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings.blockedSubreddits)),
+    [{ name: "alpha", mode: "home" }, { name: "zeta", mode: "home" }]);
+  assert.equal(elements["blocked-count"].textContent, "2 rules");
+  // The undo row stands where the rule was, and takes the focus.
+  assert.deepEqual(list.children.map((child) => child.className),
+    ["entry blocked-item", "entry-undo", "entry blocked-item"]);
+  const undoRow = list.querySelector(".entry-undo");
+  assert.equal(undoRow.querySelector(".entry-undo-text").textContent, "Removed “news”");
+  const undo = undoRow.querySelector("button");
+  assert.equal(undo.getAttribute("aria-label"), "Undo removing “news”");
+  assert.equal(undo.focused, true);
+
+  undo.click();
+  await settle();
+  assert.equal(list.querySelector(".entry-undo"), null);
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings.blockedSubreddits)),
+    [{ name: "alpha", mode: "home" }, { name: "news", mode: "all" }, { name: "zeta", mode: "home" }]);
+  const restored = getRenderedItems(elements)[1];
+  assert.equal(restored.querySelector("input").value, "news");
+  // Back in its mode: Everywhere.
+  assert.equal(restored.children[1].children[1].selected, true);
+  assert.equal(restored.children[1].children[0].selected, false);
+  assert.equal(restored.querySelector("input").focused, true);
+});
+
+test("keeps one undo per list, until the list changes otherwise", async () => {
+  const { elements } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedTitleKeywords: ["alpha", "beta", "gamma"] },
+  });
+  const list = elements["title-keyword-list"];
+  const remove = (value) => getRenderedKeywords(elements)
+    .find((item) => item.querySelector("input").value === value).children[1].click();
+
+  remove("alpha");
+  await settle();
+  remove("beta");
+  await settle();
+  // Only the last removal can be undone.
+  const undoRows = list.querySelectorAll(".entry-undo");
+  assert.equal(undoRows.length, 1);
+  assert.equal(undoRows[0].querySelector(".entry-undo-text").textContent, "Removed “beta”");
+
+  // Adding a rule ends the offer.
+  elements["add-title-keyword"].click();
+  assert.equal(list.querySelectorAll(".entry-undo").length, 0);
+});
+
+test("leaves the undo of a list's last rule in place of its empty message", async () => {
+  const { elements } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedFlairs: ["Meme"] },
+  });
+  const list = elements["blocked-flair-list"];
+  list.querySelector(".flair-item").children[1].click();
+  await settle();
+  assert.equal(list.querySelector(".empty-state"), null);
+  list.querySelector(".entry-undo button").click();
+  await settle();
+  assert.equal(list.querySelector(".flair-item input").value, "Meme");
+});
+
+test("removes an empty draft without offering to undo it", async () => {
+  const { elements } = await loadPopup({ autoResolveWrites: true });
+  elements["add-blocked-user"].click();
+  elements["blocked-user-list"].querySelector(".user-item").children[1].click();
+  await settle();
+  assert.equal(elements["blocked-user-list"].querySelector(".entry-undo"), null);
+  assert.equal(elements["blocked-user-list"].textContent, "No users blocked yet");
 });
 
 test("renders, edits and removes exact subreddit exceptions", async () => {
@@ -1068,9 +1229,7 @@ test("preserves current settings during a partial import", async () => {
     }),
   }];
 
-  elements["import-file"].dispatch("change");
-  await settle();
-  await settle();
+  await importChosenFile(elements);
 
   assert.equal(writes.length, 1);
   assert.equal(writes[0].settings.blockHomepage, true);
@@ -1117,9 +1276,7 @@ test("imports keywords as the version that exported them wrote them", async () =
   const importKeywords = async (file, storedSettings = {}) => {
     const { elements, writes } = await loadPopup({ autoResolveWrites: true, storedSettings });
     elements["import-file"].files = [{ text: async () => JSON.stringify(file) }];
-    elements["import-file"].dispatch("change");
-    await settle();
-    await settle();
+    await importChosenFile(elements);
     return JSON.parse(JSON.stringify(writes[0].settings));
   };
 
@@ -1154,6 +1311,103 @@ test("imports keywords as the version that exported them wrote them", async () =
     settingsVersion: 2,
   });
   assert.deepEqual(upgraded.blockedTitleKeywords, ["ai"]);
+});
+
+test("shows what an import would change, and changes nothing until it is confirmed", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: {
+      blockPopular: true,
+      blockedSubreddits: ["a", "b", "c"].map((name) => ({ name, mode: "all" })),
+    },
+  });
+  elements["import-file"].files = [{ text: async () => JSON.stringify({
+    blockPopular: true,
+    blockHomepage: true,
+    theme: "light",
+    blockedSubreddits: [{ name: "news", mode: "all" }, { name: "pics", mode: "home" }],
+    blockedTitleKeywords: ["ai", "nft"],
+    blockedFlairs: [],
+  }) }];
+  elements["import-file"].dispatch("change");
+  await settle();
+  await settle();
+
+  const review = elements["import-review"];
+  assert.equal(review.hidden, false);
+  assert.equal(elements["import-review-title"].textContent, "Import this file?");
+  assert.equal(elements["import-review-title"].focused, true);
+  // Lists that the file leaves as they are, as blockPopular, go unmentioned.
+  assert.deepEqual(
+    elements["import-review-changes"].children.map((item) => item.textContent),
+    ["Blocked subreddits: 3 → 2 rules", "Keywords: 0 → 2 keywords", "2 other settings"],
+  );
+  assert.equal(writes.length, 0);
+
+  elements["import-cancel"].click();
+  await settle();
+  assert.equal(review.hidden, true);
+  assert.equal(elements["import-config"].focused, true);
+  assert.equal(writes.length, 0);
+  // A cancelled import cannot be confirmed later.
+  await elements["import-confirm"].click();
+  assert.equal(writes.length, 0);
+});
+
+test("says when a file matches the settings, with nothing to import", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedFlairs: ["Meme", "News"] },
+  });
+  elements["import-file"].files = [{ text: async () => JSON.stringify({
+    blockedFlairs: ["News", "Meme"],
+  }) }];
+  elements["import-file"].dispatch("change");
+  await settle();
+  await settle();
+  assert.equal(elements["import-review-title"].textContent, "This file matches your settings");
+  assert.equal(elements["import-confirm"].hidden, true);
+  assert.equal(elements["import-cancel"].textContent, "Close");
+  assert.equal(writes.length, 0);
+});
+
+test("keeps the settings an import replaces, and restores them, undoably", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockHomepage: true, blockedFlairs: ["Meme"], settingsVersion: 2 },
+  });
+  assert.equal(elements["backup-restore"].hidden, true);
+  elements["import-file"].files = [{ text: async () => JSON.stringify({
+    settingsVersion: 2, blockHomepage: false, blockedFlairs: ["Politics"],
+  }) }];
+  await importChosenFile(elements);
+
+  // One write holds the import and the settings it replaced.
+  assert.equal(writes.length, 1);
+  const { importBackup } = writes[0].settings;
+  assert.equal(importBackup.replacedBy, "import");
+  assert.equal(importBackup.settings.blockHomepage, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(importBackup.settings.blockedFlairs)), ["Meme"]);
+  assert.equal(elements["block-homepage"].checked, false);
+  assert.equal(elements["backup-restore"].hidden, false);
+  assert.match(elements["backup-restore-text"].textContent, /^Your settings from before your import of .+ are kept\.$/);
+
+  await elements["restore-backup"].click();
+  await settle();
+  await settle();
+  assert.equal(elements["toast"].textContent, "Settings restored");
+  assert.equal(elements["block-homepage"].checked, true);
+  assert.equal(elements["blocked-flair-list"].querySelector(".flair-item input").value, "Meme");
+  // The restore keeps what it replaced in turn.
+  const swapped = writes.at(-1).settings.importBackup;
+  assert.equal(swapped.replacedBy, "restore");
+  assert.equal(swapped.settings.blockHomepage, false);
+  assert.deepEqual(JSON.parse(JSON.stringify(swapped.settings.blockedFlairs)), ["Politics"]);
+  assert.match(elements["backup-restore-text"].textContent, /before your restore of/);
+
+  // Exports never include the backup.
+  await elements["export-config"].click();
+  assert.equal(elements["toast"].textContent, "Configuration exported!");
 });
 
 test("rejects imports without recognized configuration keys", async () => {
@@ -1194,8 +1448,9 @@ test("disables editing while an import is in progress", async () => {
     autoResolveWrites: true,
     getSettings: async () => {
       readCount += 1;
-      if (readCount === 1) return { blockPopular: true };
-      if (readCount === 2) return importRead.promise;
+      // The page's first read, then the review's, then the import's.
+      if (readCount <= 2) return { blockPopular: true };
+      if (readCount === 3) return importRead.promise;
       return { blockPopular: true, blockHomepage: true };
     },
   });
@@ -1204,6 +1459,12 @@ test("disables editing while an import is in progress", async () => {
   }];
 
   elements["import-file"].dispatch("change");
+  await settle();
+  await settle();
+  // The review leaves the page as it is.
+  assert.equal(elements["import-review"].hidden, false);
+  assert.equal(elements["block-sub-home"].disabled, false);
+  elements["import-confirm"].click();
   await settle();
 
   assert.equal(elements["block-sub-home"].disabled, true);
@@ -1353,8 +1614,7 @@ test("imports typed scroll preferences without dropping unrelated settings", asy
   elements["import-file"].files = [{ text: async () => JSON.stringify({
     limitInfiniteScroll: true, scrollLimit: 13, scrollMode: "button",
   }) }];
-  elements["import-file"].dispatch("change");
-  await settle();
+  await importChosenFile(elements);
   assert.equal(writes.at(-1).settings.hideComments, true);
   assert.equal(writes.at(-1).settings.scrollLimit, 13);
   assert.equal(elements["scroll-mode"].value, "button");

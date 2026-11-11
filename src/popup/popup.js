@@ -9,9 +9,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const standaloneCurrentSubreddit = FrontFilter.normalizeAllowedSubreddits([
     pageParams.get("currentSubreddit"),
   ])[0] || "";
-  if (pageParams.get("standalone") === "true") {
+  // In a tab of its own, the page fills it, and offers no tab to open.
+  const openInTab = document.getElementById("open-in-tab");
+  function useTabLayout() {
     document.body.classList.add("standalone");
+    openInTab.hidden = true;
   }
+  if (pageParams.get("standalone") === "true") useTabLayout();
   document.getElementById("app-version").textContent =
     `FrontFilter v${chrome.runtime.getManifest().version}`;
 
@@ -44,6 +48,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const saveIndicator = document.getElementById("save-indicator");
   const toast = document.getElementById("toast");
   const importFile = document.getElementById("import-file");
+  const importReview = {
+    element: document.getElementById("import-review"),
+    title: document.getElementById("import-review-title"),
+    changes: document.getElementById("import-review-changes"),
+    note: document.getElementById("import-review-note"),
+    confirm: document.getElementById("import-confirm"),
+    cancel: document.getElementById("import-cancel"),
+  };
+  const backupRestore = document.getElementById("backup-restore");
+  const backupRestoreText = document.getElementById("backup-restore-text");
   const colorTheme = document.getElementById("color-theme");
   const redirectUrl = document.getElementById("redirect-url");
   const redirectUrlOption = document.getElementById("redirect-url-option");
@@ -300,7 +314,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // A list pasted in a row adds a row for each of its entries. A long list
   // folds, but rows just added, merged into or pasted always show.
   function createEntryList({
-    key, listId, countId, addId, itemClass, normalizeList, modes = false,
+    key, title, listId, countId, addId, itemClass, normalizeList, modes = false,
     getRuleKey = (value) => value.toLowerCase(), splitList = FrontFilter.splitList,
     placeholder, label, removeLabel, emptyMessage, invalidMessage, countNouns, searchLabel,
   }) {
@@ -312,6 +326,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let expanded = false;
     let query = "";
     const revealed = new Set();
+    // The rule removed last, which the row left in its place can restore
+    // until the list changes otherwise.
+    let removed = null;
 
     const search = document.createElement("input");
     search.type = "search";
@@ -481,6 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
         entry.value = normalized;
         input.value = normalized;
         if (mergeDuplicates()) {
+          removed = null;
           render();
           focus(normalized, true);
         }
@@ -516,34 +534,74 @@ document.addEventListener("DOMContentLoaded", () => {
       removeButton.disabled = controlsDisabled;
       removeButton.addEventListener("click", () => {
         entries = entries.filter((other) => other !== entry);
+        // An empty draft has nothing to restore.
+        removed = entry.value ? entry : null;
         render();
+        undoRow?.querySelector("button").focus();
         save();
       });
       item.append(removeButton);
       return item;
     }
 
+    // Where a removed rule was: a row that says so and can put it back.
+    let undoRow = null;
+
+    function createUndoRow(entry) {
+      const row = document.createElement("div");
+      row.className = "entry-undo";
+      const message = document.createElement("span");
+      message.className = "entry-undo-text";
+      message.textContent = `Removed “${entry.value}”`;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "entry-undo-button";
+      button.textContent = "Undo";
+      button.setAttribute("aria-label", `Undo removing “${entry.value}”`);
+      button.disabled = controlsDisabled;
+      button.addEventListener("click", () => {
+        if (removed !== entry) return;
+        removed = null;
+        entries.push(entry);
+        // The same rule may have been added again meanwhile.
+        mergeDuplicates();
+        render();
+        focus(entry.value, true);
+        save();
+      });
+      row.append(message, button);
+      return row;
+    }
+
     // New drafts come first, then rules in alphabetical order.
+    function byRule(a, b) {
+      if (!a.value || !b.value) return Number(Boolean(a.value)) - Number(Boolean(b.value));
+      return a.value.localeCompare(b.value, undefined, { sensitivity: "base" });
+    }
+
     function render() {
       updateCount();
       for (const entry of revealed) {
         if (!entries.includes(entry)) revealed.delete(entry);
       }
+      undoRow = removed && createUndoRow(removed);
       if (entries.length === 0) {
         const empty = document.createElement("p");
         empty.className = "empty-state";
         empty.textContent = emptyMessage;
         rows = new Map();
-        listEl.replaceChildren(empty);
+        listEl.replaceChildren(undoRow || empty);
         updateVisibility();
         return;
       }
-      entries.sort((a, b) => {
-        if (!a.value || !b.value) return Number(Boolean(a.value)) - Number(Boolean(b.value));
-        return a.value.localeCompare(b.value, undefined, { sensitivity: "base" });
-      });
+      entries.sort(byRule);
       rows = new Map(entries.map((entry) => [entry, createRow(entry)]));
-      listEl.replaceChildren(...rows.values());
+      const items = Array.from(rows.values());
+      if (undoRow) {
+        // In the removed rule's place among the others.
+        items.splice(entries.filter((entry) => byRule(entry, removed) < 0).length, 0, undoRow);
+      }
+      listEl.replaceChildren(...items);
       updateVisibility();
     }
 
@@ -552,6 +610,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // focus there.
     function add(value = "", { moveFocus = true } = {}) {
       const normalized = normalize(value);
+      removed = null;
       entries.unshift({ value: normalized, mode: "all" });
       mergeDuplicates();
       render();
@@ -570,6 +629,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       const others = entries.filter((other) => other !== row);
       const previousCount = values(others).length;
+      removed = null;
       entries = [...added.map((value) => ({ value, mode: row.mode })), ...others];
       mergeDuplicates();
       render();
@@ -601,6 +661,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       shown = true;
+      removed = null;
       entries = [
         ...entries.filter((entry) => !entry.value),
         ...list.map((rule) => (modes ? { value: rule.name, mode: rule.mode } : { value: rule })),
@@ -630,15 +691,18 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById(addId).addEventListener("click", () => add());
     return {
       key,
+      title,
       add,
       show,
       values,
+      formatCount,
       updateCount,
     };
   }
 
   const blockedList = createEntryList({
     key: "blockedSubreddits",
+    title: "Blocked subreddits",
     listId: "blocked-list",
     searchLabel: "Search blocked subreddits",
     countId: "blocked-count",
@@ -655,6 +719,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   const allowedList = createEntryList({
     key: "allowedSubreddits",
+    title: "Allowed subreddits",
     listId: "allowed-list",
     searchLabel: "Search allowed subreddits",
     countId: "allowed-count",
@@ -675,6 +740,7 @@ document.addEventListener("DOMContentLoaded", () => {
     allowedList,
     createEntryList({
       key: "blockedUsers",
+      title: "Blocked users",
       listId: "blocked-user-list",
       searchLabel: "Search blocked users",
       countId: "blocked-user-count",
@@ -690,6 +756,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }),
     createEntryList({
       key: "blockedTitleKeywords",
+      title: "Keywords",
       listId: "title-keyword-list",
       searchLabel: "Search keywords",
       countId: "title-keyword-count",
@@ -707,6 +774,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }),
     createEntryList({
       key: "allowedKeywords",
+      title: "Allowed keywords",
       listId: "allowed-keyword-list",
       searchLabel: "Search allowed keywords",
       countId: "allowed-keyword-count",
@@ -724,6 +792,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }),
     createEntryList({
       key: "blockedFlairs",
+      title: "Post flairs",
       listId: "blocked-flair-list",
       searchLabel: "Search flairs",
       countId: "blocked-flair-count",
@@ -771,12 +840,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // Reads can finish out of order: an older one never replaces a newer one.
   async function loadSettings() {
     const read = ++lastRead;
-    const settings = FrontFilter.coerceSettings(
-      await chrome.storage.local.get(FrontFilter.STORAGE_KEYS),
-    );
+    const stored = await chrome.storage.local.get([
+      ...FrontFilter.STORAGE_KEYS,
+      FrontFilter.IMPORT_BACKUP_KEY,
+    ]);
     if (read < lastShownRead) return;
     lastShownRead = read;
-    showSettings(settings, read);
+    showSettings(FrontFilter.coerceSettings(stored), read);
+    showBackup(stored[FrontFilter.IMPORT_BACKUP_KEY]);
   }
 
   async function exportConfig() {
@@ -800,42 +871,120 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Settings in the file replace their current values; others stay.
-  async function importConfig(file) {
+  // A configuration file's settings, as the version that exported them
+  // meant them, or nothing when it holds none that can be used.
+  async function readConfig(file) {
+    const data = JSON.parse(await file.text());
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      showToast("Invalid config: expected a JSON object", "error");
+      return null;
+    }
+
+    // Files exported by earlier versions keep their meaning.
+    const imported = Object.fromEntries(
+      Object.entries(FrontFilter.upgradeSettings(data))
+        .filter(([key]) => FrontFilter.STORAGE_KEYS.includes(key)),
+    );
+    if (Object.keys(imported).length === 0) {
+      showToast("Invalid config: no recognized keys", "error");
+      return null;
+    }
+
+    const invalidKeys = FrontFilter.getInvalidSettingKeys(imported);
+    if (invalidKeys.length > 0) {
+      showToast(`Invalid config values: ${invalidKeys.join(", ")}`, "error");
+      return null;
+    }
+    return imported;
+  }
+
+  // Stored settings not yet upgraded are upgraded with an import.
+  async function readStoredSettings() {
+    return FrontFilter.upgradeSettings(await chrome.storage.local.get([
+      ...FrontFilter.STORAGE_KEYS,
+      FrontFilter.SETTINGS_VERSION_KEY,
+    ]));
+  }
+
+  // What an import changes: the size of each list it replaces, and how
+  // many other settings it changes. Lists compare in any order.
+  function describeImport(current, imported) {
+    const before = FrontFilter.coerceSettings(current);
+    const after = FrontFilter.coerceSettings({ ...current, ...imported });
+    const sorted = (value) => JSON.stringify(
+      Array.isArray(value) ? value.map((item) => JSON.stringify(item)).sort() : value,
+    );
+    const changes = [];
+    let others = 0;
+    for (const key of Object.keys(imported)) {
+      if (sorted(before[key]) === sorted(after[key])) continue;
+      const list = entryLists.find((other) => other.key === key);
+      if (!list) {
+        others += 1;
+        continue;
+      }
+      const count = list.formatCount(after[key].length);
+      changes.push(before[key].length === after[key].length
+        ? `${list.title}: ${count}, replaced`
+        : `${list.title}: ${before[key].length} → ${count}`);
+    }
+    if (others > 0) {
+      const noun = others === 1 ? "setting" : "settings";
+      changes.push(changes.length > 0 ? `${others} other ${noun}` : `${others} ${noun}`);
+    }
+    return changes;
+  }
+
+  // An import waits for confirmation, after showing what it would change.
+  let pendingImport = null;
+
+  async function reviewImport(file) {
+    try {
+      const imported = await readConfig(file);
+      if (!imported) return;
+      await flushPendingSave();
+      const changes = describeImport(await readStoredSettings(), imported);
+      pendingImport = changes.length > 0 ? imported : null;
+      importReview.title.textContent = changes.length > 0
+        ? "Import this file?"
+        : "This file matches your settings";
+      importReview.changes.replaceChildren(...changes.map((change) => {
+        const item = document.createElement("li");
+        item.textContent = change;
+        return item;
+      }));
+      importReview.note.hidden = changes.length === 0;
+      importReview.confirm.hidden = changes.length === 0;
+      importReview.cancel.textContent = changes.length > 0 ? "Cancel" : "Close";
+      importReview.element.hidden = false;
+      importReview.title.focus();
+    } catch (error) {
+      showToast(`Import failed: ${error.message}`, "error");
+    }
+  }
+
+  function closeImportReview() {
+    pendingImport = null;
+    importReview.element.hidden = true;
+    importConfigButton.focus();
+  }
+
+  // Settings in the file replace their current values; others stay. The
+  // settings it replaces are kept, in the same write, to restore them.
+  async function applyImport() {
+    const imported = pendingImport;
+    if (!imported) return;
+    pendingImport = null;
+    importReview.element.hidden = true;
     setControlsDisabled(true);
     try {
-      const data = JSON.parse(await file.text());
-      if (!data || typeof data !== "object" || Array.isArray(data)) {
-        showToast("Invalid config: expected a JSON object", "error");
-        return;
-      }
-
-      // Files exported by earlier versions keep their meaning.
-      const imported = Object.fromEntries(
-        Object.entries(FrontFilter.upgradeSettings(data))
-          .filter(([key]) => FrontFilter.STORAGE_KEYS.includes(key)),
-      );
-      if (Object.keys(imported).length === 0) {
-        showToast("Invalid config: no recognized keys", "error");
-        return;
-      }
-
-      const invalidKeys = FrontFilter.getInvalidSettingKeys(imported);
-      if (invalidKeys.length > 0) {
-        showToast(`Invalid config values: ${invalidKeys.join(", ")}`, "error");
-        return;
-      }
-
       await flushPendingSave();
       await enqueueStorageOperation(async () => {
-        // Stored settings not yet upgraded are upgraded with the import.
-        const current = FrontFilter.upgradeSettings(await chrome.storage.local.get([
-          ...FrontFilter.STORAGE_KEYS,
-          FrontFilter.SETTINGS_VERSION_KEY,
-        ]));
+        const current = await readStoredSettings();
         await chrome.storage.local.set({
           ...FrontFilter.coerceSettings({ ...current, ...imported }),
           [FrontFilter.SETTINGS_VERSION_KEY]: FrontFilter.SETTINGS_VERSION,
+          [FrontFilter.IMPORT_BACKUP_KEY]: backupOf(current, "import"),
         });
       });
       await loadSettings();
@@ -845,6 +994,55 @@ document.addEventListener("DOMContentLoaded", () => {
     } finally {
       setControlsDisabled(false);
     }
+    importConfigButton.focus();
+  }
+
+  function backupOf(settings, replacedBy) {
+    return {
+      replacedBy,
+      savedAt: Date.now(),
+      settings: {
+        ...FrontFilter.coerceSettings(settings),
+        [FrontFilter.SETTINGS_VERSION_KEY]: FrontFilter.SETTINGS_VERSION,
+      },
+    };
+  }
+
+  // Restoring swaps the settings with the backup, so a restore can be
+  // undone the same way.
+  async function restoreBackup() {
+    setControlsDisabled(true);
+    try {
+      await flushPendingSave();
+      await enqueueStorageOperation(async () => {
+        const key = FrontFilter.IMPORT_BACKUP_KEY;
+        const { [key]: backup } = await chrome.storage.local.get(key);
+        if (!backup?.settings) throw new Error("no saved settings to restore");
+        const current = await readStoredSettings();
+        await chrome.storage.local.set({
+          ...FrontFilter.coerceSettings(FrontFilter.upgradeSettings(backup.settings)),
+          [FrontFilter.SETTINGS_VERSION_KEY]: FrontFilter.SETTINGS_VERSION,
+          [key]: backupOf(current, "restore"),
+        });
+      });
+      await loadSettings();
+      showToast("Settings restored", "success");
+    } catch (error) {
+      showToast(`Restore failed: ${error.message}`, "error");
+    } finally {
+      setControlsDisabled(false);
+    }
+  }
+
+  function showBackup(backup) {
+    const savedAt = Number(backup?.savedAt);
+    backupRestore.hidden = !backup?.settings || !Number.isFinite(savedAt);
+    if (backupRestore.hidden) return;
+    const when = new Date(savedAt).toLocaleString(undefined, {
+      dateStyle: "medium", timeStyle: "short",
+    });
+    const event = backup.replacedBy === "restore" ? "your restore" : "your import";
+    backupRestoreText.textContent = `Your settings from before ${event} of ${when} are kept.`;
   }
 
   // The subreddit this page was opened for, or that the current tab shows.
@@ -961,18 +1159,38 @@ document.addEventListener("DOMContentLoaded", () => {
       allowedList, (subreddit) => `r/${subreddit} allowed`,
     ));
   document.getElementById("export-config").addEventListener("click", exportConfig);
-  document.getElementById("import-config").addEventListener("click", () => importFile.click());
+  // Saves what is being typed, opens the page in a tab, for the same
+  // subreddit, and closes the popup.
+  openInTab.addEventListener("click", async () => {
+    await flushPendingSave().catch(() => undefined);
+    const subreddit = currentCard.subreddit;
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: "openSettings", currentSubreddit: subreddit,
+      });
+      if (!response?.success) throw new Error(response?.error);
+    } catch {
+      await chrome.tabs.create({ url: chrome.runtime.getURL(FrontFilter.settingsPagePath(subreddit)) });
+    }
+    globalThis.close?.();
+  });
+  const importConfigButton = document.getElementById("import-config");
+  importConfigButton.addEventListener("click", () => importFile.click());
   importFile.addEventListener("change", () => {
     const [file] = importFile.files;
-    if (file) void importConfig(file);
+    if (file) void reviewImport(file);
     importFile.value = "";
   });
+  importReview.confirm.addEventListener("click", applyImport);
+  importReview.cancel.addEventListener("click", closeImportReview);
+  document.getElementById("restore-backup").addEventListener("click", restoreBackup);
 
   // Settings changed elsewhere, such as by a Block button on Reddit, the
   // block page or another settings page, show here too. Otherwise a list
   // saved here would put back rules removed elsewhere and drop rules added.
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local" || !FrontFilter.STORAGE_KEYS.some((key) => Object.hasOwn(changes, key))) {
+    const watched = [...FrontFilter.STORAGE_KEYS, FrontFilter.IMPORT_BACKUP_KEY];
+    if (area !== "local" || !watched.some((key) => Object.hasOwn(changes, key))) {
       return;
     }
     loadSettings().catch((error) => console.error("Could not reload FrontFilter settings:", error));

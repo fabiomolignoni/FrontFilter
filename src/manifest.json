@@ -23,6 +23,10 @@
     "default_title": "FrontFilter",
     "default_popup": "popup/index.html"
   },
+  "options_ui": {
+    "page": "popup/index.html?standalone=true",
+    "open_in_tab": true
+  },
   "background": {
     "service_worker": "background/service-worker.js"
   },

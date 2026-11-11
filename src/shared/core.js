@@ -95,6 +95,9 @@ var FrontFilter = (() => {
   // A one-time marker, not a setting: it lets the block page offer to undo
   // a one-click block only on the redirect that block caused.
   const QUICK_BLOCK_UNDO_KEY = "quickBlockUndo";
+  // Not a setting: the settings an import or a restore replaced, kept so
+  // that the settings page can put them back.
+  const IMPORT_BACKUP_KEY = "importBackup";
   // Not a setting either: the version of the stored settings' format, also
   // written in exports. Version 2 matches keywords as whole words; earlier
   // settings have no version.
@@ -820,6 +823,7 @@ var FrontFilter = (() => {
     SETTING_GROUPS,
     NAVIGATION_STORAGE_KEYS,
     QUICK_BLOCK_UNDO_KEY,
+    IMPORT_BACKUP_KEY,
     SETTINGS_VERSION_KEY,
     SETTINGS_VERSION,
     LISTING_SORTS,

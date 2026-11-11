@@ -79,7 +79,14 @@ A switch with sections, such as **Hide navbar**, shows them from
 its arrow. To add several rules at once, paste a list into a field of a
 list, one per line or separated by commas. A long list shows its first
 rules, with a field that searches it and a button that shows it all. The
-**?** button next to a list shows how to write its rules.
+**?** button next to a list shows how to write its rules. Removing a rule
+leaves **Undo** in its place.
+
+Importing a configuration shows what it would change before it does, and
+keeps the settings it replaces: **Restore**, under **Configuration backup**,
+puts them back. The settings also open in a tab of their own, from the
+popup's button beside the save state, or from the browser's extension
+settings, as FrontFilter's options.
 
 ## Privacy
 

@@ -39,6 +39,14 @@ test("keeps the source manifest directly loadable by Chrome", () => {
   assert.ok(manifest.description.length <= 132);
 });
 
+test("opens the settings page, in a tab, as the browsers' options page", () => {
+  assert.deepEqual(manifest.options_ui, {
+    page: "popup/index.html?standalone=true",
+    open_in_tab: true,
+  });
+  assert.equal(firefoxManifest.options_ui.page, manifest.options_ui.page);
+});
+
 test("builds the Firefox manifest from browser-specific overrides only", () => {
   assert.deepEqual(Object.keys(firefoxOverrides).sort(), ["background", "browser_specific_settings", "name"]);
   assert.equal("service_worker" in firefoxManifest.background, false);
@@ -64,6 +72,7 @@ test("lists only files that exist", () => {
     ...manifest.content_scripts.flatMap(({ css = [] }) => css),
     ...manifest.web_accessible_resources.flatMap(({ resources }) => resources),
     manifest.action.default_popup,
+    manifest.options_ui.page.split("?")[0],
     ...Object.values(manifest.icons),
     ...Object.values(manifest.action.default_icon),
   ]) {
