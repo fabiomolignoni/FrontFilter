@@ -540,6 +540,45 @@ class PageTests:
         total = expected["nsfw"] + expected["spoilers"]
         self.wait_until(lambda: find("stat-hidden").text == str(total))
 
+    def count_hidden_in_tab(self, url):
+        """What the page in the tab showing this URL tells the settings page
+        its filters hide, asked from the extension page open now."""
+        return self.driver.execute_async_script("""
+            const [url, done] = arguments;
+            chrome.tabs.query({})
+              .then((tabs) => chrome.tabs.sendMessage(tabs.find((tab) => tab.url === url).id,
+                { action: "countHidden" }))
+              .then(done, (error) => done({ error: error.message }));
+        """, url)
+
+    def test_settings_page_card_counts_what_filters_hide_on_the_page(self):
+        self.js(
+            "resetFeed([post('a'), post('b', 'safe', {nsfw: true}), post('c', 'safe', {author: 'Spez'})]);"
+            " resetFilterComments()"
+        )
+        self.configure(hideNsfw=True, blockedUsers=["spez", "spammer"], blockedTitleKeywords=["trump"])
+        self.wait_until(lambda: "comment-politics" not in self.js("return visibleComments()"))
+        fixture_url = self.driver.current_url
+        fixture = self.driver.current_window_handle
+        self.driver.switch_to.new_window("tab")
+        self.session.open_settings_page()
+        # The fixture also holds Old Reddit's markup and search results, whose
+        # posts are not counted: the page gives no count rather than a wrong one.
+        self.assertIsNone(self.count_hidden_in_tab(fixture_url))
+
+        self.driver.switch_to.window(fixture)
+        nsfw_posts = self.js("""
+            document.querySelectorAll('.thing, search-telemetry-tracker').forEach((item) => item.remove());
+            return document.querySelectorAll(
+              ':is(shreddit-post, shreddit-ad-post):is([nsfw], [subreddit-nsfw])').length;
+        """)
+        self.driver.switch_to.window(self.driver.window_handles[-1])
+        # Each NSFW post and the blocked user's post; the blocked user's
+        # comment and the two that name the keyword.
+        expected = {"posts": nsfw_posts + 1, "comments": 3}
+        self.wait_until(lambda: self.count_hidden_in_tab(fixture_url) == expected,
+                        f"the page did not count {expected}")
+
     # Feed filters and the scroll limit
 
     def test_fixed_quota_skips_ads_filtered_duplicate_and_nested_posts(self):

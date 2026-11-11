@@ -3,7 +3,8 @@
  * (page-style.js); post, comment and community filters mark the elements
  * that match; navigation to a blocked page goes to the block page, or to
  * the website chosen in the settings. Statistics count the time spent here
- * and what the filters hid (stats-recorder.js).
+ * and what the filters hid (stats-recorder.js); the settings page asks what
+ * they hide on this page, to show it on its card.
  */
 
 const SELECTORS = FrontFilter.SELECTORS;
@@ -80,7 +81,7 @@ const stats = FrontFilter.createStatsRecorder({ isEnabled: statsEnabled });
 // checked again once the settings or the post change.
 const countedHidden = new WeakSet();
 const visibleAtVersion = new WeakMap();
-let statsCollections = null;
+let countedPostCollections = null;
 
 // What filters match against, and which of them scan the page, for the
 // current settings.
@@ -479,12 +480,17 @@ function hiddenPostReason(post) {
   return "";
 }
 
-function countHiddenPosts() {
-  statsCollections ??= [
+// The posts of Reddit's current design, which statistics count.
+function getCountedPostCollections() {
+  countedPostCollections ??= [
     document.getElementsByTagName("shreddit-post"),
     document.getElementsByTagName("shreddit-ad-post"),
   ];
-  for (const collection of statsCollections) {
+  return countedPostCollections;
+}
+
+function countHiddenPosts() {
+  for (const collection of getCountedPostCollections()) {
     for (const post of collection) {
       if (countedHidden.has(post) || visibleAtVersion.get(post) === filterVersion) continue;
       const reason = hiddenPostReason(post);
@@ -498,22 +504,51 @@ function countHiddenPosts() {
   }
 }
 
+// Why filters hide a comment, as statistics name the reason, or "".
 // Comments by blocked users hide with page rules; keyword filters mark
 // the others.
+function hiddenCommentReason(comment) {
+  if (filterIndex.blockedUsers.size > 0 && isUserBlocked(POSTS.author(comment))) return "users";
+  return comment.dataset[PAGE_STYLE.markers.comment.datasetKey] === "true" ? "keywords" : "";
+}
+
 function countHiddenComments() {
-  const { datasetKey } = PAGE_STYLE.markers.comment;
   for (const collection of getCommentCollections()) {
     for (const comment of collection) {
       if (countedHidden.has(comment)) continue;
-      let reason = "";
-      if (filterIndex.blockedUsers.size > 0 && isUserBlocked(POSTS.author(comment))) reason = "users";
-      else if (comment.dataset[datasetKey] === "true") reason = "keywords";
+      const reason = hiddenCommentReason(comment);
       if (!reason) continue;
       countedHidden.add(comment);
       stats.countComment(reason);
     }
   }
 }
+
+// What filters hide on this page now, for the settings page's card: the
+// posts and comments statistics would count, by any reason, read only
+// when the card asks. A page with posts statistics do not read, as Old
+// Reddit's or search results, gives no count rather than a wrong one.
+function countHiddenOnPage() {
+  if (document.querySelector(SELECTORS.uncountedPosts)) return null;
+  let posts = 0;
+  for (const collection of getCountedPostCollections()) {
+    for (const post of collection) if (hiddenPostReason(post)) posts += 1;
+  }
+  let comments = 0;
+  // Comments hidden with all the others are not filtered.
+  if (!config.hideComments) {
+    for (const collection of getCommentCollections()) {
+      for (const comment of collection) if (hiddenCommentReason(comment)) comments += 1;
+    }
+  }
+  return { posts, comments };
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.action !== "countHidden") return false;
+  loadConfig().then(() => sendResponse(countHiddenOnPage()), () => sendResponse(null));
+  return true;
+});
 
 // Hidden markers
 

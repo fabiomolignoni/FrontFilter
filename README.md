@@ -89,9 +89,11 @@ starts after 10 minutes away from Reddit. Point at a day of the chart, or
 move through the days with the arrow keys, to see its time. The **?**
 button beside **Today** explains each figure.
 
-On a subreddit, the **Block** tab opens with a card that names it, says
-whether your rules block or allow it, and blocks or allows it in one click.
-A switch with sections, such as **Hide navbar**, shows them from
+On Reddit, the **Block** tab opens with a card for the page in front. It
+names the page and says how many posts and comments your filters hide on
+it, as the page shows them now; Old Reddit and search results get no
+count. On a subreddit, it also says whether your rules block or allow it,
+and blocks or allows it in one click. A switch with sections, such as **Hide navbar**, shows them from
 its arrow. To add several rules at once, paste a list into a field of a
 list, one per line or separated by commas. A long list shows its first
 rules, with a field that searches it and a button that shows it all. The

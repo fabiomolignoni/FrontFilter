@@ -174,6 +174,9 @@ FrontFilter.SELECTORS = (() => {
 
   return Object.freeze({
     subredditLink: 'a[href*="/r/"]',
+    // Posts that statistics do not read: Old Reddit's posts and comments,
+    // each a .thing, and search results.
+    uncountedPosts: join([".thing", SEARCH_POSTS]),
 
     post: Object.freeze({
       roots: POST_ROOTS,

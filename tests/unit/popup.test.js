@@ -12,6 +12,10 @@ async function loadPopup({
   cachedTheme = "system",
   // What the background answers to a message.
   sendMessage = async () => ({ success: true }),
+  // What the current tab's page answers; by default, no page listens.
+  tabMessage = async () => {
+    throw new Error("Could not establish connection. Receiving end does not exist.");
+  },
 } = {}) {
   const page = loadPage("popup/index.html");
   const writes = [];
@@ -54,9 +58,14 @@ async function loadPopup({
     tabs: {
       query: async () => tabs,
       create: async (properties) => created.push(properties),
+      sendMessage: async (tabId, message) => {
+        tabMessages.push({ tabId, message });
+        return tabMessage(tabId, message);
+      },
     },
   };
   const sent = [];
+  const tabMessages = [];
   const created = [];
   let closed = false;
   const context = vm.createContext({
@@ -84,6 +93,7 @@ async function loadPopup({
     get closed() { return closed; },
     createdTabs: created,
     sentMessages: sent,
+    tabMessages,
     createdElements: page.created,
     documentElement: page.document.documentElement,
     elements: page.elements,
@@ -720,10 +730,14 @@ test("adds the current tab's subreddit and reports non-subreddit tabs", async ()
     tabs: [{ url: "https://www.reddit.com/r/Firefox/comments/abc/post" }],
   });
   // A card names the subreddit, with buttons that block or allow it.
-  const card = currentSubreddit.elements["current-subreddit"];
+  const card = currentSubreddit.elements["current-page"];
   assert.equal(card.hidden, false);
-  assert.equal(currentSubreddit.elements["current-subreddit-name"].textContent, "r/firefox");
-  assert.equal(currentSubreddit.elements["current-subreddit-name"].getAttribute("title"), "r/firefox");
+  assert.equal(currentSubreddit.elements["current-page-prefix"].textContent, "r/");
+  assert.equal(currentSubreddit.elements["current-page-name"].textContent, "r/firefox");
+  assert.equal(currentSubreddit.elements["current-page-name"].getAttribute("title"), "r/firefox");
+  assert.equal(currentSubreddit.elements["current-page-actions"].hidden, false);
+  // A page that does not answer gives no count.
+  assert.equal(currentSubreddit.elements["current-page-hidden"].hidden, true);
   assert.equal(currentSubreddit.elements["add-current-subreddit"].textContent, "Block");
   assert.equal(currentSubreddit.elements["add-current-subreddit"].getAttribute("aria-label"),
     "Block r/firefox");
@@ -759,8 +773,8 @@ test("adds the current tab's subreddit and reports non-subreddit tabs", async ()
   // Outside Reddit, browsers withhold the tab's URL.
   for (const tab of [{ url: "https://www.reddit.com/" }, { id: 7 }]) {
     const nonSubreddit = await loadPopup({ tabs: [tab] });
-    // Nothing to add: the card stays hidden.
-    assert.equal(nonSubreddit.elements["current-subreddit"].hidden, true);
+    // Nothing to add, nor to count: the card stays hidden.
+    assert.equal(nonSubreddit.elements["current-page"].hidden, true);
     await nonSubreddit.elements["add-current-subreddit"].click();
     assert.equal(
       nonSubreddit.elements["toast"].textContent,
@@ -782,7 +796,7 @@ test("tells what the rules do to the current subreddit, and offers only what cha
     const { elements } = await loadPopup({
       storedSettings, tabs: [{ url: "https://www.reddit.com/r/News/" }],
     });
-    assert.equal(elements["current-subreddit-status"].textContent, status);
+    assert.equal(elements["current-page-status"].textContent, status);
     assert.equal(elements["add-current-subreddit"].disabled, blockOff, status);
     assert.equal(elements["add-current-allowed-subreddit"].disabled, allowOff, status);
   }
@@ -792,9 +806,96 @@ test("tells what the rules do to the current subreddit, and offers only what cha
     autoResolveWrites: true, tabs: [{ url: "https://www.reddit.com/r/news/" }],
   });
   await elements["add-current-subreddit"].click();
-  assert.equal(elements["current-subreddit-status"].textContent, "Blocked everywhere");
+  assert.equal(elements["current-page-status"].textContent, "Blocked everywhere");
   assert.equal(elements["add-current-subreddit"].disabled, true);
   assert.equal(elements["add-current-allowed-subreddit"].disabled, false);
+});
+
+test("names every Reddit page on its card, and says what filters hide on it", async (t) => {
+  // Pages that answer are asked again later.
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const pages = [
+    ["https://www.reddit.com/", "", "Homepage"],
+    ["https://www.reddit.com/top/?t=day", "", "Homepage"],
+    ["https://www.reddit.com/explore/", "", "Explore"],
+    ["https://www.reddit.com/news", "", "News"],
+    ["https://www.reddit.com/user/Spez/submitted/", "u/", "u/spez"],
+    ["https://www.reddit.com/search/?q=cats", "", "Reddit"],
+  ];
+  for (const [url, prefix, name] of pages) {
+    const { elements, tabMessages } = await loadPopup({
+      tabs: [{ id: 4, url }],
+      tabMessage: async () => ({ posts: 12, comments: 0 }),
+    });
+    assert.equal(elements["current-page"].hidden, false, url);
+    assert.equal(elements["current-page-prefix"].textContent, prefix, url);
+    assert.equal(elements["current-page-name"].textContent, name, url);
+    assert.equal(elements["current-page-hidden"].textContent, "12 posts hidden on this page");
+    // Only a subreddit has rules to tell and buttons.
+    assert.equal(elements["current-page-status"].hidden, true);
+    assert.equal(elements["current-page-actions"].hidden, true);
+    assert.deepEqual(JSON.parse(JSON.stringify(tabMessages)),
+      [{ tabId: 4, message: { action: "countHidden" } }]);
+  }
+
+  // A subreddit's card adds the count below what the rules do to it.
+  const { elements } = await loadPopup({
+    tabs: [{ id: 4, url: "https://www.reddit.com/r/news/" }],
+    tabMessage: async () => ({ posts: 1, comments: 3 }),
+  });
+  assert.equal(elements["current-page-status"].textContent, "Not blocked");
+  assert.equal(elements["current-page-hidden"].hidden, false);
+  assert.equal(elements["current-page-hidden"].textContent, "1 post and 3 comments hidden on this page");
+  assert.equal(elements["current-page-actions"].hidden, false);
+
+  // A page that gives no count, as Old Reddit, has nothing for the card.
+  const oldReddit = await loadPopup({
+    tabs: [{ id: 4, url: "https://old.reddit.com/" }],
+    tabMessage: async () => null,
+  });
+  assert.equal(oldReddit.elements["current-page"].hidden, true);
+});
+
+test("keeps the page's count up to date while it answers", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const page = { counts: { posts: 0, comments: 0 } };
+  const popup = await loadPopup({
+    tabs: [{ id: 9, url: "https://www.reddit.com/" }],
+    tabMessage: async () => {
+      if (!page.counts) throw new Error("Receiving end does not exist.");
+      return page.counts;
+    },
+  });
+  const count = popup.elements["current-page-hidden"];
+  assert.equal(count.textContent, "Nothing hidden on this page");
+
+  // Reddit loads posts, or a setting changes, and the card follows.
+  page.counts = { posts: 1, comments: 1 };
+  t.mock.timers.tick(1000);
+  await settle();
+  assert.equal(count.textContent, "1 post and 1 comment hidden on this page");
+
+  // A page that stops answering, as one blocked meanwhile, loses its card,
+  // and is not asked again.
+  page.counts = null;
+  t.mock.timers.tick(1000);
+  await settle();
+  assert.equal(popup.elements["current-page"].hidden, true);
+  const asked = popup.tabMessages.length;
+  t.mock.timers.tick(5000);
+  await settle();
+  assert.equal(popup.tabMessages.length, asked);
+});
+
+test("asks no page for a count in a tab of its own", async () => {
+  const popup = await loadPopup({
+    locationSearch: "?standalone=true&currentSubreddit=Firefox",
+    tabs: [{ id: 2, url: "https://www.reddit.com/r/firefox/" }],
+    tabMessage: async () => ({ posts: 5, comments: 0 }),
+  });
+  assert.equal(popup.elements["current-page-name"].textContent, "r/firefox");
+  assert.equal(popup.elements["current-page-hidden"].hidden, true);
+  assert.deepEqual(popup.tabMessages, []);
 });
 
 test("labels every list's Add button alike, and names each for its list", async () => {

@@ -83,14 +83,22 @@
       <main class="content">
         <section class="tab-panel" id="panel-block" role="tabpanel" aria-labelledby="tab-block"
           tabindex="0">
-          <section class="current-card" id="current-subreddit"
-            aria-labelledby="current-subreddit-name" hidden>
-            <span class="current-badge" aria-hidden="true">r/</span>
+          <!-- The Reddit page open in the current tab: what filters hide on
+            it, and for a subreddit, what the rules do to it. -->
+          <section class="current-card" id="current-page"
+            aria-labelledby="current-page-name" hidden>
+            <span class="current-badge" aria-hidden="true">
+              <span class="current-prefix" id="current-page-prefix"></span>
+              <svg class="icon" viewBox="0 0 16 16">
+                <path d="M2.5 3h11L9.25 8.25v4.25l-2.5 1.25V8.25z" />
+              </svg>
+            </span>
             <div class="current-info">
-              <h2 class="current-name" id="current-subreddit-name"></h2>
-              <p class="current-status" id="current-subreddit-status"></p>
+              <h2 class="current-name" id="current-page-name"></h2>
+              <p class="current-status" id="current-page-status"></p>
+              <p class="current-status" id="current-page-hidden" hidden></p>
             </div>
-            <div class="current-actions">
+            <div class="current-actions" id="current-page-actions">
               <button type="button" id="add-current-subreddit"
                 class="btn btn-primary">Block</button>
               <button type="button" id="add-current-allowed-subreddit"

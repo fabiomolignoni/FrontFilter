@@ -5,7 +5,9 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   const pageParams = new URLSearchParams(globalThis.location?.search);
-  // In a tab of its own, Add current adds the subreddit this page was opened for.
+  const standalone = pageParams.get("standalone") === "true";
+  // In a tab of its own, the card shows the subreddit this page was opened
+  // for: the current tab is the page itself.
   const standaloneCurrentSubreddit = FrontFilter.normalizeAllowedSubreddits([
     pageParams.get("currentSubreddit"),
   ])[0] || "";
@@ -15,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.classList.add("standalone");
     openInTab.hidden = true;
   }
-  if (pageParams.get("standalone") === "true") useTabLayout();
+  if (standalone) useTabLayout();
   document.getElementById("app-version").textContent =
     `FrontFilter v${chrome.runtime.getManifest().version}`;
 
@@ -94,14 +96,22 @@ document.addEventListener("DOMContentLoaded", () => {
       .find((element) => element.getAttribute("data-group") === parent),
   }));
 
-  // The card for the subreddit open in the current tab.
+  // The card for the Reddit page open in the current tab: its name, what
+  // filters hide on it, and for a subreddit, what the rules do to it.
   const currentCard = {
-    element: document.getElementById("current-subreddit"),
-    name: document.getElementById("current-subreddit-name"),
-    status: document.getElementById("current-subreddit-status"),
+    element: document.getElementById("current-page"),
+    prefix: document.getElementById("current-page-prefix"),
+    name: document.getElementById("current-page-name"),
+    status: document.getElementById("current-page-status"),
+    countsText: document.getElementById("current-page-hidden"),
+    actions: document.getElementById("current-page-actions"),
     block: document.getElementById("add-current-subreddit"),
     allow: document.getElementById("add-current-allowed-subreddit"),
+    // The page's tab, and its subreddit, if it is one.
+    tabId: null,
     subreddit: "",
+    // What filters hide on the page, as it last said, or null until it does.
+    counts: null,
   };
 
   let toastTimer = null;
@@ -1045,13 +1055,19 @@ document.addEventListener("DOMContentLoaded", () => {
     backupRestoreText.textContent = `Your settings before ${event} of ${when}`;
   }
 
+  // The current tab and its address, if it shows Reddit: browsers give
+  // only the URLs of tabs FrontFilter can access, Reddit's.
+  async function findCurrentTab() {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = FrontFilter.getRedditUrl(tab?.url);
+    return url ? { id: tab.id, url } : null;
+  }
+
   // The subreddit this page was opened for, or that the current tab shows.
   async function findCurrentSubreddit() {
     if (standaloneCurrentSubreddit) return standaloneCurrentSubreddit;
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    // Browsers give only the URLs of tabs FrontFilter can access: Reddit's.
-    const url = FrontFilter.getRedditUrl(tab?.url);
-    return (url && FrontFilter.getSubredditPath(url.pathname)?.name) || "";
+    const tab = await findCurrentTab();
+    return (tab && FrontFilter.getSubredditPath(tab.url.pathname)?.name) || "";
   }
 
   async function addCurrentSubreddit(list, message) {
@@ -1082,11 +1098,38 @@ document.addEventListener("DOMContentLoaded", () => {
     return { text: "Not blocked" };
   }
 
-  // The card shows only on a subreddit. Its buttons are off where they
+  // A Reddit page other than a subreddit, by the name the settings and
+  // statistics give it, and the prefix of a profile.
+  function nameOfPage(pathname) {
+    const user = FrontFilter.getProfileUser(pathname);
+    if (user) return { prefix: "u/", name: `u/${user}` };
+    const route = FrontFilter.PAGE_ROUTES
+      .find(({ path }) => new RegExp(`^${path}$`, "i").test(pathname));
+    return { prefix: "", name: route ? FrontFilter.stats.describeTarget(`page:${route.page}`) : "Reddit" };
+  }
+
+  const numberFormat = new Intl.NumberFormat();
+  const formatNumber = (count) => numberFormat.format(count);
+
+  // What filters hide on the page, as the card says it.
+  function describeCounts({ posts, comments }) {
+    const parts = [
+      posts > 0 && `${formatNumber(posts)} ${posts === 1 ? "post" : "posts"}`,
+      comments > 0 && `${formatNumber(comments)} ${comments === 1 ? "comment" : "comments"}`,
+    ].filter(Boolean);
+    return parts.length > 0 ? `${parts.join(" and ")} hidden on this page` : "Nothing hidden on this page";
+  }
+
+  // The card shows on a subreddit, and on any other Reddit page that says
+  // what filters hide on it. A subreddit's buttons are off where they
   // would change nothing: an allowed subreddit stays open whatever blocks it.
   function updateCurrentCard() {
-    const { subreddit } = currentCard;
-    currentCard.element.hidden = !subreddit;
+    const { subreddit, counts } = currentCard;
+    currentCard.element.hidden = !subreddit && !counts;
+    currentCard.countsText.hidden = !counts;
+    if (counts) currentCard.countsText.textContent = describeCounts(counts);
+    currentCard.status.hidden = !subreddit;
+    currentCard.actions.hidden = !subreddit;
     if (!subreddit) return;
     const state = describeSubreddit(subreddit);
     currentCard.status.textContent = state.text;
@@ -1094,19 +1137,56 @@ document.addEventListener("DOMContentLoaded", () => {
     currentCard.allow.disabled = controlsDisabled || Boolean(state.allowed);
   }
 
-  async function showCurrentSubreddit() {
+  // The page's content script counts what filters hide on it. It answers
+  // nothing where it cannot count every post, as in Old Reddit or search
+  // results, nor where it does not run, as on a page loaded before
+  // FrontFilter was.
+  async function readCounts(tabId) {
     try {
-      currentCard.subreddit = await findCurrentSubreddit();
+      const counts = await chrome.tabs.sendMessage(tabId, { action: "countHidden" });
+      const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
+      if (!isCount(counts?.posts) || !isCount(counts?.comments)) return null;
+      return { posts: counts.posts, comments: counts.comments };
     } catch {
-      // Without the tab, the card stays hidden.
+      return null;
     }
-    const label = `r/${currentCard.subreddit}`;
-    currentCard.name.textContent = label;
+  }
+
+  // The count keeps up with the page while the popup is open, as Reddit
+  // loads posts and settings change, for as long as the page answers.
+  const COUNTS_REFRESH = 1000;
+  async function refreshCounts() {
+    const counts = await readCounts(currentCard.tabId);
+    if (JSON.stringify(counts) !== JSON.stringify(currentCard.counts)) {
+      currentCard.counts = counts;
+      updateCurrentCard();
+    }
+    if (counts) setTimeout(refreshCounts, COUNTS_REFRESH);
+  }
+
+  async function showCurrentPage() {
+    let tab = null;
+    try {
+      // In a tab of its own, the current tab is this page.
+      if (!standalone) tab = await findCurrentTab();
+    } catch {
+      // Without the tab, the card shows nothing of it.
+    }
+    const subreddit = standaloneCurrentSubreddit
+      || (tab && FrontFilter.getSubredditPath(tab.url.pathname)?.name) || "";
+    let page = { prefix: "", name: "" };
+    if (subreddit) page = { prefix: "r/", name: `r/${subreddit}` };
+    else if (tab) page = nameOfPage(tab.url.pathname);
+    const { prefix, name } = page;
+    Object.assign(currentCard, { tabId: tab?.id ?? null, subreddit });
+    currentCard.prefix.textContent = prefix;
+    currentCard.name.textContent = name;
     // A long name is cut short on screen, and whole here.
-    currentCard.name.setAttribute("title", label);
-    currentCard.block.setAttribute("aria-label", `Block ${label}`);
-    currentCard.allow.setAttribute("aria-label", `Allow ${label}`);
+    currentCard.name.setAttribute("title", name);
+    currentCard.block.setAttribute("aria-label", `Block ${name}`);
+    currentCard.allow.setAttribute("aria-label", `Allow ${name}`);
     updateCurrentCard();
+    if (tab) await refreshCounts();
   }
 
   for (const [key, input] of Object.entries(switches)) {
@@ -1198,7 +1278,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const statsTab = FrontFilter.createStatsTab({ showToast });
 
-  void showCurrentSubreddit();
+  void showCurrentPage();
   void statsTab.load();
   setControlsDisabled(true);
   loadSettings()

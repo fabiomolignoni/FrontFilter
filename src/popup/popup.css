@@ -141,8 +141,9 @@ body.standalone { width: auto; max-width: 100vw; }
 /* A hidden first element leaves no gap above the next. */
 .tab-panel > [hidden]:first-child + * { margin-top: 0; }
 
-/* The subreddit open in the current tab. Its name, which can be long, is
-   cut short; its buttons keep their short labels and their width. */
+/* The Reddit page open in the current tab. Its name, which can be long, is
+   cut short; a subreddit's buttons keep their short labels and their
+   width. */
 .current-card {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-3) var(--sp-3) 14px;
@@ -155,6 +156,8 @@ body.standalone { width: auto; max-width: 100vw; }
   background: var(--accent-soft); color: var(--accent-text);
   font-size: 13px; font-weight: 700;
 }
+/* A subreddit or a profile shows its prefix; other pages, the filter. */
+.current-prefix:empty, .current-prefix:not(:empty) + .icon { display: none; }
 .current-info { flex: 1 1 120px; min-width: 0; }
 .current-name {
   margin: 0; font-size: 15px; font-weight: 650; line-height: 1.3;
