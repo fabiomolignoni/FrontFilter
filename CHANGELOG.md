@@ -63,13 +63,13 @@ Notable changes to FrontFilter, newest first.
   but they can act only on Reddit, where it already has access, and the
   browser no longer warns that it can "block content on any page".
 - The settings page and the block page have a new design, and the settings
-  page's tabs follow what you want to do. **Block** holds the blocked pages,
-  subreddits and users, the Block buttons and the block page's options.
-  **Filter** hides suggestions, ads, sensitive posts, and posts by keyword
-  or flair. **Simplify** holds the scroll and comment limits, and hides
-  parts of Reddit's pages. **Settings** keeps the theme, backups, and the
-  version and project links. Settings, filters and exported configurations
-  are unchanged.
+  page's tabs follow what you want to do. **Block** holds the blocked pages
+  and subreddits, the Block buttons and the block page's options.
+  **Filter** hides suggestions, ads, sensitive posts, and posts and comments
+  by keyword, flair or user. **Simplify** holds the scroll and comment
+  limits, and hides parts of Reddit's pages. **Settings** keeps the theme,
+  backups, and the version and project links. Settings, filters and
+  exported configurations are unchanged.
 - Subreddit rules' modes are called **Front page** and **Everywhere**, for
   HOME and ALL, which read as Reddit's own Home feed and r/all.
 - A setting whose name does not say it all says the rest below it, instead

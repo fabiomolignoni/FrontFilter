@@ -1161,8 +1161,8 @@ class PageTests:
         fixture_window = driver.current_window_handle
         driver.switch_to.new_window("window")
         self.session.open_settings_page()
-        find("tab-block").click()
-        self.assertEqual(find("blocked-user-list").text, "No users blocked yet")
+        find("tab-filter").click()
+        self.assertEqual(find("blocked-user-list").text, "No users filtered yet")
         find("add-blocked-user").click()
         driver.switch_to.active_element.send_keys("https://www.reddit.com/user/Spez/", Keys.TAB)
         self.wait_until(lambda: find("save-indicator").text == "Saved")

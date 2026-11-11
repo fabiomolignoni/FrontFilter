@@ -192,34 +192,6 @@
             <div id="allowed-list" class="entry-list"></div>
           </section>
 
-          <section class="card list-card" aria-labelledby="blocked-user-title">
-            <div class="list-header">
-              <div class="list-heading">
-                <div class="list-title-row">
-                  <h2 class="list-title" id="blocked-user-title">Blocked users</h2>
-                  <span id="blocked-user-count" class="count"></span>
-                  <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="blocked-user-help" aria-label="About blocked users">?</button>
-                </div>
-              </div>
-              <div class="list-actions">
-                <button type="button" id="add-blocked-user" class="btn btn-tonal"
-                  aria-label="Add a blocked user">
-                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M8 3v10M3 8h10" />
-                  </svg>
-                  Add
-                </button>
-              </div>
-            </div>
-            <div class="help-text" id="blocked-user-help" hidden>
-              <p>Their posts and comments hide everywhere, with the replies to their comments, and
-                their profiles are blocked. Enter a name, <code>u/name</code> or a profile URL.</p>
-              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
-            </div>
-            <div id="blocked-user-list" class="entry-list"></div>
-          </section>
-
           <section class="section" aria-labelledby="block-buttons-heading">
             <h2 class="section-title" id="block-buttons-heading">Block buttons</h2>
             <div class="card">
@@ -369,8 +341,8 @@
               </div>
             </div>
             <div class="help-text" id="allowed-keyword-help" hidden>
-              <p>They match as keywords do, and override them. Other filters, such as flairs and
-                blocked users, still apply.</p>
+              <p>They match as keywords do, and override them. Other filters, such as post flairs
+                and users, still apply.</p>
               <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
             <div id="allowed-keyword-list" class="entry-list"></div>
@@ -402,6 +374,35 @@
               <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
             <div id="blocked-flair-list" class="entry-list"></div>
+          </section>
+
+          <section class="card list-card" aria-labelledby="blocked-user-title">
+            <div class="list-header">
+              <div class="list-heading">
+                <div class="list-title-row">
+                  <h2 class="list-title" id="blocked-user-title">Users</h2>
+                  <span id="blocked-user-count" class="count"></span>
+                  <button type="button" class="help-toggle" aria-expanded="false"
+                    aria-controls="blocked-user-help" aria-label="About users">?</button>
+                </div>
+                <p class="list-desc">Hide their posts and comments</p>
+              </div>
+              <div class="list-actions">
+                <button type="button" id="add-blocked-user" class="btn btn-tonal"
+                  aria-label="Add a user">
+                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 3v10M3 8h10" />
+                  </svg>
+                  Add
+                </button>
+              </div>
+            </div>
+            <div class="help-text" id="blocked-user-help" hidden>
+              <p>Their posts and comments hide everywhere, with the replies to their comments, and
+                their profiles are blocked. Enter a name, <code>u/name</code> or a profile URL.</p>
+              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
+            </div>
+            <div id="blocked-user-list" class="entry-list"></div>
           </section>
         </section>
 

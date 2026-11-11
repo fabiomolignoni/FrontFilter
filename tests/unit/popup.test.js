@@ -505,7 +505,7 @@ test("removes an empty draft without offering to undo it", async () => {
   elements["blocked-user-list"].querySelector(".user-item").children[1].click();
   await settle();
   assert.equal(elements["blocked-user-list"].querySelector(".entry-undo"), null);
-  assert.equal(elements["blocked-user-list"].textContent, "No users blocked yet");
+  assert.equal(elements["blocked-user-list"].textContent, "No users filtered yet");
 });
 
 test("renders, edits and removes exact subreddit exceptions", async () => {
@@ -959,7 +959,7 @@ test("labels every list's Add button alike, and names each for its list", async 
   const names = [
     ["add-subreddit", "Add a blocked subreddit"],
     ["add-allowed-subreddit", "Add an allowed subreddit"],
-    ["add-blocked-user", "Add a blocked user"],
+    ["add-blocked-user", "Add a user"],
     ["add-title-keyword", "Add a keyword"],
     ["add-allowed-keyword", "Add an allowed keyword"],
     ["add-blocked-flair", "Add a flair"],
@@ -969,6 +969,18 @@ test("labels every list's Add button alike, and names each for its list", async 
     // The visible label starts the accessible name.
     assert.equal(elements[id].getAttribute("aria-label"), name);
     assert.ok(name.startsWith("Add "));
+  }
+});
+
+// Block holds what keeps pages from opening; Filter, what hides posts and
+// comments, users included.
+test("puts each list in the tab of what it does", () => {
+  const { elements } = loadPage("popup/index.html");
+  for (const id of ["blocked-list", "allowed-list"]) {
+    assert.ok(elements["panel-block"].querySelector(`#${id}`), id);
+  }
+  for (const id of ["title-keyword-list", "allowed-keyword-list", "blocked-flair-list", "blocked-user-list"]) {
+    assert.ok(elements["panel-filter"].querySelector(`#${id}`), id);
   }
 });
 
@@ -1962,7 +1974,7 @@ test("tells empty lists apart and counts their rules", async () => {
   assert.equal(elements["blocked-list"].textContent, "No subreddits blocked yet");
   assert.equal(elements["blocked-count"].textContent, "0 rules");
   assert.equal(elements["allowed-list"].textContent, "No subreddit exceptions yet");
-  assert.equal(elements["blocked-user-list"].textContent, "No users blocked yet");
+  assert.equal(elements["blocked-user-list"].textContent, "No users filtered yet");
   assert.equal(elements["blocked-user-count"].textContent, "0 users");
   assert.equal(elements["title-keyword-list"].textContent, "No keywords filtered yet");
   assert.equal(elements["allowed-keyword-list"].textContent, "No keyword exceptions yet");
