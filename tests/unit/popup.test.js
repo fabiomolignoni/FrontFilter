@@ -58,6 +58,7 @@ async function loadPopup({
     tabs: {
       query: async () => tabs,
       create: async (properties) => created.push(properties),
+      reload: async (tabId) => reloaded.push(tabId),
       sendMessage: async (tabId, message) => {
         tabMessages.push({ tabId, message });
         return tabMessage(tabId, message);
@@ -67,6 +68,7 @@ async function loadPopup({
   const sent = [];
   const tabMessages = [];
   const created = [];
+  const reloaded = [];
   let closed = false;
   const context = vm.createContext({
     Blob,
@@ -92,6 +94,7 @@ async function loadPopup({
   return {
     get closed() { return closed; },
     createdTabs: created,
+    reloadedTabs: reloaded,
     sentMessages: sent,
     tabMessages,
     createdElements: page.created,
@@ -809,6 +812,59 @@ test("tells what the rules do to the current subreddit, and offers only what cha
   assert.equal(elements["current-page-status"].textContent, "Blocked everywhere");
   assert.equal(elements["add-current-subreddit"].disabled, true);
   assert.equal(elements["add-current-allowed-subreddit"].disabled, false);
+});
+
+test("sends the blocked subreddit's page to the block page, by reloading it if it cannot go itself", async () => {
+  const tabs = [{ id: 3, url: "https://www.reddit.com/r/news/comments/abc/post" }];
+  // A page whose content script listens goes once the rule is saved.
+  const listening = await loadPopup({
+    autoResolveWrites: true, tabs, tabMessage: async () => null,
+  });
+  await listening.elements["add-current-subreddit"].click();
+  assert.equal(listening.writes.length, 1);
+  assert.deepEqual(listening.reloadedTabs, []);
+  assert.deepEqual(listening.sentMessages, []);
+
+  // A page loaded before FrontFilter was installed, updated or reloaded has
+  // none: it is reloaded once the rule is saved and the navigation rules
+  // block it.
+  const stale = await loadPopup({ tabs });
+  const clicked = stale.elements["add-current-subreddit"].click();
+  await settle();
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(stale.writes[0].settings.blockedSubreddits)),
+    [{ name: "news", mode: "all" }],
+  );
+  assert.deepEqual(stale.sentMessages, []);
+  assert.deepEqual(stale.reloadedTabs, []);
+  stale.writes[0].completion.resolve();
+  await clicked;
+  assert.deepEqual(JSON.parse(JSON.stringify(stale.sentMessages)), [{ action: "syncNavigationRules" }]);
+  assert.deepEqual(stale.reloadedTabs, [3]);
+
+  // Nor without the rules, as its new content script blocks it.
+  const unsynced = await loadPopup({
+    autoResolveWrites: true, tabs, sendMessage: async () => ({ success: false, error: "busy" }),
+  });
+  await unsynced.elements["add-current-subreddit"].click();
+  assert.deepEqual(unsynced.reloadedTabs, [3]);
+
+  // A rule that could not be saved leaves the page as it is.
+  const failed = await loadPopup({ tabs });
+  const failedClick = failed.elements["add-current-subreddit"].click();
+  await settle();
+  failed.writes[0].completion.reject(new Error("storage is full"));
+  await failedClick;
+  await settle();
+  assert.deepEqual(failed.sentMessages, []);
+  assert.deepEqual(failed.reloadedTabs, []);
+  assert.equal(failed.elements["toast"].textContent, "Save failed: storage is full");
+
+  // Allowing it changes nothing the page cannot show itself.
+  const allowed = await loadPopup({ autoResolveWrites: true, tabs });
+  await allowed.elements["add-current-allowed-subreddit"].click();
+  await settle();
+  assert.deepEqual(allowed.reloadedTabs, []);
 });
 
 test("names every Reddit page on its card, and says what filters hide on it", async (t) => {
