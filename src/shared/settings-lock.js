@@ -4,8 +4,8 @@
  * block or hide as much or more apply at once, and changes that loosen the
  * settings wait the delay chosen with the lock, or until it ends. The
  * lock's own end and delay change in the same way, so the lock cannot be
- * ended or softened at once either. Settings that block and hide nothing,
- * such as the theme, stay free.
+ * ended or softened at once either. Settings no impulse would loosen, such
+ * as the theme or ads, stay free.
  *
  * The background keeps the lock and, while one is on, writes the settings
  * the settings page asks it to (background/main.js). A one-click block's
@@ -39,14 +39,25 @@ FrontFilter.settingsLock = (() => {
   const EXTRA_KEYS = Object.freeze([FrontFilter.IMPORT_BACKUP_KEY, FrontFilter.SETTINGS_VERSION_KEY]);
   const SOURCES = Object.freeze(["import", "restore"]);
 
-  // Settings that change nothing FrontFilter blocks or hides, free while
-  // locked: the redirect only chooses where blocked pages lead.
+  // Settings free while locked: those no impulse would loosen, as they hide
+  // nothing that draws anyone back to Reddit. Ads and promoted posts are
+  // not what anyone scrolls for, and avatars, awards and usernames, unlike
+  // votes and karma, are looks, not social rewards; the left sidebar's
+  // Resources are links to Reddit's help and policies. The block page's
+  // settings button leads to settings the lock still holds, the redirect
+  // chooses where blocked pages lead, and the rest is FrontFilter's own.
   const FREE_SETTINGS = Object.freeze([
-    "theme",
-    "pauseStatistics",
+    "hideAds",
+    "hideAwards",
+    "hideAvatars",
+    "hideUsernames",
+    "hideLeftSidebarResources",
     "showBlockSubredditButton",
+    "hideBlockPageSettingsButton",
     "redirectBlockedPages",
     "redirectUrl",
+    "theme",
+    "pauseStatistics",
   ]);
   const keywordRule = (keyword) => FrontFilter.getKeywordKey(keyword);
   const flairRule = (flair) => flair.toLowerCase();

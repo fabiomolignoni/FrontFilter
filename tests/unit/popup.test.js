@@ -2902,7 +2902,7 @@ test("refuses an end it cannot use, and closes the warning when cancelled or cha
 test("saves through the lock while settings are locked, and says what waits", async () => {
   const popup = await loadPopup({
     autoResolveWrites: true,
-    storedSettings: { hideNsfw: true, hideAds: false, settingsLock: storedLock() },
+    storedSettings: { hideNsfw: true, hideSpoilers: false, hideAds: true, settingsLock: storedLock() },
     sendMessage: lockBackground(),
   });
   const { elements } = popup;
@@ -2922,11 +2922,19 @@ test("saves through the lock while settings are locked, and says what waits", as
   assert.match(item.querySelector(".lock-pending-when").textContent, /^Waits until /);
 
   // Hiding more applies at once.
-  elements["hide-ads"].checked = true;
+  elements["hide-spoilers"].checked = true;
+  elements["hide-spoilers"].dispatch("change");
+  await settleAll();
+  assert.equal(popup.stored().hideSpoilers, true);
+  assert.equal(elements["hide-spoilers"].checked, true);
+
+  // Showing ads is free: no impulse would loosen it.
+  elements["hide-ads"].checked = false;
   elements["hide-ads"].dispatch("change");
   await settleAll();
-  assert.equal(popup.stored().hideAds, true);
-  assert.equal(elements["hide-ads"].checked, true);
+  assert.equal(popup.stored().hideAds, false);
+  assert.equal(elements["hide-ads"].checked, false);
+  assert.match(elements["lock-banner-text"].textContent, /· 1 change waiting$/);
 });
 
 test("names switches by their group, and those that block pages by their page", async () => {
@@ -3128,8 +3136,8 @@ test("imports and restores through the lock while settings are locked", async ()
   assert.match(elements.toast.textContent, /^Remove u\/spez: waits until /);
   assert.equal(elements["backup-restore"].hidden, false);
 
-  // Restoring right away takes back what the import tightened, in the
-  // grace period; the removal it asked for still waits.
+  // Restoring takes back what the import changed: showing ads again is
+  // free, and the removal the import asked for still waits.
   await elements["restore-backup"].click();
   await settleAll();
   const restore = plain(popup.sentMessages).at(-1);

@@ -42,10 +42,10 @@ function waitingChanges(stored) {
 }
 
 test("applies changes that block or hide more at once, and keeps loosening ones waiting", () => {
-  const before = lockedSince({ hideNsfw: true, hideAds: false });
-  const { stored, result } = save(before, { hideAds: true, hideNsfw: false });
+  const before = lockedSince({ hideNsfw: true, hideSpoilers: false });
+  const { stored, result } = save(before, { hideSpoilers: true, hideNsfw: false });
 
-  assert.equal(stored.hideAds, true);
+  assert.equal(stored.hideSpoilers, true);
   assert.equal(stored.hideNsfw, true);
   assert.deepEqual(waitingChanges(stored), [{ key: "hideNsfw", value: false }]);
   assert.deepEqual(result.waiting, [{ key: "hideNsfw", value: false, due: NOW + DAY }]);
@@ -53,23 +53,45 @@ test("applies changes that block or hide more at once, and keeps loosening ones 
   assert.equal(result.locked, true);
 });
 
-test("leaves settings that block and hide nothing free", () => {
-  const before = lockedSince({ theme: "dark", pauseStatistics: true, showBlockSubredditButton: true });
-  const { stored, result } = save(before, {
-    theme: "light",
-    pauseStatistics: false,
-    showBlockSubredditButton: false,
+test("leaves the settings no impulse would loosen free", () => {
+  const free = {
+    hideAds: true,
+    hideAwards: true,
+    hideAvatars: true,
+    hideUsernames: true,
+    hideLeftSidebarResources: true,
+    showBlockSubredditButton: true,
+    hideBlockPageSettingsButton: true,
     redirectBlockedPages: true,
-    redirectUrl: "https://example.com/",
-  });
-  assert.equal(stored.theme, "light");
-  assert.equal(stored.pauseStatistics, false);
-  assert.equal(stored.showBlockSubredditButton, false);
-  assert.equal(stored.redirectUrl, "https://example.com/");
+    pauseStatistics: true,
+  };
+  const before = lockedSince({ ...free, redirectUrl: "https://example.com/", theme: "dark" });
+  const loosened = {
+    ...Object.fromEntries(Object.keys(free).map((key) => [key, false])),
+    redirectUrl: "",
+    theme: "light",
+  };
+  const { stored, result } = save(before, loosened);
+  for (const [key, value] of Object.entries(loosened)) assert.equal(stored[key], value, key);
   assert.deepEqual(result.waiting, []);
-  assert.deepEqual(plain(LOCK.FREE_SETTINGS), [
-    "theme", "pauseStatistics", "showBlockSubredditButton", "redirectBlockedPages", "redirectUrl",
-  ]);
+  assert.deepEqual(plain(LOCK.FREE_SETTINGS).sort(), Object.keys(loosened).sort());
+
+  // Votes and karma, social rewards, stay locked with the other sections.
+  const social = lockedSince({ hideVotes: true, hideKarma: true, hideAvatars: true });
+  const { result: socialResult } = save(social, { hideVotes: false, hideKarma: false, hideAvatars: false });
+  assert.deepEqual(socialResult.waiting.map(({ key }) => key), ["hideVotes", "hideKarma"]);
+});
+
+test("applies a free section at once while its locked switch waits", () => {
+  const before = lockedSince({ hideSocialSignals: true });
+  const sections = {
+    hideVotes: false, hideKarma: false, hideAwards: false, hideAvatars: false, hideUsernames: false,
+  };
+  const { stored } = save(before, { hideSocialSignals: false, ...sections });
+  // The switch still hides every section until its change applies.
+  assert.equal(stored.hideSocialSignals, true);
+  assert.equal(stored.hideAvatars, false);
+  assert.deepEqual(waitingChanges(stored).map(({ key }) => key), ["hideSocialSignals", "hideVotes", "hideKarma"]);
 });
 
 test("adds rules at once, and keeps removed rules until their removal applies", () => {
@@ -170,17 +192,20 @@ test("keeps a switch and its sections waiting together", () => {
 });
 
 test("lets a change made while locked be taken back at once, in the grace period only", () => {
-  const before = lockedSince({ hideAds: false, blockedSubreddits: [] });
-  let { stored } = save(before, { hideAds: true, blockedSubreddits: [{ name: "fnuny", mode: "all" }] });
-  assert.equal(stored.hideAds, true);
+  const before = lockedSince({ hideSuggestedPosts: false, blockedSubreddits: [] });
+  let { stored } = save(before, {
+    hideSuggestedPosts: true,
+    blockedSubreddits: [{ name: "fnuny", mode: "all" }],
+  });
+  assert.equal(stored.hideSuggestedPosts, true);
 
-  // A typo, fixed at once.
+  // A misclick and a typo, fixed at once.
   let result;
   ({ stored, result } = save(stored, {
-    hideAds: false,
+    hideSuggestedPosts: false,
     blockedSubreddits: [{ name: "funny", mode: "all" }],
   }, NOW + 5 * MINUTE));
-  assert.equal(stored.hideAds, false);
+  assert.equal(stored.hideSuggestedPosts, false);
   assert.deepEqual(plain(stored.blockedSubreddits), [{ name: "funny", mode: "all" }]);
   assert.deepEqual(result.waiting, []);
 
@@ -378,14 +403,14 @@ test("refuses to end or soften a lock when that could only apply once it is over
 });
 
 test("cancels a request, which tightens and so applies at once", () => {
-  let stored = lockedSince({ hideNsfw: true, hideAds: true });
+  let stored = lockedSince({ hideNsfw: true, hideComments: true });
   ({ stored } = save(stored, { hideNsfw: false }));
-  ({ stored } = save(stored, { hideAds: false }, NOW + MINUTE));
+  ({ stored } = save(stored, { hideComments: false }, NOW + MINUTE));
   const [first] = stored.settingsLock.pending;
   const cancelled = LOCK.cancel(stored, { id: first.id }, NOW + 2 * MINUTE);
   assert.deepEqual(plain(cancelled.result), { cancelled: true });
   stored = apply(stored, cancelled);
-  assert.deepEqual(waitingChanges(stored), [{ key: "hideAds", value: false }]);
+  assert.deepEqual(waitingChanges(stored), [{ key: "hideComments", value: false }]);
   assert.deepEqual(plain(LOCK.cancel(stored, { id: first.id }, NOW).result), { cancelled: false });
   // Ids are not used again.
   ({ stored } = save(stored, { hideNsfw: false }, NOW + 3 * MINUTE));
@@ -434,12 +459,12 @@ test("reads only locks it can use", () => {
 });
 
 test("applies what waited before a save made once the lock is over, which then wins", () => {
-  let stored = lockedSince({ hideNsfw: true, hideAds: true });
-  ({ stored } = save(stored, { hideNsfw: false, hideAds: false }));
+  let stored = lockedSince({ hideNsfw: true, hideSpoilers: true });
+  ({ stored } = save(stored, { hideNsfw: false, hideSpoilers: false }));
   // The lock ended a moment ago, and its alarm has not rung yet.
   const { stored: after, result } = save(stored, { hideNsfw: true }, NOW + 7 * DAY + 1000);
   assert.equal(after.settingsLock, undefined);
   assert.equal(after.hideNsfw, true);
-  assert.equal(after.hideAds, false);
+  assert.equal(after.hideSpoilers, false);
   assert.equal(result.locked, false);
 });

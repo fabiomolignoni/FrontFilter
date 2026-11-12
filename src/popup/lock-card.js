@@ -306,7 +306,8 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
       `Loosening your settings, as by removing a rule, allowing a subreddit or turning a filter off, waits ${wait}.`,
       waitsToEnd ? "The lock can't end early." : `Ending the lock early waits ${wait} too.`,
       `You can take back a change, or the lock itself, within ${formatDuration(LOCK.GRACE_PERIOD)}.`,
-      "The theme, statistics, Block buttons and redirect stay free to change.",
+      "Ads, avatars, awards, usernames, the sidebar's Resources, the Block buttons, the block page, "
+        + "the theme and statistics stay free to change.",
     ];
     card.confirmDetails.replaceChildren(...details.map((detail) => {
       const item = document.createElement("li");

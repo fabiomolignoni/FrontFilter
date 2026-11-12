@@ -82,7 +82,9 @@ To install from source, see [Development](#development). The
 - See what waits, and when it applies, and cancel it. For 10 minutes, a
   change made while locked can be taken back at once, and so can a new
   lock, so that a typo costs no wait.
-- The theme, statistics, Block buttons and the redirect stay free to change.
+- What no impulse would loosen stays free to change: ads, avatars, awards
+  and usernames, the left sidebar's Resources, the Block buttons, the block
+  page's options, the theme and statistics.
 
 Settings can be exported and imported as JSON. FrontFilter's pages follow your
 system theme or use a light or dark one.
