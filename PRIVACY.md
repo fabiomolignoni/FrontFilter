@@ -1,6 +1,6 @@
 # FrontFilter Privacy Policy
 
-**Last updated: November 11, 2026**
+**Last updated: November 12, 2026**
 
 FrontFilter is a browser extension that helps you use Reddit with fewer
 distractions. This policy explains what data the extension handles and what it
@@ -28,8 +28,11 @@ Block buttons on Reddit:
 - blocked and allowed subreddits, and blocked users;
 - keywords and post flairs you filter, and keywords you allow;
 - the pages, page elements, and features you choose to hide or limit;
-- the website blocked pages lead to, if you choose one; and
-- your color theme.
+- the website blocked pages lead to, if you choose one;
+- your color theme; and
+- your settings lock, if you set one: until when it lasts, how long changes
+  that loosen your settings wait, and the changes that wait, with when they
+  were made.
 
 Filter rules can reveal your interests, so treat them, and any configuration
 file you export, as private.
@@ -91,6 +94,9 @@ advertising, profiling, or any other purpose, and no person reviews it.
   30 days, and totals since counting began. They are not part of exported
   configurations. **Pause statistics**, in the **Stats** tab, stops counting,
   **Reset** deletes them, and uninstalling FrontFilter deletes them too.
+- **Settings lock:** a lock you set is kept in the same local storage until
+  it ends, when the changes that waited apply and it is deleted. It is not
+  part of exported configurations.
 - **Theme cache:** your color theme is also cached in the extension's own
   local storage, so its pages open in the right colors.
 - **Undo marker:** a one-click block made on a subreddit's own page stores a
@@ -146,13 +152,15 @@ Mozilla, or GitHub.
 | --- | --- |
 | `storage` | Save your settings and statistics on your device. |
 | `declarativeNetRequestWithHostAccess` | Let the browser redirect pages you block to FrontFilter's block page, or to the website you choose. Its rules apply only to `reddit.com`, where FrontFilter has access. |
+| `alarms` | Apply the changes your settings lock keeps waiting, and end the lock, when they are due, even with no FrontFilter page open. |
 | `scripting` (Chrome only) | Count the time you spend on Reddit pages that were already open when FrontFilter was installed or updated: Chrome gives them no content script until they are reloaded, so FrontFilter adds its statistics recorder to them, from its own files, and to no other page. |
 | Access to `reddit.com` and its subdomains | Apply your filters and controls on Reddit pages, count your statistics there, and name the Reddit page in front, with its subreddit, on the settings' card for it. |
 
 ## Your choices
 
 You can change or remove any setting or rule in FrontFilter's settings at any
-time, and pause or delete your statistics. Uninstalling FrontFilter deletes everything it stores, except files you
+time, though while a settings lock you set lasts, changes that loosen them
+wait as you chose. You can pause or delete your statistics at any time. Uninstalling FrontFilter deletes everything it stores, except files you
 exported and pages kept in your browser history. Because the developer never
 receives your data, there is nothing the developer can access, correct, or
 delete on your behalf. If you allow FrontFilter in private windows, it works

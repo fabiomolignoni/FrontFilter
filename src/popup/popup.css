@@ -521,6 +521,64 @@ label.field-row:hover { background: none; }
   border-top: 1px solid var(--border);
 }
 .backup-restore .card-text { flex: 1 1 200px; font-size: 12px; }
+
+/* The settings lock: whether settings are locked, its end and delay, the
+   warning that asks before locking, and what waits. */
+.lock-summary { padding: var(--sp-3) 14px; }
+.lock-state { margin: 0 0 2px; font-size: 14px; font-weight: 650; }
+.lock-actions {
+  display: flex; flex-wrap: wrap; gap: var(--sp-2);
+  padding: var(--sp-3) 14px;
+}
+.lock-actions .btn { flex: 0 1 auto; }
+.lock-confirm-details {
+  margin: var(--sp-2) 0; padding-left: 18px;
+  color: var(--text-secondary); font-size: 12.5px;
+}
+.lock-confirm-details li + li { margin-top: 2px; }
+.lock-acknowledge {
+  display: flex; align-items: flex-start; gap: var(--sp-2);
+  margin: var(--sp-3) 0 0;
+  font-size: 13px; font-weight: 550; cursor: pointer;
+}
+.lock-acknowledge input {
+  flex-shrink: 0; width: 16px; height: 16px; margin: 1px 0 0;
+  accent-color: var(--accent); cursor: pointer;
+}
+.lock-acknowledge:has(input:disabled) { cursor: not-allowed; }
+.lock-pending-title {
+  margin: 0; padding: var(--sp-3) 14px var(--sp-1);
+  font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+}
+.lock-pending-list { margin: 0; padding: 0; list-style: none; }
+.lock-pending-item {
+  display: flex; align-items: center; gap: var(--sp-3);
+  min-height: 44px; padding: 6px var(--sp-3) 6px 14px;
+}
+.lock-pending-item + .lock-pending-item { border-top: 1px solid var(--border); }
+.lock-pending-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.lock-pending-change { font-size: 13.5px; overflow-wrap: anywhere; }
+.lock-pending-when { font-size: 12px; color: var(--text-muted); }
+.lock-pending-cancel { flex-shrink: 0; height: 28px; }
+
+/* Under the tabs while settings are locked. */
+.lock-banner {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin: 0 var(--sp-4) var(--sp-2); padding: 4px 4px 4px var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft); color: var(--accent-text);
+  font-size: 13px; font-weight: 550;
+}
+.lock-banner-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.lock-banner-button {
+  flex-shrink: 0; height: 28px; padding: 0 10px;
+  border: 0; border-radius: var(--radius-sm);
+  background: none; color: inherit;
+  font: 600 13px/1 var(--font-sans); text-decoration: underline;
+  cursor: pointer;
+}
+.lock-banner-button:hover:not(:disabled) { background: var(--accent-soft); }
+.lock-banner-button:disabled { opacity: 0.5; cursor: not-allowed; }
 .about-card { display: flex; align-items: flex-start; gap: var(--sp-3); }
 .about-card img { width: 36px; height: 36px; flex-shrink: 0; border-radius: 9px; }
 .about-text { min-width: 0; }

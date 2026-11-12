@@ -2,12 +2,14 @@
   "name": "FrontFilter",
   "permissions": [
     "storage",
-    "declarativeNetRequestWithHostAccess"
+    "declarativeNetRequestWithHostAccess",
+    "alarms"
   ],
   "background": {
     "scripts": [
       "shared/core.js",
       "shared/stats.js",
+      "shared/settings-lock.js",
       "background/navigation-rules.js",
       "background/main.js"
     ]

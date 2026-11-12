@@ -6,6 +6,20 @@ Notable changes to FrontFilter, newest first.
 
 ### Added
 
+- **Settings lock**, in the **Settings** tab: lock your settings until a
+  date you choose, up to a year, after a warning that says what the lock
+  does and asks you to confirm it. While it lasts, changes that block or
+  hide more apply at once, and changes that loosen your settings, such as
+  removing a rule, allowing a subreddit or turning a filter off, wait an
+  hour, 6 hours, a day, 3 days or a week, as you choose, or until the lock
+  ends. Ending the lock early, or making it shorter or softer, waits too.
+  The settings page lists what waits, and when it applies, and cancels it,
+  and a bar under its tabs says until when settings are locked. For 10
+  minutes, a change made while locked, or a new lock, can be taken back at
+  once. The theme, statistics, Block buttons and the redirect stay free to
+  change. FrontFilter asks for the `alarms` permission, which shows no
+  warning, to apply what waits when it is due.
+
 - **Stats**, a new tab of the settings page: how long you spent on Reddit
   today and on each of the last 7 days, in how many visits, with your daily
   average and how it compares with the week before; how many pages

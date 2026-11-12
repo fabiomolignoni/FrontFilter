@@ -22,11 +22,15 @@ async function loadPopup({
   const themeCache = new Map([["frontfilter-theme", cachedTheme]]);
   const storageListeners = [];
   let currentSettings = storedSettings;
-  // Stores values and, like browsers, reports them to every page.
-  function store(settings) {
-    const changes = Object.fromEntries(Object.entries(settings).map(([key, newValue]) =>
-      [key, { oldValue: currentSettings[key], newValue }]));
+  // Stores and removes values and, like browsers, reports them to every
+  // page.
+  function store(settings, removed = []) {
+    const changes = Object.fromEntries([
+      ...Object.entries(settings).map(([key, newValue]) => [key, { oldValue: currentSettings[key], newValue }]),
+      ...removed.map((key) => [key, { oldValue: currentSettings[key] }]),
+    ]);
     currentSettings = { ...currentSettings, ...settings };
+    for (const key of removed) delete currentSettings[key];
     setImmediate(() => storageListeners.forEach((listener) => listener(changes, "local")));
   }
   const chrome = {
@@ -50,9 +54,10 @@ async function loadPopup({
     runtime: {
       getManifest: () => ({ version: "9.8.7" }),
       getURL: (path) => `chrome-extension://frontfilter/${path}`,
+      // The background may read and write the storage this page does.
       sendMessage: async (message) => {
         sent.push(message);
-        return sendMessage(message);
+        return sendMessage(message, { values: () => currentSettings, store });
       },
     },
     tabs: {
@@ -112,6 +117,8 @@ async function loadPopup({
       await settle();
       await settle();
     },
+    // What the storage holds now.
+    stored: () => currentSettings,
     themeCache,
     writes,
   };
@@ -2734,4 +2741,431 @@ test("pauses the statistics from their switch, and says so", async () => {
   await settle();
   assert.deepEqual(JSON.parse(JSON.stringify(popup.writes.at(-1).settings)), { pauseStatistics: true });
   assert.equal(elements["stats-paused"].hidden, false);
+});
+
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+const plain = (value) => JSON.parse(JSON.stringify(value));
+
+// A background that keeps the settings lock as FrontFilter's does
+// (background/main.js), on the page's storage.
+function lockBackground() {
+  const context = vm.createContext({ URL, URLSearchParams });
+  runScripts(context, ["shared/core.js", "shared/settings-lock.js"]);
+  const LOCK = context.FrontFilter.settingsLock;
+  const operations = {
+    startLock: LOCK.start,
+    saveSettings: LOCK.save,
+    cancelLockedChange: LOCK.cancel,
+    updateLock: LOCK.update,
+  };
+  return async (message, storage) => {
+    const operation = operations[message.action];
+    if (!operation) return { success: true };
+    try {
+      const { set, remove, result } = operation(storage.values(), plain(message), Date.now());
+      storage.store(plain(set), plain(remove));
+      return { success: true, result: plain(result) };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+}
+
+// A lock past its grace period.
+function storedLock({ until = Date.now() + 3 * DAY, delay = DAY, pending = [] } = {}) {
+  return { until, delay, lastId: pending.length, pending, recent: [] };
+}
+
+// A time as a datetime-local field holds it.
+function fieldTime(time) {
+  const date = new Date(time);
+  const pad = (number) => String(number).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+    + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+async function settleAll() {
+  for (let index = 0; index < 4; index += 1) await settle();
+}
+
+test("asks before locking, says what the lock does, and locks once its box is checked", async () => {
+  const popup = await loadPopup({ autoResolveWrites: true, sendMessage: lockBackground() });
+  const { elements } = popup;
+  assert.equal(elements["lock-banner"].hidden, true);
+  assert.equal(elements["lock-start"].hidden, false);
+  assert.equal(elements["lock-change"].hidden, true);
+  // A week from now, at a full hour, and a day's wait, to start with.
+  assert.equal(elements["lock-delay"].value, String(DAY));
+  assert.deepEqual(elements["lock-delay"].children.map((option) => option.textContent),
+    ["1 hour", "6 hours", "1 day", "3 days", "7 days", "Until the lock ends"]);
+  const until = new Date(elements["lock-until"].value).getTime();
+  assert.ok(until > Date.now() + 7 * DAY && until <= Date.now() + 7 * DAY + HOUR);
+  assert.equal(new Date(until).getMinutes(), 0);
+
+  elements["lock-delay"].value = String(HOUR);
+  elements["lock-start"].click();
+  assert.equal(elements["lock-confirm"].hidden, false);
+  assert.equal(elements["lock-confirm-title"].textContent, "Lock your settings for 7 days?");
+  assert.equal(elements["lock-confirm-title"].focused, true);
+  const details = elements["lock-confirm-details"].children.map((item) => item.textContent);
+  assert.match(details[0], /^Until /);
+  assert.ok(details.includes("Blocking or hiding more applies at once."));
+  assert.ok(details.some((detail) => /turning a filter off, waits 1 hour\.$/.test(detail)));
+  assert.ok(details.includes("Ending the lock early waits 1 hour too."));
+  assert.ok(details.includes("You can take back a change, or the lock itself, within 10 minutes."));
+  assert.equal(elements["lock-acknowledge-text"].textContent,
+    "I understand that loosening my settings will take 1 hour");
+  assert.equal(elements["lock-confirm-button"].textContent, "Lock for 7 days");
+
+  // Nothing locks before the box is checked.
+  assert.equal(elements["lock-confirm-button"].disabled, true);
+  await elements["lock-confirm-button"].click();
+  assert.deepEqual(popup.sentMessages, []);
+  elements["lock-acknowledge"].checked = true;
+  elements["lock-acknowledge"].dispatch("change");
+  assert.equal(elements["lock-confirm-button"].disabled, false);
+
+  await elements["lock-confirm-button"].click();
+  await settleAll();
+  assert.deepEqual(plain(popup.sentMessages), [{ action: "startLock", until, delay: HOUR }]);
+  assert.equal(popup.stored().settingsLock.until, until);
+  assert.equal(elements["lock-confirm"].hidden, true);
+  assert.match(elements.toast.textContent, /^Settings locked until /);
+  assert.equal(elements["lock-heading"].focused, true);
+  // Locked: the status, above every tab, and its card.
+  assert.equal(elements["lock-banner"].hidden, false);
+  assert.match(elements["lock-banner-text"].textContent, /^Locked until [^·]+$/);
+  assert.match(elements["lock-state"].textContent, /^Locked until /);
+  assert.equal(elements["lock-text"].textContent,
+    "Changes that loosen your settings wait 1 hour, or until the lock ends.");
+  assert.equal(elements["lock-fields"].hidden, true);
+  assert.equal(elements["lock-start"].hidden, true);
+  assert.equal(elements["lock-change"].hidden, false);
+  assert.equal(elements["lock-end"].hidden, false);
+  // No setting was written.
+  assert.deepEqual(popup.writes, []);
+});
+
+test("warns when the lock cannot end before it does", async () => {
+  const { elements } = await loadPopup({ sendMessage: lockBackground() });
+  elements["lock-delay"].value = "end";
+  elements["lock-start"].click();
+  const details = elements["lock-confirm-details"].children.map((item) => item.textContent);
+  assert.ok(details.some((detail) => /waits until the lock ends\.$/.test(detail)));
+  assert.ok(details.includes("The lock can't end early."));
+  assert.match(elements["lock-acknowledge-text"].textContent,
+    /^I understand that I can't loosen my settings until /);
+});
+
+test("refuses an end it cannot use, and closes the warning when cancelled or changed", async () => {
+  const popup = await loadPopup({ sendMessage: lockBackground() });
+  const { elements } = popup;
+  const refusals = [
+    ["", "Choose when the lock ends"],
+    [fieldTime(Date.now() - HOUR), "Choose a time in the future"],
+    [fieldTime(Date.now() + 400 * DAY), "A lock can last a year at most"],
+  ];
+  for (const [value, message] of refusals) {
+    elements["lock-until"].value = value;
+    elements["lock-start"].click();
+    assert.equal(elements["lock-confirm"].hidden, true, value);
+    assert.equal(elements.toast.textContent, message);
+  }
+
+  elements["lock-until"].value = fieldTime(Date.now() + 2 * DAY);
+  elements["lock-start"].click();
+  assert.equal(elements["lock-confirm-title"].textContent, "Lock your settings for 2 days?");
+  // A warning about values that changed since would mislead.
+  elements["lock-delay"].dispatch("change");
+  assert.equal(elements["lock-confirm"].hidden, true);
+
+  elements["lock-start"].click();
+  let prevented = false;
+  elements["lock-confirm"].dispatch("keydown", { key: "Escape", preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(elements["lock-confirm"].hidden, true);
+  assert.equal(elements["lock-start"].focused, true);
+
+  elements["lock-start"].click();
+  elements["lock-acknowledge"].checked = true;
+  elements["lock-acknowledge"].dispatch("change");
+  elements["lock-confirm-cancel"].click();
+  assert.equal(elements["lock-confirm"].hidden, true);
+  // Opened again, the box needs checking again.
+  elements["lock-start"].click();
+  assert.equal(elements["lock-acknowledge"].checked, false);
+  assert.equal(elements["lock-confirm-button"].disabled, true);
+  assert.deepEqual(popup.sentMessages, []);
+});
+
+test("saves through the lock while settings are locked, and says what waits", async () => {
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { hideNsfw: true, hideAds: false, settingsLock: storedLock() },
+    sendMessage: lockBackground(),
+  });
+  const { elements } = popup;
+  assert.equal(elements["lock-banner"].hidden, false);
+
+  elements["hide-nsfw"].checked = false;
+  elements["hide-nsfw"].dispatch("change");
+  await settleAll();
+  assert.deepEqual(popup.writes, []);
+  assert.deepEqual(plain(popup.sentMessages), [{ action: "saveSettings", settings: { hideNsfw: false } }]);
+  // The switch shows the setting as it applies.
+  assert.equal(elements["hide-nsfw"].checked, true);
+  assert.match(elements.toast.textContent, /^Turn off “Hide NSFW content”: waits until /);
+  assert.match(elements["lock-banner-text"].textContent, /· 1 change waiting$/);
+  const [item] = elements["lock-pending-list"].querySelectorAll(".lock-pending-item");
+  assert.equal(item.querySelector(".lock-pending-change").textContent, "Turn off “Hide NSFW content”");
+  assert.match(item.querySelector(".lock-pending-when").textContent, /^Waits until /);
+
+  // Hiding more applies at once.
+  elements["hide-ads"].checked = true;
+  elements["hide-ads"].dispatch("change");
+  await settleAll();
+  assert.equal(popup.stored().hideAds, true);
+  assert.equal(elements["hide-ads"].checked, true);
+});
+
+test("names switches by their group, and those that block pages by their page", async () => {
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockPopular: true, hideNavbar: true, settingsLock: storedLock() },
+    sendMessage: lockBackground(),
+  });
+  const { elements } = popup;
+  elements["block-popular"].checked = false;
+  elements["block-popular"].dispatch("change");
+  await settleAll();
+  assert.match(elements.toast.textContent, /^Turn off “Block Popular”/);
+
+  // A switch with its sections waits as one change.
+  elements["hide-navbar"].checked = false;
+  elements["hide-navbar"].dispatch("change");
+  await settleAll();
+  assert.match(elements.toast.textContent, /^7 changes wait until /);
+  const texts = elements["lock-pending-list"].querySelectorAll(".lock-pending-change")
+    .map((element) => element.textContent);
+  assert.deepEqual(texts, ["Turn off “Block Popular”", "Turn off “Hide navbar”"]);
+});
+
+test("saves a rule once typed while locked, not at each step of typing it", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedSubreddits: [{ name: "*", mode: "all" }], settingsLock: storedLock() },
+    sendMessage: lockBackground(),
+  });
+  const { elements } = popup;
+  elements["add-subreddit"].click();
+  const input = getRenderedItems(elements)[0].querySelector("input");
+  input.value = "+ask";
+  input.dispatch("input");
+  t.mock.timers.tick(1000);
+  await settle();
+  assert.deepEqual(popup.sentMessages, []);
+
+  input.value = "+askreddit";
+  input.dispatch("input");
+  input.dispatch("blur");
+  await settleAll();
+  assert.deepEqual(plain(popup.sentMessages), [{
+    action: "saveSettings",
+    settings: { blockedSubreddits: [{ name: "*", mode: "all" }], allowedSubreddits: ["askreddit"] },
+  }]);
+  // The exception waits: the list shows the rules as they apply.
+  assert.deepEqual(plain(popup.stored().allowedSubreddits ?? []), []);
+  assert.equal(getRenderedItems(elements).length, 1);
+  assert.match(elements.toast.textContent, /^Allow r\/askreddit: waits until /);
+});
+
+test("keeps a removed rule, with the change that waits to remove it", async () => {
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: {
+      blockedSubreddits: [{ name: "news", mode: "all" }],
+      blockedTitleKeywords: ["election"],
+      settingsLock: storedLock(),
+    },
+    sendMessage: lockBackground(),
+  });
+  const { elements } = popup;
+  getRenderedKeywords(elements)[0].querySelector(".remove-btn").click();
+  await settleAll();
+  assert.equal(getRenderedKeywords(elements).length, 1);
+  assert.equal(getRenderedKeywords(elements)[0].querySelector("input").value, "election");
+  assert.match(elements.toast.textContent, /^Remove keyword “election”: waits until /);
+});
+
+test("shows what waits, and cancels it", async () => {
+  const now = Date.now();
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: {
+      hideNavbar: true,
+      settingsLock: storedLock({
+        pending: [
+          { id: 1, at: now, due: now + DAY, changes: [{ key: "allowedSubreddits", rule: "askreddit", value: "askreddit" }] },
+          { id: 2, at: now, due: now + HOUR, changes: [{ key: "hideNavbar", value: false }, { key: "hideNavbarMenu", value: false }] },
+        ],
+      }),
+    },
+    sendMessage: lockBackground(),
+  });
+  const { elements } = popup;
+  assert.equal(elements["lock-pending"].hidden, false);
+  assert.match(elements["lock-banner-text"].textContent, /· 2 changes waiting$/);
+  const items = elements["lock-pending-list"].querySelectorAll(".lock-pending-item");
+  // Soonest first.
+  assert.deepEqual(items.map((item) => item.querySelector(".lock-pending-change").textContent),
+    ["Turn off “Hide navbar”", "Allow r/askreddit"]);
+  const cancel = items[0].querySelector(".lock-pending-cancel");
+  assert.equal(cancel.getAttribute("aria-label"), "Cancel: Turn off “Hide navbar”");
+
+  await cancel.click();
+  await settleAll();
+  assert.deepEqual(plain(popup.sentMessages), [{ action: "cancelLockedChange", id: 2 }]);
+  assert.deepEqual(plain(popup.stored().settingsLock.pending.map(({ id }) => id)), [1]);
+  assert.equal(elements.toast.textContent, "Change cancelled");
+  assert.equal(elements["lock-pending-list"].querySelectorAll(".lock-pending-item").length, 1);
+
+  // The banner leads to the lock.
+  elements["lock-banner-details"].click();
+  assert.equal(elements["tab-settings"].getAttribute("aria-selected"), "true");
+  assert.equal(elements["lock-heading"].focused, true);
+});
+
+test("ends the lock after its delay, or at once when it was just made", async () => {
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { settingsLock: storedLock() },
+    sendMessage: lockBackground(),
+  });
+  await popup.elements["lock-end"].click();
+  await settleAll();
+  assert.deepEqual(plain(popup.sentMessages), [{ action: "saveSettings", settings: { lockUntil: 0 } }]);
+  assert.match(popup.elements.toast.textContent, /^End the lock: waits until /);
+  assert.ok(popup.stored().settingsLock);
+
+  // A lock that waits until it ends cannot end early.
+  const strict = await loadPopup({ storedSettings: { settingsLock: storedLock({ delay: null }) } });
+  assert.equal(strict.elements["lock-end"].hidden, true);
+  assert.equal(strict.elements["lock-text"].textContent,
+    "Changes that loosen your settings wait until the lock ends.");
+
+  // Just made, it ends at once.
+  const fresh = await loadPopup({ autoResolveWrites: true, sendMessage: lockBackground() });
+  fresh.elements["lock-start"].click();
+  fresh.elements["lock-acknowledge"].checked = true;
+  fresh.elements["lock-acknowledge"].dispatch("change");
+  await fresh.elements["lock-confirm-button"].click();
+  await settleAll();
+  await fresh.elements["lock-end"].click();
+  await settleAll();
+  assert.equal(fresh.stored().settingsLock, undefined);
+  assert.equal(fresh.elements.toast.textContent, "Lock ended");
+  assert.equal(fresh.elements["lock-banner"].hidden, true);
+  assert.equal(fresh.elements["lock-start"].hidden, false);
+  // The fields offer a new lock.
+  assert.ok(new Date(fresh.elements["lock-until"].value).getTime() > Date.now() + 7 * DAY);
+});
+
+test("extends the lock at once, from its fields", async () => {
+  const until = Date.now() + 3 * DAY;
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { settingsLock: storedLock({ until }) },
+    sendMessage: lockBackground(),
+  });
+  const { elements } = popup;
+  elements["lock-change"].click();
+  assert.equal(elements["lock-fields"].hidden, false);
+  assert.equal(elements["lock-until"].value, fieldTime(until));
+  assert.equal(elements["lock-delay"].value, String(DAY));
+  assert.equal(elements["lock-save"].hidden, false);
+  assert.equal(elements["lock-end"].hidden, true);
+
+  // Unchanged, nothing is sent.
+  await elements["lock-save"].click();
+  assert.deepEqual(popup.sentMessages, []);
+  assert.equal(elements["lock-fields"].hidden, true);
+
+  elements["lock-change"].click();
+  const later = new Date(until + 2 * DAY).setSeconds(0, 0);
+  elements["lock-until"].value = fieldTime(later);
+  await elements["lock-save"].click();
+  await settleAll();
+  assert.deepEqual(plain(popup.sentMessages), [{ action: "saveSettings", settings: { lockUntil: later } }]);
+  assert.equal(popup.stored().settingsLock.until, later);
+  assert.equal(elements.toast.textContent, "Lock changed");
+  assert.equal(elements["lock-fields"].hidden, true);
+});
+
+test("imports and restores through the lock while settings are locked", async () => {
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedUsers: ["spez"], settingsLock: storedLock() },
+    sendMessage: lockBackground(),
+  });
+  const { elements } = popup;
+  elements["import-file"].files = [{ text: async () => JSON.stringify({ blockedUsers: [], hideAds: true }) }];
+  elements["import-file"].dispatch("change");
+  await settleAll();
+  assert.match(elements["import-review-note"].textContent, /while settings are locked, what loosens them waits/);
+  await elements["import-confirm"].click();
+  await settleAll();
+
+  assert.deepEqual(popup.writes, []);
+  const [message] = plain(popup.sentMessages);
+  assert.equal(message.action, "saveSettings");
+  assert.equal(message.source, "import");
+  assert.deepEqual(message.settings, { blockedUsers: [], hideAds: true });
+  assert.deepEqual(Object.keys(message.extra), ["settingsVersion", "importBackup"]);
+  assert.equal(popup.stored().hideAds, true);
+  assert.deepEqual(plain(popup.stored().blockedUsers), ["spez"]);
+  assert.match(elements.toast.textContent, /^Remove u\/spez: waits until /);
+  assert.equal(elements["backup-restore"].hidden, false);
+
+  // Restoring right away takes back what the import tightened, in the
+  // grace period; the removal it asked for still waits.
+  await elements["restore-backup"].click();
+  await settleAll();
+  const restore = plain(popup.sentMessages).at(-1);
+  assert.equal(restore.source, "restore");
+  assert.equal(popup.stored().hideAds, false);
+  assert.equal(elements.toast.textContent, "Settings restored");
+  assert.deepEqual(plain(popup.stored().settingsLock.pending.flatMap(({ changes }) => changes)),
+    [{ key: "blockedUsers", rule: "spez", value: null, entry: "spez" }]);
+});
+
+test("saves what is typed through the lock when the page closes", async () => {
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { limitInfiniteScroll: true, scrollLimit: 25, settingsLock: storedLock() },
+    sendMessage: lockBackground(),
+  });
+  popup.elements["scroll-limit"].value = "40";
+  popup.hide();
+  await settleAll();
+  assert.deepEqual(popup.writes, []);
+  assert.deepEqual(plain(popup.sentMessages), [{ action: "saveSettings", settings: { scrollLimit: 40 } }]);
+  assert.equal(popup.stored().scrollLimit, 25);
+  assert.equal(popup.stored().settingsLock.pending.length, 1);
+});
+
+test("asks the background, once, to apply what came due", async () => {
+  const now = Date.now();
+  const popup = await loadPopup({
+    storedSettings: {
+      settingsLock: storedLock({
+        pending: [{ id: 1, at: now - DAY, due: now - 1000, changes: [{ key: "hideAds", value: false }] }],
+      }),
+    },
+  });
+  await settleAll();
+  assert.deepEqual(plain(popup.sentMessages), [{ action: "updateLock" }]);
+  assert.equal(popup.elements["lock-pending-list"].querySelector(".lock-pending-when").textContent,
+    "Applies now");
 });
