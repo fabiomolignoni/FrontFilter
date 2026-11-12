@@ -25,8 +25,6 @@ FrontFilter.settingsLock = (() => {
   const DELAYS = Object.freeze([HOUR, 6 * HOUR, DAY, 3 * DAY, 7 * DAY, null]);
   const DEFAULT_DELAY = DAY;
   const MIN_DURATION = MINUTE;
-  // A year at most: a mistyped year must not lock the settings for decades.
-  const MAX_DURATION = 366 * DAY;
   // For this long, a change made while locked can be taken back at once,
   // so that a typo or a misclick costs no wait; so can a new lock.
   const GRACE_PERIOD = 10 * MINUTE;
@@ -260,9 +258,8 @@ FrontFilter.settingsLock = (() => {
     return { settings, lock: next.until <= now ? null : next };
   }
 
-  function checkUntil(until, now) {
+  function checkUntil(until) {
     if (!isTime(until)) throw new RangeError("Choose when the lock ends");
-    if (until - now > MAX_DURATION) throw new RangeError("A lock can last a year at most");
   }
 
   function checkDelay(delay) {
@@ -310,7 +307,7 @@ FrontFilter.settingsLock = (() => {
 
     // The lock's own settings first: a longer delay applies to this save.
     if (Object.hasOwn(changes, UNTIL)) {
-      checkUntil(changes[UNTIL], now);
+      checkUntil(changes[UNTIL]);
       if (decide(UNTIL, undefined, next.until, changes[UNTIL])) next.until = changes[UNTIL];
     }
     if (Object.hasOwn(changes, DELAY)) {
@@ -384,7 +381,7 @@ FrontFilter.settingsLock = (() => {
   function start(stored, { until, delay } = {}, now) {
     const settled = settle(stored, readLock(stored), now);
     if (isActive(settled.lock, now)) throw new Error("Settings are already locked");
-    checkUntil(until, now);
+    checkUntil(until);
     if (until - now < MIN_DURATION) throw new RangeError("Choose a time in the future");
     checkDelay(delay);
     const lock = {
@@ -447,7 +444,6 @@ FrontFilter.settingsLock = (() => {
     DELAYS,
     DEFAULT_DELAY,
     MIN_DURATION,
-    MAX_DURATION,
     GRACE_PERIOD,
     FREE_SETTINGS,
     appliesAt,

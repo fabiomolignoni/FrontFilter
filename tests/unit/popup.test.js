@@ -2864,7 +2864,6 @@ test("refuses an end it cannot use, and closes the warning when cancelled or cha
   const refusals = [
     ["", "Choose when the lock ends"],
     [fieldTime(Date.now() - HOUR), "Choose a time in the future"],
-    [fieldTime(Date.now() + 400 * DAY), "A lock can last a year at most"],
   ];
   for (const [value, message] of refusals) {
     elements["lock-until"].value = value;
@@ -2872,6 +2871,14 @@ test("refuses an end it cannot use, and closes the warning when cancelled or cha
     assert.equal(elements["lock-confirm"].hidden, true, value);
     assert.equal(elements.toast.textContent, message);
   }
+
+  // An end years away is the user's to choose; the warning names its year.
+  const far = new Date(Date.now() + 5 * 366 * DAY);
+  elements["lock-until"].value = fieldTime(far.getTime());
+  elements["lock-start"].click();
+  assert.equal(elements["lock-confirm"].hidden, false);
+  assert.ok(elements["lock-confirm-details"].children[0].textContent.includes(String(far.getFullYear())));
+  elements["lock-confirm-cancel"].click();
 
   elements["lock-until"].value = fieldTime(Date.now() + 2 * DAY);
   elements["lock-start"].click();
