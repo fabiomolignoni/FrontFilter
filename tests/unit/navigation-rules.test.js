@@ -146,6 +146,43 @@ test("emits allow rules only for exceptions that overlap a subreddit block", () 
   assert.match(allowRules[0].condition.regexFilter, /worldnews/);
 });
 
+test("allows the subreddits a pattern exception matches, and those only", () => {
+  const FrontFilter = loadRules();
+  const rules = FrontFilter.createNavigationRules({
+    blockedSubreddits: [{ name: "*", mode: "all" }],
+    allowedSubreddits: ["ask*", "science"],
+  }, "chrome-extension://id/blocked/index.html");
+  const action = (url) => matchingRule(rules, url)?.action.type;
+
+  for (const url of [
+    "https://www.reddit.com/r/AskHistorians/",
+    "https://www.reddit.com/r/ask/comments/abc/title",
+    "https://old.reddit.com/r/science/top/?t=week",
+  ]) {
+    assert.equal(action(url), "allow", url);
+  }
+  // * blocks every other subreddit, on every page of it.
+  for (const url of [
+    "https://www.reddit.com/r/pics/",
+    "https://www.reddit.com/r/flask/comments/abc/title",
+    "https://www.reddit.com/r/sciencefiction/",
+  ]) {
+    assert.equal(action(url), "redirect", url);
+  }
+  // Pages that are not subreddits stay open.
+  assert.equal(action("https://www.reddit.com/"), undefined);
+  assert.equal(action("https://www.reddit.com/user/spez/"), undefined);
+
+  // A pattern exception takes no rule while no rule blocks a subreddit.
+  assert.deepEqual(
+    Array.from(FrontFilter.createNavigationRules(
+      { allowedSubreddits: ["ask*"] },
+      "chrome-extension://id/blocked/index.html",
+    )),
+    [],
+  );
+});
+
 test("redirects blocked users' profiles, whatever exceptions say", () => {
   const FrontFilter = loadRules();
   const rules = FrontFilter.createNavigationRules({

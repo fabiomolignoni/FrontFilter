@@ -20,11 +20,12 @@ To install from source, see [Development](#development). The
 ### Block
 
 - Block Home, Popular, Explore, News, or every subreddit's front page.
-- Block subreddits by exact name or with `*` wildcards. **Front page** rules
-  block a subreddit's front page and sort views; **Everywhere** rules block
-  every page of it and hide its posts, and crossposts of them, from other
-  feeds.
-- Allow exceptions that override subreddit rules.
+- Block subreddits by exact name or with `*` wildcards, `*` alone matching
+  every subreddit. **Front page** rules block a subreddit's front page and
+  sort views; **Everywhere** rules block every page of it and hide its
+  posts, and crossposts of them, from other feeds.
+- Allow exceptions, in the same list, that override subreddit rules: block
+  `*` everywhere and allow a few subreddits to keep only those.
 - Optionally add one-click **Block** buttons to feed posts and subreddit
   pages, with undo.
 - Optionally hide the **Open settings** button from the page shown in place
@@ -36,7 +37,7 @@ To install from source, see [Development](#development). The
   case and with or without accents, or inside words with `*`, as in
   `spoiler*`, or that match a regular expression. Allowed keywords keep the
   posts and comments that contain them.
-- Hide posts by flair, with `*` wildcards.
+- Hide posts by flair, with `*` wildcards, and allow flairs that keep them.
 - Hide the posts and comments of users, by name, `u/name` or profile URL,
   from every Reddit page, and block their profiles.
 - Hide suggested posts in the Home feed, suggested communities, and ads and
@@ -94,7 +95,10 @@ names the page and says how many posts and comments your filters hide on
 it, as the page shows them now; Old Reddit and search results get no
 count. On a subreddit, it also says whether your rules block or allow it,
 and blocks or allows it in one click. A switch with sections, such as **Hide navbar**, shows them from
-its arrow. To add several rules at once, paste a list into a field of a
+its arrow. In the lists of subreddits, keywords and flairs, a rule's badge
+says whether it blocks, hides or allows, and a `+` before a rule, as in
+`+worldnews`, makes it an exception, which overrides the list's other
+rules. To add several rules at once, paste a list into a field of a
 list, one per line or separated by commas. A long list shows its first
 rules, with a field that searches it and a button that shows it all. The
 **?** button next to a list shows how to write its rules. Removing a rule

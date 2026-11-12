@@ -14,6 +14,8 @@ var FrontFilter = (() => {
     // Keywords that keep a post or comment that keyword filters would hide.
     allowedKeywords: Object.freeze([]),
     blockedFlairs: Object.freeze([]),
+    // Flairs that keep a post that flair filters would hide.
+    allowedFlairs: Object.freeze([]),
     blockHomepage: false,
     blockPopular: false,
     blockExplore: false,
@@ -183,6 +185,8 @@ var FrontFilter = (() => {
     return /^\/*(?:r|u|user)\/+$/i.test(path);
   }
 
+  // A subreddit's name, or a pattern of names with * wildcards: * alone
+  // matches every subreddit.
   function normalizeSubredditName(value) {
     const typed = parseTypedPath(value);
     if (!typed?.path || isPrefixAlone(typed.path)) return "";
@@ -192,10 +196,13 @@ var FrontFilter = (() => {
     // user profile, such as u/name, is not taken for a subreddit named u.
     const subredditPathMatch = name.match(/^r\/([a-z0-9_*]+)(?:\/.*)?$/i)
       || (!typed.fromUrl && name.match(/^([a-z0-9_*]+)$/i));
-    if (!subredditPathMatch) return "";
+    return subredditPathMatch ? subredditPathMatch[1].replace(/\*+/g, "*") : "";
+  }
 
-    const normalized = subredditPathMatch[1].replace(/\*+/g, "*");
-    return /[a-z0-9_]/.test(normalized) ? normalized : "";
+  // One subreddit's own name: patterns name none.
+  function normalizeExactSubredditName(value) {
+    const name = normalizeSubredditName(value);
+    return name.includes("*") ? "" : name;
   }
 
   // Filters match every post on each page update; compile each pattern once.
@@ -305,13 +312,14 @@ var FrontFilter = (() => {
     });
   }
 
+  // Exceptions take the same names and patterns as subreddit rules.
   function normalizeAllowedSubreddits(entries = []) {
     if (!Array.isArray(entries)) return [];
 
     const deduped = new Set();
     for (const entry of entries) {
       const name = normalizeSubredditName(entry);
-      if (name && !name.includes("*")) deduped.add(name);
+      if (name) deduped.add(name);
     }
     return Array.from(deduped);
   }
@@ -341,9 +349,7 @@ var FrontFilter = (() => {
   }
 
   function isSubredditAllowed(subredditName, allowedSubreddits = []) {
-    const normalizedName = normalizeSubredditName(subredditName);
-    return Boolean(normalizedName)
-      && normalizeAllowedSubreddits(allowedSubreddits).includes(normalizedName);
+    return createSubredditMatcher(normalizeAllowedSubreddits(allowedSubreddits))(subredditName);
   }
 
   // Typed filters and Reddit's markup both vary in their whitespace.
@@ -446,9 +452,20 @@ var FrontFilter = (() => {
     return normalizeTextList(keywords, getKeywordKey);
   }
 
+  // In the lists that take exceptions, a + before a rule, as in
+  // +worldnews, makes it one: it keeps what it matches instead of hiding
+  // or blocking it. Lists store exceptions apart, without the +.
+  const EXCEPTION_PREFIX = "+";
+  function parseException(text) {
+    const rule = normalizeText(text);
+    return rule.startsWith(EXCEPTION_PREFIX)
+      ? { rule: normalizeText(rule.slice(EXCEPTION_PREFIX.length)), exception: true }
+      : { rule, exception: false };
+  }
+
   // A pasted list as its entries: one per line, or separated by commas.
   // In a list of keywords, a regular expression keeps its commas, as in
-  // /a{1,3}/.
+  // /a{1,3}/ or the exception +/a{1,3}/.
   function splitList(text, { keywords = false } = {}) {
     if (typeof text !== "string") return [];
 
@@ -458,10 +475,10 @@ var FrontFilter = (() => {
       const entries = [];
       for (let start = 0; start < parts.length; start += 1) {
         let end = start;
-        if (parts[start].trimStart().startsWith("/")) {
+        if (parseException(parts[start]).rule.startsWith("/")) {
           // The shortest run of parts that is an expression between slashes.
           end = parts.findIndex((_, index) => index >= start
-            && getKeywordRegexSource(parts.slice(start, index + 1).join(",").trim()) !== null);
+            && getKeywordRegexSource(parseException(parts.slice(start, index + 1).join(",")).rule) !== null);
           if (end === -1) end = start;
         }
         entries.push(parts.slice(start, end + 1).join(","));
@@ -579,6 +596,7 @@ var FrontFilter = (() => {
     blockedTitleKeywords: normalizeTitleKeywords,
     allowedKeywords: normalizeTitleKeywords,
     blockedFlairs: normalizeBlockedFlairs,
+    allowedFlairs: normalizeBlockedFlairs,
   });
   const CHOICE_SETTINGS = Object.freeze({
     scrollMode: Object.freeze(["fixed", "button"]),
@@ -714,7 +732,7 @@ var FrontFilter = (() => {
     const match = pathname.match(/^\/r\/([^/]+)(?:\/(.*))?$/i);
     if (!match) return null;
 
-    const name = normalizeSubredditName(match[1]);
+    const name = normalizeExactSubredditName(match[1]);
     if (!name) return null;
 
     return {
@@ -816,7 +834,7 @@ var FrontFilter = (() => {
   // settings page.
   function settingsPagePath(subreddit) {
     const params = new URLSearchParams({ standalone: "true" });
-    const [name] = normalizeAllowedSubreddits([subreddit]);
+    const name = normalizeExactSubredditName(subreddit);
     if (name) params.set("currentSubreddit", name);
     return `popup/index.html?${params.toString()}`;
   }
@@ -829,6 +847,7 @@ var FrontFilter = (() => {
     IMPORT_BACKUP_KEY,
     SETTINGS_VERSION_KEY,
     SETTINGS_VERSION,
+    EXCEPTION_PREFIX,
     LISTING_SORTS,
     PAGE_ROUTES,
     SUBREDDIT_FRONTS_ROUTE,
@@ -850,9 +869,11 @@ var FrontFilter = (() => {
     addBlockedSubreddit,
     undoBlockedSubreddit,
     normalizeSubredditName,
+    normalizeExactSubredditName,
     normalizeUserName,
     normalizeBlockedUsers,
     normalizeTitleKeywords,
+    parseException,
     splitList,
     getKeywordKey,
     upgradeSettings,

@@ -60,6 +60,7 @@
 
   /* Status */
   --success: #4ade80;
+  --success-soft: rgba(74, 222, 128, 0.14);
   --danger: #ff7b7b;
   --danger-soft: rgba(255, 123, 123, 0.14);
 
@@ -108,6 +109,7 @@
   --border-field: #8e8e98;
   --focus-ring: #cc4200;
   --success: #15803d;
+  --success-soft: #e7f6ec;
   --danger: #c62828;
   --danger-soft: #fdecec;
   --switch-off: #8e8e98;
@@ -148,6 +150,7 @@
     --border-field: #8e8e98;
     --focus-ring: #cc4200;
     --success: #15803d;
+    --success-soft: #e7f6ec;
     --danger: #c62828;
     --danger-soft: #fdecec;
     --switch-off: #8e8e98;

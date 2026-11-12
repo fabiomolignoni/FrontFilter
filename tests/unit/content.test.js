@@ -978,6 +978,27 @@ test("keeps allowed subreddit posts despite global and wildcard community blocks
   assert.equal(blockedPost.dataset.frontfilterPostHidden, "true");
 });
 
+test("keeps only the posts of allowed subreddits while * blocks every one", async () => {
+  const askPost = createPost({ subreddit: "AskHistorians" });
+  const sciencePost = createPost({ subreddit: "science" });
+  const picsPost = createPost({ subreddit: "pics" });
+
+  await loadContent({
+    querySelectorAll: (selector) => isPostCollectionSelector(selector)
+      ? [askPost, sciencePost, picsPost]
+      : [],
+    settings: {
+      blockedSubreddits: [{ name: "*", mode: "all" }],
+      allowedSubreddits: ["ask*", "science"],
+    },
+    startUrl: "https://www.reddit.com/",
+  });
+
+  assert.equal("frontfilterPostHidden" in askPost.dataset, false);
+  assert.equal("frontfilterPostHidden" in sciencePost.dataset, false);
+  assert.equal(picsPost.dataset.frontfilterPostHidden, "true");
+});
+
 test("still applies post keyword filters inside allowed subreddits", async () => {
   const post = createPost({
     subreddit: "ItalyPersonalFinance",
@@ -1037,6 +1058,24 @@ test("hides posts whose flair matches a blocked flair or wildcard", async () => 
   assert.equal(meme.dataset.frontfilterPostHidden, "true");
   assert.equal(politics.dataset.frontfilterPostHidden, "true");
   assert.equal("frontfilterPostHidden" in question.dataset, false);
+});
+
+test("keeps posts whose flair is allowed, whatever flair filters hide", async () => {
+  const discussion = createFlairPost("Discussion");
+  const meme = createFlairPost("Meme");
+  const politics = createFlairPost("Politics Discussion");
+
+  await loadContent({
+    querySelectorAll: (selector) => isPostCollectionSelector(selector)
+      ? [discussion, meme, politics]
+      : [],
+    settings: { blockedFlairs: ["*"], allowedFlairs: ["*discussion"] },
+    startUrl: "https://www.reddit.com/r/test/",
+  });
+
+  assert.equal("frontfilterPostHidden" in discussion.dataset, false);
+  assert.equal("frontfilterPostHidden" in politics.dataset, false);
+  assert.equal(meme.dataset.frontfilterPostHidden, "true");
 });
 
 test("filters comments by keyword, reading each comment's text only once", async () => {

@@ -477,6 +477,20 @@ class PageTests:
         self.assertIn("?target=subreddit&filter=*italy*#", self.driver.current_url)
         self.assertEqual(self.driver.current_url.split("#", 1)[1], blocked_url)
 
+    def test_every_subreddit_blocks_but_those_allowed_in_declarative_rules(self):
+        self.session.store(
+            blockedSubreddits=[{"name": "*", "mode": "all"}],
+            allowedSubreddits=["ask*", "science"],
+        )
+        for path in ("/r/askhistorians/comments/abc/post", "/r/science/"):
+            allowed_url = self.server.url(path, "localhost")
+            self.driver.get(allowed_url)
+            self.assertEqual(self.driver.current_url, allowed_url)
+        blocked_url = self.server.url("/r/pics/comments/abc/post", "localhost")
+        self.driver.get(blocked_url)
+        self.wait_for_block_page()
+        self.assertIn("?target=subreddit&filter=*#", self.driver.current_url)
+
     def test_blocked_pages_redirect_to_the_chosen_website(self):
         website = self.server.url("/elsewhere/?from=frontfilter", "127.0.0.1")
         self.session.store(blockPopular=True, redirectBlockedPages=True, redirectUrl=website)

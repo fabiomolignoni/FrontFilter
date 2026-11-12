@@ -405,7 +405,8 @@ label.field-row:hover { background: none; }
 }
 .entry input::placeholder { color: var(--text-muted); }
 
-/* A subreddit rule's mode: Everywhere stands out from Front page. */
+/* A rule's mode: Everywhere stands out from Front page, and exceptions
+   from every rule. */
 .mode-badge {
   flex-shrink: 0; height: 28px; padding: 0 26px 0 11px;
   border: 1px solid var(--border-field); border-radius: var(--radius-full);
@@ -415,6 +416,9 @@ label.field-row:hover { background: none; }
 }
 .mode-badge:has(option[value="all"]:checked) {
   border-color: transparent; background-color: var(--accent-soft); color: var(--accent-text);
+}
+.mode-badge:has(option[value="allow"]:checked) {
+  border-color: transparent; background-color: var(--success-soft); color: var(--success);
 }
 /* The list a badge opens takes the badge's colors where its options have
    none: Chrome lays the badge's see-through background over white, which

@@ -35,8 +35,13 @@ Notable changes to FrontFilter, newest first.
   itself.
 - Keywords written between slashes, such as `/colou?r/`, are regular
   expressions, matched ignoring case.
-- **Allowed keywords**, in the **Filter** tab: keyword filters never hide a
-  post or comment that contains one of them.
+- Keyword exceptions, in the **Filter** tab's **Keywords**: keyword filters
+  never hide a post or comment that contains one of them.
+- Flair exceptions, in **Post flairs**: flair filters never hide a post
+  whose flair one of them matches, so `*` with `+Discussion` hides every
+  post with a flair but discussions.
+- `*` alone, as a subreddit rule, matches every subreddit: blocked
+  **Everywhere**, with a few subreddits allowed, it keeps only those.
 - A list of subreddits, users, keywords or flairs pasted into a field of one
   of the settings page's lists, one per line or separated by commas, adds a
   rule for each.
@@ -72,6 +77,15 @@ Notable changes to FrontFilter, newest first.
   exported configurations are unchanged.
 - Subreddit rules' modes are called **Front page** and **Everywhere**, for
   HOME and ALL, which read as Reddit's own Home feed and r/all.
+- Exceptions are in the list of the rules they override: **Subreddits**
+  holds blocked and allowed subreddits, **Keywords** hidden and allowed
+  keywords, and **Post flairs** hidden and allowed flairs. A rule's badge
+  says whether it blocks or hides, as **Front page**, **Everywhere** or
+  **Hidden**, or allows, as **Allowed**, and changes it. A `+` typed or
+  pasted before a rule, as in `+worldnews`, makes it an exception. Settings
+  and exported configurations are unchanged.
+- Subreddit exceptions take patterns, as rules do: `+ask*` allows every
+  subreddit whose name starts with "ask".
 - A setting whose name does not say it all says the rest below it, instead
   of behind a **?** button. The **?** buttons that remain show how to write
   a list's rules, with examples.
