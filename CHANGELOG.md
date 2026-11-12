@@ -2,7 +2,7 @@
 
 Notable changes to FrontFilter, newest first.
 
-## Unreleased
+## 3.0.0 - 2026-11-12
 
 ### Added
 
