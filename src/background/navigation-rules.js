@@ -60,17 +60,26 @@ FrontFilter.createNavigationRules = function (settings, blockPageUrl) {
     if (config[route.key]) addRedirect(`${reddit}${route.path}${query}`, route, 30);
   }
 
+  // A subreddit name or pattern as a regular expression for its path.
+  // Names hold no regular expression syntax but the wildcard's *.
+  function subredditPath(pattern) {
+    return `/r/${pattern.split("*").join("[a-z0-9_]*")}`;
+  }
+
   // Global page blocks outrank exceptions. Exceptions apply only to the global
-  // subreddit-front rule and user-defined subreddit patterns below.
+  // subreddit-front rule and user-defined subreddit patterns below, and only
+  // those that rules could block take a rule: an exact name a rule matches,
+  // or any pattern while there are rules.
   const isBlocked = FrontFilter.createSubredditMatcher(
     config.blockedSubreddits.map(({ name }) => name),
   );
   const relevantExceptions = config.allowedSubreddits.filter((name) =>
-    config.blockSubHome || isBlocked(name)
+    config.blockSubHome
+    || (name.includes("*") ? config.blockedSubreddits.length > 0 : isBlocked(name))
   );
   for (const name of relevantExceptions) {
     addRule(
-      `${reddit}/r/${name}(/.*)?${query}`,
+      `${reddit}${subredditPath(name)}(/.*)?${query}`,
       { type: "allow" },
       25,
     );
@@ -82,13 +91,9 @@ FrontFilter.createNavigationRules = function (settings, blockPageUrl) {
   }
 
   for (const entry of config.blockedSubreddits) {
-    const subredditPattern = entry.name
-      .split("*")
-      .map((part) => part.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&"))
-      .join("[a-z0-9_]*");
     const suffix = entry.mode === "all" ? `(/.*)?${query}` : frontSuffix;
     if (!addRedirect(
-      `${reddit}/r/${subredditPattern}${suffix}`,
+      `${reddit}${subredditPath(entry.name)}${suffix}`,
       { type: "subreddit", filter: entry.name },
       10,
     )) break;

@@ -132,19 +132,20 @@
             </div>
           </section>
 
-          <section class="card list-card" aria-labelledby="blocked-title">
+          <section class="card list-card" aria-labelledby="subreddit-title">
             <div class="list-header">
               <div class="list-heading">
                 <div class="list-title-row">
-                  <h2 class="list-title" id="blocked-title">Blocked subreddits</h2>
-                  <span id="blocked-count" class="count"></span>
+                  <h2 class="list-title" id="subreddit-title">Subreddits</h2>
+                  <span id="subreddit-count" class="count"></span>
                   <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="blocked-help" aria-label="About blocked subreddits">?</button>
+                    aria-controls="subreddit-help" aria-label="About subreddits">?</button>
                 </div>
+                <p class="list-desc">Block them, or allow some as exceptions</p>
               </div>
               <div class="list-actions">
                 <button type="button" id="add-subreddit" class="btn btn-tonal"
-                  aria-label="Add a blocked subreddit">
+                  aria-label="Add a subreddit">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
@@ -152,44 +153,24 @@
                 </button>
               </div>
             </div>
-            <div class="help-text" id="blocked-help" hidden>
-              <p><strong>Front page</strong> blocks a subreddit's main feed, with its hot, new, top
-                and rising views. <strong>Everywhere</strong> blocks all its pages, and hides its
-                posts from other feeds.</p>
-              <p><code>news*</code> blocks every subreddit whose name starts with “news”. A Reddit
-                URL works too.</p>
+            <div class="help-text" id="subreddit-help" hidden>
+              <dl class="help-examples">
+                <dt><code>news</code></dt>
+                <dd><strong>Front page</strong> blocks its main feed, with its hot, new, top and
+                  rising views. <strong>Everywhere</strong> blocks all its pages, and hides its posts
+                  from other feeds.</dd>
+                <dt><code>news*</code></dt>
+                <dd>A <code>*</code> matches any text: every subreddit whose name starts with
+                  “news”. <code>*</code> alone matches them all.</dd>
+                <dt><code>+worldnews</code></dt>
+                <dd>A <code>+</code> before it, or <strong>Allowed</strong>, makes an exception: it
+                  stays open, whatever these rules or “All subreddit front pages” block.</dd>
+              </dl>
+              <p>To keep only a few subreddits, block <code>*</code> everywhere and allow them. A
+                Reddit URL works too.</p>
               <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
-            <div id="blocked-list" class="entry-list"></div>
-          </section>
-
-          <section class="card list-card" aria-labelledby="allowed-title">
-            <div class="list-header">
-              <div class="list-heading">
-                <div class="list-title-row">
-                  <h2 class="list-title" id="allowed-title">Allowed subreddits</h2>
-                  <span id="allowed-count" class="count"></span>
-                  <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="allowed-help" aria-label="About allowed subreddits">?</button>
-                </div>
-                <p class="list-desc">Stay open, whatever blocks them</p>
-              </div>
-              <div class="list-actions">
-                <button type="button" id="add-allowed-subreddit" class="btn btn-tonal"
-                  aria-label="Add an allowed subreddit">
-                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M8 3v10M3 8h10" />
-                  </svg>
-                  Add
-                </button>
-              </div>
-            </div>
-            <div class="help-text" id="allowed-help" hidden>
-              <p>They override blocked subreddit rules and “All subreddit front pages”. Use exact
-                names, without <code>*</code>.</p>
-              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
-            </div>
-            <div id="allowed-list" class="entry-list"></div>
+            <div id="subreddit-list" class="entry-list"></div>
           </section>
 
           <section class="section" aria-labelledby="block-buttons-heading">
@@ -281,19 +262,19 @@
             </div>
           </section>
 
-          <section class="card list-card" aria-labelledby="title-keyword-title">
+          <section class="card list-card" aria-labelledby="keyword-title">
             <div class="list-header">
               <div class="list-heading">
                 <div class="list-title-row">
-                  <h2 class="list-title" id="title-keyword-title">Keywords</h2>
-                  <span id="title-keyword-count" class="count"></span>
+                  <h2 class="list-title" id="keyword-title">Keywords</h2>
+                  <span id="keyword-count" class="count"></span>
                   <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="title-keyword-help" aria-label="About keywords">?</button>
+                    aria-controls="keyword-help" aria-label="About keywords">?</button>
                 </div>
                 <p class="list-desc">Hide posts and comments that contain them</p>
               </div>
               <div class="list-actions">
-                <button type="button" id="add-title-keyword" class="btn btn-tonal"
+                <button type="button" id="add-keyword" class="btn btn-tonal"
                   aria-label="Add a keyword">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
@@ -302,7 +283,7 @@
                 </button>
               </div>
             </div>
-            <div class="help-text" id="title-keyword-help" hidden>
+            <div class="help-text" id="keyword-help" hidden>
               <dl class="help-examples">
                 <dt><code>ai</code></dt>
                 <dd>Whole words only: hides “AI art”, not “said”.</dd>
@@ -310,56 +291,30 @@
                 <dd>A <code>*</code> at an end matches inside words too, as in “spoilers”.</dd>
                 <dt><code>/colou?r/</code></dt>
                 <dd>Between slashes, a regular expression.</dd>
+                <dt><code>+ai art</code></dt>
+                <dd>A <code>+</code> before it, or <strong>Allowed</strong>, makes an exception:
+                  what contains it stays, whatever keywords it contains.</dd>
               </dl>
               <p>Titles, text previews and comments are checked, ignoring case and accents. Replies
-                to a hidden comment hide too.</p>
+                to a hidden comment hide too. Exceptions keep nothing other filters hide, such as
+                post flairs and users.</p>
               <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
-            <div id="title-keyword-list" class="entry-list"></div>
+            <div id="keyword-list" class="entry-list"></div>
           </section>
 
-          <section class="card list-card" aria-labelledby="allowed-keyword-title">
+          <section class="card list-card" aria-labelledby="flair-title">
             <div class="list-header">
               <div class="list-heading">
                 <div class="list-title-row">
-                  <h2 class="list-title" id="allowed-keyword-title">Allowed keywords</h2>
-                  <span id="allowed-keyword-count" class="count"></span>
+                  <h2 class="list-title" id="flair-title">Post flairs</h2>
+                  <span id="flair-count" class="count"></span>
                   <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="allowed-keyword-help"
-                    aria-label="About allowed keywords">?</button>
-                </div>
-                <p class="list-desc">Keep posts and comments that contain them</p>
-              </div>
-              <div class="list-actions">
-                <button type="button" id="add-allowed-keyword" class="btn btn-tonal"
-                  aria-label="Add an allowed keyword">
-                  <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M8 3v10M3 8h10" />
-                  </svg>
-                  Add
-                </button>
-              </div>
-            </div>
-            <div class="help-text" id="allowed-keyword-help" hidden>
-              <p>They match as keywords do, and override them. Other filters, such as post flairs
-                and users, still apply.</p>
-              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
-            </div>
-            <div id="allowed-keyword-list" class="entry-list"></div>
-          </section>
-
-          <section class="card list-card" aria-labelledby="blocked-flair-title">
-            <div class="list-header">
-              <div class="list-heading">
-                <div class="list-title-row">
-                  <h2 class="list-title" id="blocked-flair-title">Post flairs</h2>
-                  <span id="blocked-flair-count" class="count"></span>
-                  <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="blocked-flair-help" aria-label="About post flairs">?</button>
+                    aria-controls="flair-help" aria-label="About post flairs">?</button>
                 </div>
               </div>
               <div class="list-actions">
-                <button type="button" id="add-blocked-flair" class="btn btn-tonal"
+                <button type="button" id="add-flair" class="btn btn-tonal"
                   aria-label="Add a flair">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
@@ -368,12 +323,15 @@
                 </button>
               </div>
             </div>
-            <div class="help-text" id="blocked-flair-help" hidden>
+            <div class="help-text" id="flair-help" hidden>
               <p>Matching ignores case. A <code>*</code> matches any text: <code>*politic*</code>
                 hides “Politics” and “US politics”.</p>
+              <p>A <code>+</code> before a flair, or <strong>Allowed</strong>, makes an exception:
+                <code>*</code> with <code>+Discussion</code> hides every post with a flair but
+                discussions.</p>
               <p>Paste a list, one per line or separated by commas, to add several at once.</p>
             </div>
-            <div id="blocked-flair-list" class="entry-list"></div>
+            <div id="flair-list" class="entry-list"></div>
           </section>
 
           <section class="card list-card" aria-labelledby="blocked-user-title">

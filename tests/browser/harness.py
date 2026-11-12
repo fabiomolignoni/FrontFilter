@@ -324,8 +324,8 @@ class ExtensionTestCase(unittest.TestCase):
         description toggles the switch."""
         find = lambda element_id: self.driver.find_element("id", element_id)
         find("tab-block").click()
-        help_text = find("blocked-help")
-        toggle = self.driver.find_element("css selector", '[aria-controls="blocked-help"]')
+        help_text = find("subreddit-help")
+        toggle = self.driver.find_element("css selector", '[aria-controls="subreddit-help"]')
         self.assertFalse(help_text.is_displayed())
         toggle.click()
         self.wait_until(help_text.is_displayed)

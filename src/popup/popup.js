@@ -8,9 +8,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const standalone = pageParams.get("standalone") === "true";
   // In a tab of its own, the card shows the subreddit this page was opened
   // for: the current tab is the page itself.
-  const standaloneCurrentSubreddit = FrontFilter.normalizeAllowedSubreddits([
+  const standaloneCurrentSubreddit = FrontFilter.normalizeExactSubredditName(
     pageParams.get("currentSubreddit"),
-  ])[0] || "";
+  );
   // In a tab of its own, the page fills it, and offers no tab to open.
   const openInTab = document.getElementById("open-in-tab");
   function useTabLayout() {
@@ -215,7 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ...Object.fromEntries(
         Object.entries(switches).map(([key, input]) => [key, input.checked]),
       ),
-      ...Object.fromEntries(entryLists.map((list) => [list.key, list.values()])),
+      ...Object.assign({}, ...entryLists.map((list) => list.stored())),
       ...Object.fromEntries(limits.flatMap(({ countKey, modeKey, mode, lastCount }) => [
         [countKey, lastCount], [modeKey, mode.value],
       ])),
@@ -334,10 +334,14 @@ document.addEventListener("DOMContentLoaded", () => {
     void chrome.storage.local.set(settings).catch(() => undefined);
   });
 
-  // Subreddit rules block a front page (HOME) or everything (ALL). The
-  // stored names are kept; these read better beside Reddit's own Home
-  // feed and r/all.
-  const MODE_LABELS = { home: "Front page", all: "Everywhere" };
+  // A list that takes exceptions shows them among its rules: each row is
+  // either, as its badge says, and a + typed or pasted before a rule makes
+  // it an exception. Exceptions are stored in a setting of their own.
+  const ALLOW = "allow";
+  const ALLOW_LABEL = "Allowed";
+  // Rows for the same rule merge into the one that does most: an exception,
+  // which overrides every rule, then a rule that blocks everywhere.
+  const MODE_PRECEDENCE = { block: 0, home: 0, all: 1, [ALLOW]: 2 };
 
   // A list longer than this folds to its first rules, with a field that
   // searches it and a button that shows it all.
@@ -349,19 +353,36 @@ document.addEventListener("DOMContentLoaded", () => {
     return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   }
 
-  // An editable list of filter rules. Each row is a draft that keeps what
-  // the user types until the field loses focus; it is then normalized and
-  // merged into an earlier row for the same rule. Saves store the
-  // normalized list. With modes, each rule is blocked in HOME or ALL mode.
+  // Whether two lists' stored settings hold the same rules, in any order.
+  function sameRules(settings, others) {
+    return Object.keys(settings).every((key) => {
+      const rules = new Set(settings[key].map((rule) => JSON.stringify(rule)));
+      return rules.size === others[key].length
+        && others[key].every((rule) => rules.has(JSON.stringify(rule)));
+    });
+  }
+
+  // An editable list of filter rules, and with allowKey, of exceptions.
+  // Each row is a draft that keeps what the user types until the field
+  // loses focus; it is then normalized and merged into an earlier row for
+  // the same rule. Saves store the normalized lists. Rules are blocked in
+  // the first of blockModes unless the row's badge chooses another; with
+  // storesModes, as subreddit rules are, each rule is stored with its mode.
   // A list pasted in a row adds a row for each of its entries. A long list
   // folds, but rows just added, merged into or pasted always show.
   function createEntryList({
-    key, title, listId, countId, addId, itemClass, normalizeList, modes = false,
+    key, allowKey = null, title, listId, countId, addId, itemClass,
+    normalizeList, normalizeAllowList = normalizeList,
+    blockModes = [["block", ""]], storesModes = false, defaultMode = blockModes[0][0], modeLabel,
     getRuleKey = (value) => value.toLowerCase(), splitList = FrontFilter.splitList,
     placeholder, label, removeLabel, emptyMessage, invalidMessage, countNouns, searchLabel,
   }) {
     const listEl = document.getElementById(listId);
     const countEl = document.getElementById(countId);
+    const keys = allowKey ? [key, allowKey] : [key];
+    // What a row's badge offers; a list with one choice has no badge.
+    const modes = allowKey ? [...blockModes, [ALLOW, ALLOW_LABEL]] : blockModes;
+    const blockMode = blockModes[0][0];
     let entries = [];
     let shown = false;
     let rows = new Map();
@@ -398,13 +419,46 @@ document.addEventListener("DOMContentLoaded", () => {
     footer.append(noMatch, more);
     listEl.parentElement.append(footer);
 
-    function normalize(value) {
-      const [normalized] = normalizeList([value]);
-      return (modes ? normalized?.name : normalized) ?? "";
+    function normalize(value, mode) {
+      const [normalized] = (mode === ALLOW ? normalizeAllowList : normalizeList)([value]);
+      return (storesModes && mode !== ALLOW ? normalized?.name : normalized) ?? "";
     }
 
-    function values(list = entries) {
-      return normalizeList(list.map(({ value, mode }) => (modes ? { name: value, mode } : value)));
+    // A row as saves store it: while a + is being typed before its rule,
+    // as the exception it makes.
+    function ruleOf(entry) {
+      return entry.exception
+        ? { value: FrontFilter.parseException(entry.value).rule, mode: ALLOW }
+        : entry;
+    }
+
+    // The list's settings, as saves store them.
+    function stored(list = entries) {
+      const rows = list.map(ruleOf);
+      const rules = rows.filter((entry) => entry.mode !== ALLOW)
+        .map(({ value, mode }) => (storesModes ? { name: value, mode } : value));
+      const settings = { [key]: normalizeList(rules) };
+      if (allowKey) {
+        settings[allowKey] = normalizeAllowList(rows
+          .filter((entry) => entry.mode === ALLOW)
+          .map(({ value }) => value));
+      }
+      return settings;
+    }
+
+    // Rules and exceptions alike.
+    function ruleCount(settings = stored()) {
+      return keys.reduce((count, settingKey) => count + settings[settingKey].length, 0);
+    }
+
+    // Stored settings as rows.
+    function entriesOf(settings) {
+      return [
+        ...settings[key].map((rule) => (storesModes
+          ? { value: rule.name, mode: rule.mode }
+          : { value: rule, mode: blockMode })),
+        ...(allowKey ? settings[allowKey].map((value) => ({ value, mode: ALLOW })) : []),
+      ];
     }
 
     function formatCount(count) {
@@ -413,30 +467,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // The count shows once there are rules; an empty list says so itself.
     function updateCount() {
-      const count = values().length;
+      const count = ruleCount();
       countEl.textContent = formatCount(count);
       countEl.hidden = count === 0;
     }
 
     function save(immediate = true) {
-      scheduleAutoSave([key], immediate);
+      scheduleAutoSave(keys, immediate);
     }
 
     // Rules compare as their list does, case-insensitively unless it says
-    // otherwise; a merged row is in ALL mode if either row was. Returns
-    // whether a row was merged.
-    function mergeDuplicates() {
+    // otherwise; a merged row takes the mode that does most of either row's.
+    function merge(list) {
       const byRule = new Map();
-      const merged = entries.filter((entry) => {
+      return list.filter((entry) => {
         const rule = getRuleKey(entry.value);
         const first = rule && byRule.get(rule);
         if (!first) {
           if (rule) byRule.set(rule, entry);
           return true;
         }
-        if (entry.mode === "all") first.mode = "all";
+        if (MODE_PRECEDENCE[entry.mode] > MODE_PRECEDENCE[first.mode]) first.mode = entry.mode;
         return false;
       });
+    }
+
+    // Returns whether a row was merged.
+    function mergeDuplicates() {
+      const merged = merge(entries);
       const changed = merged.length !== entries.length;
       entries = merged;
       return changed;
@@ -450,8 +508,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // or shown in full, its first rules. Empty drafts and revealed rows
     // always show.
     function updateVisibility() {
-      const ruleCount = values().length;
-      const long = ruleCount > FOLD_AFTER;
+      const count = ruleCount();
+      const long = count > FOLD_AFTER;
       if (!long && query) {
         query = "";
         search.value = "";
@@ -477,7 +535,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       tools.hidden = !long;
       more.hidden = !long || Boolean(needle);
-      more.textContent = expanded ? "Show fewer" : `Show all ${ruleCount}`;
+      more.textContent = expanded ? "Show fewer" : `Show all ${count}`;
       more.setAttribute("aria-expanded", String(expanded));
       noMatch.hidden = !needle || matched > 0;
       noMatch.textContent = noMatch.hidden ? "" : `No ${countNouns[1]} match “${query.trim()}”`;
@@ -516,8 +574,15 @@ document.addEventListener("DOMContentLoaded", () => {
       input.setAttribute("aria-label", label);
       input.spellcheck = false;
       input.disabled = controlsDisabled;
+      // The rule as last normalized: only a + typed since makes an
+      // exception, so a rule stored with a + of its own keeps it. The badge
+      // shows the exception as soon as the + is typed.
+      let committed = entry.value;
       input.addEventListener("input", () => {
         entry.value = input.value;
+        entry.exception = Boolean(allowKey) && input.value !== committed
+          && FrontFilter.parseException(input.value).exception;
+        showMode();
         save(false);
       });
       // A single entry pastes as usual. A list replaces the row, with what
@@ -533,12 +598,19 @@ document.addEventListener("DOMContentLoaded", () => {
       input.addEventListener("blur", () => {
         // Some browsers blur a row that a pasted list removed.
         if (!entries.includes(entry)) return;
-        const normalized = normalize(input.value);
+        const typed = entry.exception
+          ? FrontFilter.parseException(input.value)
+          : { rule: input.value, exception: false };
+        const normalized = normalize(typed.rule, typed.exception ? ALLOW : entry.mode);
         if (invalidMessage && input.value.trim() && !normalized) {
           showToast(invalidMessage, "error");
         }
+        if (normalized && typed.exception) entry.mode = ALLOW;
+        delete entry.exception;
+        showMode();
         entry.value = normalized;
         input.value = normalized;
+        committed = normalized;
         if (mergeDuplicates()) {
           removed = null;
           render();
@@ -548,20 +620,26 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       item.append(input);
 
-      if (modes) {
-        const select = document.createElement("select");
+      const select = modes.length > 1 ? document.createElement("select") : null;
+      function showMode() {
+        if (!select) return;
+        const mode = ruleOf(entry).mode;
+        select.value = mode;
+        for (const option of select.children) option.selected = option.value === mode;
+      }
+      if (select) {
         select.className = "mode-badge";
-        select.setAttribute("aria-label", "Where to block");
+        select.setAttribute("aria-label", modeLabel);
         select.disabled = controlsDisabled;
-        for (const mode of ["home", "all"]) {
+        for (const [mode, text] of modes) {
           const option = document.createElement("option");
           option.value = mode;
-          option.textContent = MODE_LABELS[mode];
-          option.selected = entry.mode === mode;
+          option.textContent = text;
           select.append(option);
         }
+        showMode();
         select.addEventListener("change", () => {
-          entry.mode = select.value === "all" ? "all" : "home";
+          entry.mode = modes.some(([mode]) => mode === select.value) ? select.value : defaultMode;
           save();
         });
         item.append(select);
@@ -615,7 +693,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return row;
     }
 
-    // New drafts come first, then rules in alphabetical order.
+    // New drafts come first, then rules and exceptions in alphabetical order.
     function byRule(a, b) {
       if (!a.value || !b.value) return Number(Boolean(a.value)) - Number(Boolean(b.value));
       return a.value.localeCompare(b.value, undefined, { sensitivity: "base" });
@@ -647,13 +725,13 @@ document.addEventListener("DOMContentLoaded", () => {
       updateVisibility();
     }
 
-    // One-click additions use ALL mode, as the Block buttons on Reddit do.
-    // A rule added from elsewhere on the page shows without taking the
-    // focus there.
-    function add(value = "", { moveFocus = true } = {}) {
-      const normalized = normalize(value);
+    // Adds a row, a draft unless a value is given, in the list's default
+    // mode or the one given. A rule added from elsewhere on the page shows
+    // without taking the focus there.
+    function add(value = "", { moveFocus = true, mode = defaultMode } = {}) {
+      const normalized = normalize(value, mode);
       removed = null;
-      entries.unshift({ value: normalized, mode: "all" });
+      entries.unshift({ value: normalized, mode });
       mergeDuplicates();
       render();
       focus(normalized, true, moveFocus);
@@ -661,30 +739,39 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Adds a pasted list's entries in place of the row it was pasted in,
-    // in that row's mode, and tells how many rules are new. Entries that
-    // cannot be used are left out; if none can, the row stays as it was.
+    // in that row's mode but for exceptions written with a +, and tells
+    // how many rules are new. Entries that cannot be used are
+    // left out; if none can, the row stays as it was.
     function addList(list, row) {
-      const added = list.map(normalize).filter(Boolean);
+      const added = list.map((text) => {
+        const { rule, exception } = allowKey
+          ? FrontFilter.parseException(text)
+          : { rule: text, exception: false };
+        const mode = exception ? ALLOW : row.mode;
+        return { value: normalize(rule, mode), mode };
+      }).filter(({ value }) => value);
       if (added.length === 0) {
         showToast(invalidMessage, "error");
         return;
       }
       const others = entries.filter((other) => other !== row);
-      const previousCount = values(others).length;
+      const previous = new Set(others.filter((entry) => entry.value)
+        .map((entry) => getRuleKey(entry.value)));
       removed = null;
-      entries = [...added.map((value) => ({ value, mode: row.mode })), ...others];
+      entries = [...added, ...others];
       mergeDuplicates();
       render();
       save();
 
-      const pasted = new Set(added);
-      const pastedEntries = entries.filter((entry) => pasted.has(entry.value));
+      // Pasted rows came first, so the rows left for their rules are theirs.
+      const pastedSet = new Set(added);
+      const pastedEntries = entries.filter((entry) => pastedSet.has(entry));
       reveal(pastedEntries);
       const items = pastedEntries.map((entry) => rows.get(entry));
       for (const item of items) item.classList.add("pop-in");
       items[0]?.querySelector("input").focus();
 
-      const newCount = values().length - previousCount;
+      const newCount = pastedEntries.filter((entry) => !previous.has(getRuleKey(entry.value))).length;
       const skipped = list.length - added.length;
       const message = newCount > 0 ? `Added ${formatCount(newCount)}` : `No new ${countNouns[1]}`;
       if (skipped === 0) {
@@ -695,19 +782,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Shows stored rules. A list that already shows them, in any order,
-    // stays as it is; new rows that are still empty stay in any case.
-    function show(list) {
-      const ruleKey = (rule) => JSON.stringify(rule);
-      const current = new Set(values().map(ruleKey));
-      if (shown && list.length === current.size && list.every((rule) => current.has(ruleKey(rule)))) {
-        return;
-      }
+    // stays as it is; new rows that are still empty stay in any case. A
+    // rule stored as an exception too shows once, as the exception it is.
+    function show(settings) {
+      const shownEntries = merge(entriesOf(settings));
+      if (shown && sameRules(stored(shownEntries), stored())) return;
       shown = true;
       removed = null;
-      entries = [
-        ...entries.filter((entry) => !entry.value),
-        ...list.map((rule) => (modes ? { value: rule.name, mode: rule.mode } : { value: rule })),
-      ];
+      entries = [...entries.filter((entry) => !entry.value), ...shownEntries];
       render();
     }
 
@@ -732,65 +814,58 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById(addId).addEventListener("click", () => add());
     return {
-      key,
+      keys,
       title,
       add,
       show,
-      values,
+      stored,
       formatCount,
       updateCount,
     };
   }
 
-  const blockedList = createEntryList({
+  const subredditList = createEntryList({
     key: "blockedSubreddits",
-    title: "Blocked subreddits",
-    listId: "blocked-list",
-    searchLabel: "Search blocked subreddits",
-    countId: "blocked-count",
+    allowKey: "allowedSubreddits",
+    title: "Subreddits",
+    listId: "subreddit-list",
+    searchLabel: "Search subreddits",
+    countId: "subreddit-count",
     addId: "add-subreddit",
-    itemClass: "blocked-item",
+    itemClass: "subreddit-item",
     normalizeList: FrontFilter.normalizeBlockedSubreddits,
-    modes: true,
+    normalizeAllowList: FrontFilter.normalizeAllowedSubreddits,
+    // Rules block a front page (HOME) or everything (ALL). The stored names
+    // are kept; these read better beside Reddit's own Home feed and r/all.
+    blockModes: [["home", "Front page"], ["all", "Everywhere"]],
+    storesModes: true,
+    // New rows block everywhere, as the Block buttons on Reddit do.
+    defaultMode: "all",
+    modeLabel: "Block or allow",
     placeholder: "Subreddit, wildcard, or Reddit URL",
     label: "Subreddit, wildcard, or Reddit URL",
     removeLabel: "Remove subreddit rule",
-    emptyMessage: "No subreddits blocked yet",
+    emptyMessage: "No subreddits blocked or allowed yet",
     invalidMessage: "Enter a subreddit name, a pattern with *, or a Reddit URL",
     countNouns: ["rule", "rules"],
   });
-  const allowedList = createEntryList({
-    key: "allowedSubreddits",
-    title: "Allowed subreddits",
-    listId: "allowed-list",
-    searchLabel: "Search allowed subreddits",
-    countId: "allowed-count",
-    addId: "add-allowed-subreddit",
-    itemClass: "allowed-item",
-    normalizeList: FrontFilter.normalizeAllowedSubreddits,
-    placeholder: "Exact subreddit or Reddit URL",
-    label: "Allowed subreddit or Reddit URL",
-    removeLabel: "Remove subreddit exception",
-    emptyMessage: "No subreddit exceptions yet",
-    invalidMessage: "Allowed subreddits must be exact names, without *",
-    countNouns: ["exception", "exceptions"],
-  });
   const KEYWORD_INVALID_MESSAGE = "Enter a keyword, or a valid regular expression between slashes";
-  const splitKeywordList = (text) => FrontFilter.splitList(text, { keywords: true });
   const entryLists = [
-    blockedList,
-    allowedList,
+    subredditList,
     createEntryList({
       key: "blockedTitleKeywords",
+      allowKey: "allowedKeywords",
       title: "Keywords",
-      listId: "title-keyword-list",
+      listId: "keyword-list",
       searchLabel: "Search keywords",
-      countId: "title-keyword-count",
-      addId: "add-title-keyword",
+      countId: "keyword-count",
+      addId: "add-keyword",
       itemClass: "keyword-item",
       normalizeList: FrontFilter.normalizeTitleKeywords,
       getRuleKey: FrontFilter.getKeywordKey,
-      splitList: splitKeywordList,
+      splitList: (text) => FrontFilter.splitList(text, { keywords: true }),
+      blockModes: [["block", "Hidden"]],
+      modeLabel: "Hide or allow",
       placeholder: "Keyword, phrase, or /regex/",
       label: "Keyword, phrase, or regular expression",
       removeLabel: "Remove keyword",
@@ -799,32 +874,17 @@ document.addEventListener("DOMContentLoaded", () => {
       countNouns: ["keyword", "keywords"],
     }),
     createEntryList({
-      key: "allowedKeywords",
-      title: "Allowed keywords",
-      listId: "allowed-keyword-list",
-      searchLabel: "Search allowed keywords",
-      countId: "allowed-keyword-count",
-      addId: "add-allowed-keyword",
-      itemClass: "allowed-keyword-item",
-      normalizeList: FrontFilter.normalizeTitleKeywords,
-      getRuleKey: FrontFilter.getKeywordKey,
-      splitList: splitKeywordList,
-      placeholder: "Keyword, phrase, or /regex/",
-      label: "Allowed keyword, phrase, or regular expression",
-      removeLabel: "Remove keyword exception",
-      emptyMessage: "No keyword exceptions yet",
-      invalidMessage: KEYWORD_INVALID_MESSAGE,
-      countNouns: ["exception", "exceptions"],
-    }),
-    createEntryList({
       key: "blockedFlairs",
+      allowKey: "allowedFlairs",
       title: "Post flairs",
-      listId: "blocked-flair-list",
+      listId: "flair-list",
       searchLabel: "Search flairs",
-      countId: "blocked-flair-count",
-      addId: "add-blocked-flair",
+      countId: "flair-count",
+      addId: "add-flair",
       itemClass: "flair-item",
       normalizeList: FrontFilter.normalizeBlockedFlairs,
+      blockModes: [["block", "Hidden"]],
+      modeLabel: "Hide or allow",
       placeholder: "Flair, e.g. Meme or *politic*",
       label: "Post flair",
       removeLabel: "Remove flair",
@@ -859,7 +919,10 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const [key, input] of Object.entries(switches)) {
       showSetting(key, (checked) => { input.checked = checked; });
     }
-    for (const list of entryLists) showSetting(list.key, list.show);
+    // A list shows its rules and exceptions together.
+    for (const list of entryLists) {
+      if (!list.keys.some((key) => mayLackEdit(key, read))) list.show(settings);
+    }
     for (const limit of limits) {
       showSetting(limit.countKey, (value) => {
         // A number still being typed stays unless the stored one changed.
@@ -948,8 +1011,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ]));
   }
 
-  // What an import changes: the size of each list it replaces, and how
-  // many other settings it changes. Lists compare in any order.
+  // What an import changes: the size of each list it replaces, its rules
+  // and exceptions together, and how many other settings it changes.
+  // Lists compare in any order.
   function describeImport(current, imported) {
     const before = FrontFilter.coerceSettings(current);
     const after = FrontFilter.coerceSettings({ ...current, ...imported });
@@ -957,18 +1021,22 @@ document.addEventListener("DOMContentLoaded", () => {
       Array.isArray(value) ? value.map((item) => JSON.stringify(item)).sort() : value,
     );
     const changes = [];
+    const described = new Set();
     let others = 0;
     for (const key of Object.keys(imported)) {
       if (sorted(before[key]) === sorted(after[key])) continue;
-      const list = entryLists.find((other) => other.key === key);
+      const list = entryLists.find((other) => other.keys.includes(key));
       if (!list) {
         others += 1;
         continue;
       }
-      const count = list.formatCount(after[key].length);
-      changes.push(before[key].length === after[key].length
+      if (described.has(list)) continue;
+      described.add(list);
+      const size = (settings) => list.keys.reduce((total, listKey) => total + settings[listKey].length, 0);
+      const count = list.formatCount(size(after));
+      changes.push(size(before) === size(after)
         ? `${list.title}: ${count}, replaced`
-        : `${list.title}: ${before[key].length} → ${count}`);
+        : `${list.title}: ${size(before)} → ${count}`);
     }
     if (others > 0) {
       const noun = others === 1 ? "setting" : "settings";
@@ -1102,12 +1170,13 @@ document.addEventListener("DOMContentLoaded", () => {
     return (tab && FrontFilter.getSubredditPath(tab.url.pathname)?.name) || "";
   }
 
-  // Returns whether a subreddit was found to add.
-  async function addCurrentSubreddit(list, message) {
+  // Adds a rule for the current subreddit, in the mode given, and returns
+  // whether a subreddit was found to add.
+  async function addCurrentSubreddit(mode, message) {
     try {
       const subreddit = await findCurrentSubreddit();
       if (subreddit) {
-        list.add(subreddit, { moveFocus: false });
+        subredditList.add(subreddit, { moveFocus: false, mode });
         showToast(message(subreddit), "success");
         return true;
       }
@@ -1137,7 +1206,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const { tabId } = currentCard;
     const listens = tabId === null || await pageListens(tabId);
     const added = await addCurrentSubreddit(
-      blockedList, (subreddit) => `r/${subreddit} blocked everywhere`,
+      "all", (subreddit) => `r/${subreddit} blocked everywhere`,
     );
     if (!added || listens) return;
     try {
@@ -1155,11 +1224,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // What the rules do to a subreddit: an allowed one stays open, and an
-  // exact name or a pattern may block it everywhere or on its front page.
+  // What the rules do to a subreddit: one an exception allows stays open,
+  // and an exact name or a pattern may block it everywhere or on its front
+  // page.
   function describeSubreddit(name) {
-    if (allowedList.values().includes(name)) return { text: "Allowed, so it stays open", allowed: true };
-    const rules = blockedList.values()
+    const { blockedSubreddits, allowedSubreddits } = subredditList.stored();
+    const exceptions = allowedSubreddits
+      .filter((pattern) => FrontFilter.matchesSubredditPattern(pattern, name));
+    if (exceptions.length > 0) {
+      const by = exceptions.includes(name) ? "" : ` by ${exceptions[0]}`;
+      return { text: `Allowed${by}, so it stays open`, allowed: true };
+    }
+    const rules = blockedSubreddits
       .filter((rule) => FrontFilter.matchesSubredditPattern(rule.name, name));
     const rule = rules.find((other) => other.mode === "all") || rules[0];
     const by = rule && rule.name !== name ? ` by ${rule.name}` : "";
@@ -1302,10 +1378,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   currentCard.block.addEventListener("click", blockCurrentSubreddit);
-  document.getElementById("add-current-allowed-subreddit")
-    .addEventListener("click", () => addCurrentSubreddit(
-      allowedList, (subreddit) => `r/${subreddit} allowed`,
-    ));
+  currentCard.allow.addEventListener("click", () => addCurrentSubreddit(
+    ALLOW, (subreddit) => `r/${subreddit} allowed`,
+  ));
   document.getElementById("export-config").addEventListener("click", exportConfig);
   // Saves what is being typed, opens the page in a tab, for the same
   // subreddit, and closes the popup.

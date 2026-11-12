@@ -191,7 +191,7 @@ FrontFilter.stats = (() => {
     }
     const pathSubreddit = FrontFilter.getSubredditPath(pathname)?.name || "";
     if (route?.type === "subreddit" || route?.page === "subhome") {
-      const subreddit = FrontFilter.normalizeAllowedSubreddits([route.subreddit || pathSubreddit])[0];
+      const subreddit = FrontFilter.normalizeExactSubredditName(route.subreddit || pathSubreddit);
       if (subreddit) return `subreddit:${subreddit}`;
     }
     return route?.type === "page" && Object.hasOwn(PAGE_LABELS, route.page)

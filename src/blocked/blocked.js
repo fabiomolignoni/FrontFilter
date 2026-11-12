@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const returnSubreddit = FrontFilter.getSubredditPath(returnPath)?.name || "";
   const target = params.get("target");
   const sub = target === "subreddit"
-    ? FrontFilter.normalizeSubredditName(params.get("subreddit")) || returnSubreddit
+    ? FrontFilter.normalizeExactSubredditName(params.get("subreddit")) || returnSubreddit
     : "";
   const user = target === "user"
     ? FrontFilter.normalizeUserName(params.get("user")) || FrontFilter.getProfileUser(returnPath)

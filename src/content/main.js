@@ -72,7 +72,7 @@ function updateLimits() {
 
 const quickBlock = FrontFilter.createQuickBlock({
   getSettings: () => config,
-  isAllowed: (name) => filterIndex.allowedSubreddits.has(name),
+  isAllowed: (name) => filterIndex.matchesAllowed(name),
 });
 
 const stats = FrontFilter.createStatsRecorder({ isEnabled: statsEnabled });
@@ -94,7 +94,8 @@ function createFilterIndex(settings) {
   // Comments already hidden by the comments switch need no text matching.
   const filtersComments = hasKeywords && !settings.hideComments;
   return {
-    allowedSubreddits: new Set(settings.allowedSubreddits),
+    // Exceptions, names or patterns, override every subreddit rule.
+    matchesAllowed: FrontFilter.createSubredditMatcher(settings.allowedSubreddits),
     // ALL rules hide a subreddit's posts; any rule blocks its front page.
     blocksAllSubreddits: blockedAll.length > 0,
     matchesBlockedAll: FrontFilter.createSubredditMatcher(blockedAll),
@@ -102,6 +103,7 @@ function createFilterIndex(settings) {
       ? () => true
       : FrontFilter.createSubredditMatcher(blocked),
     blockedFlairs: settings.blockedFlairs,
+    allowedFlairs: settings.allowedFlairs,
     // Page rules hide their posts and comments; the scroll limit skips them.
     blockedUsers: new Set(settings.blockedUsers),
     hasKeywords,
@@ -210,14 +212,14 @@ function syncHomeFeedMarker() {
 // Matching
 
 function isSubredditNameBlocked(subredditName) {
-  const normalizedName = FrontFilter.normalizeSubredditName(subredditName);
-  if (!normalizedName || filterIndex.allowedSubreddits.has(normalizedName)) return false;
+  const normalizedName = FrontFilter.normalizeExactSubredditName(subredditName);
+  if (!normalizedName || filterIndex.matchesAllowed(normalizedName)) return false;
   return filterIndex.matchesBlockedAll(normalizedName);
 }
 
 function isSubredditFrontBlocked(subredditName) {
-  const normalizedName = FrontFilter.normalizeSubredditName(subredditName);
-  if (!normalizedName || filterIndex.allowedSubreddits.has(normalizedName)) return false;
+  const normalizedName = FrontFilter.normalizeExactSubredditName(subredditName);
+  if (!normalizedName || filterIndex.matchesAllowed(normalizedName)) return false;
   return filterIndex.matchesBlockedFront(normalizedName);
 }
 
@@ -233,10 +235,11 @@ function isUserBlocked(author) {
   return Boolean(author) && filterIndex.blockedUsers.has(author.toLowerCase());
 }
 
+// An allowed flair keeps a post that flair filters would hide.
 function isFlairBlocked(flair) {
-  return Boolean(flair) && filterIndex.blockedFlairs.some((pattern) =>
-    FrontFilter.matchesFlairPattern(pattern, flair)
-  );
+  const matches = (pattern) => FrontFilter.matchesFlairPattern(pattern, flair);
+  return Boolean(flair) && filterIndex.blockedFlairs.some(matches)
+    && !filterIndex.allowedFlairs.some(matches);
 }
 
 // Posts

@@ -32,8 +32,26 @@ test("normalizes subreddit names and Reddit URLs", () => {
 test("rejects invalid subreddit values and normalizes bare Reddit hosts", () => {
   assert.equal(FrontFilter.normalizeSubredditName("reddit.com/r/Firefox/comments/123"), "firefox");
   assert.equal(FrontFilter.normalizeSubredditName("https://reddit.com/"), "");
-  assert.equal(FrontFilter.normalizeSubredditName("***"), "");
+  assert.equal(FrontFilter.normalizeSubredditName("r/+worldnews"), "");
   assert.equal(FrontFilter.normalizeSubredditName(42), "");
+});
+
+test("takes * alone for every subreddit, and patterns for no subreddit's own name", () => {
+  assert.equal(FrontFilter.normalizeSubredditName("***"), "*");
+  assert.equal(FrontFilter.normalizeSubredditName("r/*"), "*");
+  for (const [value, expected] of [
+    ["r/Firefox", "firefox"],
+    ["https://www.reddit.com/r/Firefox/top/", "firefox"],
+    ["news*", ""],
+    ["*", ""],
+    ["", ""],
+    [null, ""],
+  ]) {
+    assert.equal(FrontFilter.normalizeExactSubredditName(value), expected, String(value));
+  }
+  // A subreddit's address names it, and a pattern in an address names none.
+  assert.equal(FrontFilter.getSubredditPath("/r/Firefox/new").name, "firefox");
+  assert.equal(FrontFilter.getSubredditPath("/r/news*/"), null);
 });
 
 test("takes a bare name or an r/ path for a subreddit, never a user profile", () => {
@@ -105,7 +123,8 @@ test("matches exact names and wildcard patterns", () => {
   assert.equal(FrontFilter.matchesSubredditPattern("firefox", "Firefox"), true);
   assert.equal(FrontFilter.matchesSubredditPattern("*news*", "worldnews"), true);
   assert.equal(FrontFilter.matchesSubredditPattern("news*", "worldnews"), false);
-  assert.equal(FrontFilter.matchesSubredditPattern("*", "worldnews"), false);
+  assert.equal(FrontFilter.matchesSubredditPattern("*", "worldnews"), true);
+  assert.equal(FrontFilter.matchesSubredditPattern("*", ""), false);
   assert.equal(FrontFilter.matchesSubredditPattern("", "worldnews"), false);
 });
 
@@ -147,23 +166,40 @@ test("normalizes, migrates and deduplicates blocked entries", () => {
   );
 });
 
-test("normalizes exact subreddit exceptions and rejects wildcard entries", () => {
+test("normalizes subreddit exceptions as names or patterns, as rules are", () => {
   assert.deepEqual(
     JSON.parse(JSON.stringify(FrontFilter.normalizeAllowedSubreddits([
       "ItalyPersonalFinance",
       "r/italypersonalfinance",
       "https://www.reddit.com/r/AllowedSub/comments/abc/post",
+      "*Italy**",
       "*italy*",
       "",
       null,
     ]))),
-    ["italypersonalfinance", "allowedsub"],
+    ["italypersonalfinance", "allowedsub", "*italy*"],
   );
   assert.equal(
     FrontFilter.isSubredditAllowed("ITALYPERSONALFINANCE", ["italypersonalfinance"]),
     true,
   );
   assert.equal(FrontFilter.isSubredditAllowed("italy", ["italypersonalfinance"]), false);
+  assert.equal(FrontFilter.isSubredditAllowed("askhistorians", ["ask*"]), true);
+  assert.equal(FrontFilter.isSubredditAllowed("historians", ["ask*"]), false);
+});
+
+test("blocks every subreddit with *, but those allowed", () => {
+  const settings = {
+    blockedSubreddits: [{ name: "*", mode: "all" }],
+    allowedSubreddits: ["askhistorians", "science*"],
+  };
+  assert.equal(FrontFilter.getBlockedRoute("/r/pics/", settings)?.filter, "*");
+  assert.equal(FrontFilter.getBlockedRoute("/r/pics/comments/abc/title/", settings)?.filter, "*");
+  assert.equal(FrontFilter.getBlockedRoute("/r/AskHistorians/", settings), null);
+  assert.equal(FrontFilter.getBlockedRoute("/r/sciencefiction/top/", settings), null);
+  // Pages that are not subreddits stay open.
+  assert.equal(FrontFilter.getBlockedRoute("/", settings), null);
+  assert.equal(FrontFilter.getBlockedRoute("/user/spez/", settings), null);
 });
 
 test("normalizes post keywords and matches literal text case-insensitively", () => {
@@ -317,6 +353,21 @@ test("splits pasted lists at lines and commas, keeping regular expressions whole
   assert.deepEqual(keywords("/a/, /b, c/"), ["/a/", "/b, c/"]);
   // Text that never closes its slashes splits as any other.
   assert.deepEqual(keywords("/unclosed, x\n/, y"), ["/unclosed", "x", "/", "y"]);
+  // Exceptions keep their + and, for an expression, its commas.
+  assert.deepEqual(keywords("+/a{1,3}/, + /b,c/, +ai, -x"), ["+/a{1,3}/", "+ /b,c/", "+ai", "-x"]);
+  assert.deepEqual(split("news*, +worldnews"), ["news*", "+worldnews"]);
+});
+
+test("reads a + before a rule as an exception, and the rule after it", () => {
+  const parse = (text) => JSON.parse(JSON.stringify(FrontFilter.parseException(text)));
+  assert.equal(FrontFilter.EXCEPTION_PREFIX, "+");
+  assert.deepEqual(parse(" +WorldNews "), { rule: "WorldNews", exception: true });
+  assert.deepEqual(parse("+  climate   change"), { rule: "climate change", exception: true });
+  assert.deepEqual(parse("news*"), { rule: "news*", exception: false });
+  // Only a + before the rule makes an exception.
+  assert.deepEqual(parse("c++"), { rule: "c++", exception: false });
+  assert.deepEqual(parse("+"), { rule: "", exception: true });
+  assert.deepEqual(parse(null), { rule: "", exception: false });
 });
 
 test("lets a star at a keyword's end match inside words there", () => {
@@ -453,7 +504,7 @@ test("reports malformed recognized settings for strict import validation", () =>
     Array.from(FrontFilter.getInvalidSettingKeys({
       blockHomepage: "true",
       blockedSubreddits: [{ name: "firefox", mode: "invalid" }],
-      allowedSubreddits: ["*news*"],
+      allowedSubreddits: ["+news"],
       blockedUsers: ["u/spez", "not a user"],
       blockedTitleKeywords: [""],
       redirectUrl: "javascript:alert(1)",
@@ -574,6 +625,7 @@ test("rejects malformed stored values instead of throwing or enabling flags", ()
       blockedTitleKeywords: [],
       allowedKeywords: [],
       blockedFlairs: [],
+      allowedFlairs: [],
       blockHomepage: false,
       blockPopular: false,
       blockExplore: false,
@@ -677,6 +729,7 @@ test("settings store preserves changes received during its initial load", async 
       blockedTitleKeywords: [],
       allowedKeywords: [],
       blockedFlairs: [],
+      allowedFlairs: [],
       blockHomepage: false,
       blockPopular: true,
       blockExplore: false,

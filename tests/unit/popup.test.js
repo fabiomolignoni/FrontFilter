@@ -122,15 +122,24 @@ function isStatsRead(keys) {
 }
 
 function getRenderedItems(elements) {
-  return elements["blocked-list"].querySelectorAll(".blocked-item");
+  return elements["subreddit-list"].querySelectorAll(".subreddit-item");
 }
 
-function getRenderedAllowedItems(elements) {
-  return elements["allowed-list"].querySelectorAll(".allowed-item");
+// The mode a row's badge shows, as stored: a block mode, or "allow" for
+// an exception.
+function selectedMode(item) {
+  return item.querySelector(".mode-badge").children.find((option) => option.selected)?.value;
+}
+
+// Types in a row's field and leaves it, as a user would.
+function type(input, value) {
+  input.value = value;
+  input.dispatch("input");
+  input.dispatch("blur");
 }
 
 function getRenderedKeywords(elements) {
-  return elements["title-keyword-list"].querySelectorAll(".keyword-item");
+  return elements["keyword-list"].querySelectorAll(".keyword-item");
 }
 
 // Imports the file the file picker holds, confirming its review.
@@ -170,13 +179,13 @@ test("opens the settings in a tab, for the same subreddit, after saving what is 
   assert.equal(button.getAttribute("aria-label"), "Open settings in a tab");
 
   // A keyword still being typed is saved first.
-  popup.elements["add-title-keyword"].click();
+  popup.elements["add-keyword"].click();
   const input = getRenderedKeywords(popup.elements)[0].querySelector("input");
   input.value = "election";
   input.dispatch("input");
   await button.click();
   assert.deepEqual(JSON.parse(JSON.stringify(popup.writes.at(-1).settings)),
-    { blockedTitleKeywords: ["election"] });
+    { blockedTitleKeywords: ["election"], allowedKeywords: [] });
   assert.deepEqual(JSON.parse(JSON.stringify(popup.sentMessages)),
     [{ action: "openSettings", currentSubreddit: "news" }]);
   assert.equal(popup.closed, true);
@@ -250,7 +259,7 @@ test("retains filter drafts and pending saves when changing tabs", async () => {
   await elements["export-config"].click();
   assert.equal(writes.length, 1);
   assert.equal(writes[0].settings.blockedSubreddits[0].name, "firefox");
-  assert.equal(elements["blocked-count"].textContent, "1 rule");
+  assert.equal(elements["subreddit-count"].textContent, "1 rule");
   assert.equal(elements["toast"].textContent, "Configuration exported!");
 });
 
@@ -341,12 +350,13 @@ test("renders stored entries sorted by name with their saved modes", async () =>
   assert.equal(items[1].querySelector("input").value, "zeta");
   assert.equal(items[0].children[1].children[0].selected, false);
   assert.equal(items[0].children[1].children[1].selected, true);
-  // HOME and ALL rules read as Reddit users would put them.
+  // HOME and ALL rules read as Reddit users would put them, beside
+  // exceptions.
   assert.deepEqual(
     items[0].children[1].children.map((option) => [option.value, option.textContent]),
-    [["home", "Front page"], ["all", "Everywhere"]],
+    [["home", "Front page"], ["all", "Everywhere"], ["allow", "Allowed"]],
   );
-  assert.equal(items[0].children[1].getAttribute("aria-label"), "Where to block");
+  assert.equal(items[0].children[1].getAttribute("aria-label"), "Block or allow");
 });
 
 test("normalizes edited entries and saves their selected mode", async () => {
@@ -416,7 +426,7 @@ test("removes an entry and persists the resulting list", async () => {
     },
   });
 
-  getRenderedItems(elements)[0].children[2].click();
+  getRenderedItems(elements)[0].querySelector(".remove-btn").click();
   await settle();
 
   assert.equal(getRenderedItems(elements).length, 0);
@@ -437,18 +447,18 @@ test("offers to undo a removal in the removed rule's place, restoring its mode",
       ],
     },
   });
-  const list = elements["blocked-list"];
+  const list = elements["subreddit-list"];
   const removeButton = (name) => getRenderedItems(elements)
-    .find((item) => item.querySelector("input").value === name).children[2];
+    .find((item) => item.querySelector("input").value === name).querySelector(".remove-btn");
 
   removeButton("news").click();
   await settle();
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings.blockedSubreddits)),
     [{ name: "alpha", mode: "home" }, { name: "zeta", mode: "home" }]);
-  assert.equal(elements["blocked-count"].textContent, "2 rules");
+  assert.equal(elements["subreddit-count"].textContent, "2 rules");
   // The undo row stands where the rule was, and takes the focus.
   assert.deepEqual(list.children.map((child) => child.className),
-    ["entry blocked-item", "entry-undo", "entry blocked-item"]);
+    ["entry subreddit-item", "entry-undo", "entry subreddit-item"]);
   const undoRow = list.querySelector(".entry-undo");
   assert.equal(undoRow.querySelector(".entry-undo-text").textContent, "Removed “news”");
   const undo = undoRow.querySelector("button");
@@ -473,9 +483,9 @@ test("keeps one undo per list, until the list changes otherwise", async () => {
     autoResolveWrites: true,
     storedSettings: { blockedTitleKeywords: ["alpha", "beta", "gamma"] },
   });
-  const list = elements["title-keyword-list"];
+  const list = elements["keyword-list"];
   const remove = (value) => getRenderedKeywords(elements)
-    .find((item) => item.querySelector("input").value === value).children[1].click();
+    .find((item) => item.querySelector("input").value === value).querySelector(".remove-btn").click();
 
   remove("alpha");
   await settle();
@@ -487,7 +497,7 @@ test("keeps one undo per list, until the list changes otherwise", async () => {
   assert.equal(undoRows[0].querySelector(".entry-undo-text").textContent, "Removed “beta”");
 
   // Adding a rule ends the offer.
-  elements["add-title-keyword"].click();
+  elements["add-keyword"].click();
   assert.equal(list.querySelectorAll(".entry-undo").length, 0);
 });
 
@@ -496,8 +506,8 @@ test("leaves the undo of a list's last rule in place of its empty message", asyn
     autoResolveWrites: true,
     storedSettings: { blockedFlairs: ["Meme"] },
   });
-  const list = elements["blocked-flair-list"];
-  list.querySelector(".flair-item").children[1].click();
+  const list = elements["flair-list"];
+  list.querySelector(".flair-item").querySelector(".remove-btn").click();
   await settle();
   assert.equal(list.querySelector(".empty-state"), null);
   list.querySelector(".entry-undo button").click();
@@ -508,63 +518,151 @@ test("leaves the undo of a list's last rule in place of its empty message", asyn
 test("removes an empty draft without offering to undo it", async () => {
   const { elements } = await loadPopup({ autoResolveWrites: true });
   elements["add-blocked-user"].click();
-  elements["blocked-user-list"].querySelector(".user-item").children[1].click();
+  elements["blocked-user-list"].querySelector(".user-item").querySelector(".remove-btn").click();
   await settle();
   assert.equal(elements["blocked-user-list"].querySelector(".entry-undo"), null);
   assert.equal(elements["blocked-user-list"].textContent, "No users filtered yet");
 });
 
-test("renders, edits and removes exact subreddit exceptions", async () => {
+test("shows subreddit exceptions among the rules, as Allowed", async () => {
   const { elements, writes } = await loadPopup({
     autoResolveWrites: true,
     storedSettings: {
-      allowedSubreddits: [
-        "zeta",
-        "ItalyPersonalFinance",
-        "ITALYPERSONALFINANCE",
-        "*invalid*",
-      ],
+      blockedSubreddits: [{ name: "*", mode: "all" }, { name: "news", mode: "home" }],
+      allowedSubreddits: ["zeta", "ItalyPersonalFinance", "ITALYPERSONALFINANCE", "ask*"],
     },
   });
-  let items = getRenderedAllowedItems(elements);
+  const items = () => getRenderedItems(elements);
+  const values = () => items().map((item) => [item.querySelector("input").value, selectedMode(item)]);
 
-  assert.equal(items.length, 2);
-  assert.equal(items[0].querySelector("input").value, "italypersonalfinance");
-  assert.equal(items[1].querySelector("input").value, "zeta");
-  assert.equal(elements["allowed-count"].textContent, "2 exceptions");
+  // One list, in alphabetical order, counting rules and exceptions alike.
+  assert.deepEqual(values(), [
+    ["*", "all"], ["ask*", "allow"], ["italypersonalfinance", "allow"], ["news", "home"],
+    ["zeta", "allow"],
+  ]);
+  assert.equal(elements["subreddit-count"].textContent, "5 rules");
+  assert.equal(elements["subreddit-list"].querySelectorAll(".entry").length, 5);
 
-  elements["add-allowed-subreddit"].click();
-  items = getRenderedAllowedItems(elements);
-  const input = items[0].querySelector("input");
-  assert.equal(input.focused, true);
-  input.value = " https://www.reddit.com/r/Firefox/ ";
-  input.dispatch("input");
-  input.dispatch("blur");
+  // The badge turns a rule into an exception, and back.
+  const news = items()[3];
+  news.children[1].value = "allow";
+  news.children[1].dispatch("change");
   await settle();
-
-  assert.equal(input.value, "firefox");
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(writes.at(-1).settings.allowedSubreddits)),
-    ["firefox", "italypersonalfinance", "zeta"],
-  );
-  assert.equal(elements["allowed-count"].textContent, "3 exceptions");
-
-  input.value = "*fire*";
-  input.dispatch("input");
-  input.dispatch("blur");
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedSubreddits: [{ name: "*", mode: "all" }],
+    allowedSubreddits: ["ask*", "italypersonalfinance", "news", "zeta"],
+  });
+  news.children[1].value = "all";
+  news.children[1].dispatch("change");
   await settle();
-  assert.equal(input.value, "");
-  assert.equal(
-    elements["toast"].textContent,
-    "Allowed subreddits must be exact names, without *",
-  );
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedSubreddits: [{ name: "*", mode: "all" }, { name: "news", mode: "all" }],
+    allowedSubreddits: ["ask*", "italypersonalfinance", "zeta"],
+  });
 
-  getRenderedAllowedItems(elements)[0].children[1].click();
+  items()[2].querySelector(".remove-btn").click();
   await settle();
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes.at(-1).settings.allowedSubreddits)),
-    ["italypersonalfinance", "zeta"],
+    ["ask*", "zeta"],
   );
+});
+
+test("makes an exception of a rule typed after a +", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedSubreddits: [{ name: "news", mode: "all" }] },
+  });
+
+  elements["add-subreddit"].click();
+  const draft = getRenderedItems(elements)[0];
+  assert.equal(selectedMode(draft), "all");
+  type(draft.querySelector("input"), " + https://www.reddit.com/r/WorldNews/ ");
+  await settle();
+  assert.equal(draft.querySelector("input").value, "worldnews");
+  assert.equal(selectedMode(draft), "allow");
+  assert.equal(draft.querySelector(".mode-badge").value, "allow");
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedSubreddits: [{ name: "news", mode: "all" }],
+    allowedSubreddits: ["worldnews"],
+  });
+
+  // Patterns make exceptions too; a + alone makes none.
+  type(draft.querySelector("input"), "+world*");
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings.allowedSubreddits)), ["world*"]);
+  type(draft.querySelector("input"), "+");
+  assert.equal(draft.querySelector("input").value, "");
+  assert.equal(elements["toast"].textContent,
+    "Enter a subreddit name, a pattern with *, or a Reddit URL");
+
+  // An exception for a blocked subreddit replaces its rule, which it overrides.
+  elements["add-subreddit"].click();
+  type(getRenderedItems(elements)[0].querySelector("input"), "+r/News");
+  await settle();
+  const rows = getRenderedItems(elements);
+  assert.deepEqual(rows.map((item) => [item.querySelector("input").value, selectedMode(item)]),
+    [["", "allow"], ["news", "allow"]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedSubreddits: [],
+    allowedSubreddits: ["news"],
+  });
+  // A rule typed for an exception merges into it: the exception still wins.
+  elements["add-subreddit"].click();
+  type(getRenderedItems(elements)[0].querySelector("input"), "news");
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedSubreddits: [],
+    allowedSubreddits: ["news"],
+  });
+});
+
+test("shows and saves an exception as soon as its + is typed", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const { elements, hide, writes } = await loadPopup({ autoResolveWrites: true });
+  elements["add-keyword"].click();
+  const row = getRenderedKeywords(elements)[0];
+  const input = row.querySelector("input");
+  input.value = "+ai art";
+  input.dispatch("input");
+  assert.equal(selectedMode(row), "allow");
+  // Saved once typing pauses, as the exception it is.
+  t.mock.timers.tick(700);
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedTitleKeywords: [],
+    allowedKeywords: ["ai art"],
+  });
+  // Taking the + back makes it a rule again.
+  input.value = "ai art";
+  input.dispatch("input");
+  assert.equal(selectedMode(row), "block");
+  // Closing the page saves what is typed, as typed.
+  input.value = "+ai";
+  input.dispatch("input");
+  hide();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedTitleKeywords: [],
+    allowedKeywords: ["ai"],
+  });
+});
+
+test("reads a + as text in a rule that already holds it, until it is typed again", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedTitleKeywords: ["+1"] },
+  });
+  const row = getRenderedKeywords(elements)[0];
+  assert.equal(row.querySelector("input").value, "+1");
+  assert.equal(selectedMode(row), "block");
+  // Leaving the field unchanged keeps the rule as it is.
+  row.querySelector("input").dispatch("blur");
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedTitleKeywords: ["+1"],
+    allowedKeywords: [],
+  });
+  assert.equal(selectedMode(row), "block");
 });
 
 test("blocks users by name, u/name or profile URL, each once", async () => {
@@ -600,7 +698,7 @@ test("blocks users by name, u/name or profile URL, each once", async () => {
   await settle();
   assert.deepEqual(values(), ["automoderator", "kn0thing", "spez"]);
 
-  items().find((item) => item.querySelector("input").value === "kn0thing").children[1].click();
+  items().find((item) => item.querySelector("input").value === "kn0thing").querySelector(".remove-btn").click();
   await settle();
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes.at(-1).settings)),
@@ -614,11 +712,11 @@ test("edits blocked flairs with normalization and a live count", async () => {
     autoResolveWrites: true,
     storedSettings: { blockedFlairs: ["Meme", "meme"] },
   });
-  const items = () => elements["blocked-flair-list"].querySelectorAll(".flair-item");
+  const items = () => elements["flair-list"].querySelectorAll(".flair-item");
   assert.equal(items().length, 1);
-  assert.equal(elements["blocked-flair-count"].textContent, "1 flair");
+  assert.equal(elements["flair-count"].textContent, "1 flair");
 
-  elements["add-blocked-flair"].click();
+  elements["add-flair"].click();
   const input = items()[0].querySelector("input");
   assert.equal(input.focused, true);
   input.value = "  *Politic*  ";
@@ -630,15 +728,15 @@ test("edits blocked flairs with normalization and a live count", async () => {
     JSON.parse(JSON.stringify(writes.at(-1).settings.blockedFlairs)),
     ["*Politic*", "Meme"],
   );
-  assert.equal(elements["blocked-flair-count"].textContent, "2 flairs");
+  assert.equal(elements["flair-count"].textContent, "2 flairs");
 
-  items().find((item) => item.querySelector("input").value === "Meme").children[1].click();
+  items().find((item) => item.querySelector("input").value === "Meme").querySelector(".remove-btn").click();
   await settle();
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes.at(-1).settings.blockedFlairs)),
     ["*Politic*"],
   );
-  assert.equal(elements["blocked-flair-count"].textContent, "1 flair");
+  assert.equal(elements["flair-count"].textContent, "1 flair");
 });
 
 test("renders, edits and removes case-insensitive post keywords", async () => {
@@ -652,9 +750,9 @@ test("renders, edits and removes case-insensitive post keywords", async () => {
   assert.equal(keywordItems.length, 2);
   assert.equal(keywordItems[0].querySelector("input").value, "Trump");
   assert.equal(keywordItems[1].querySelector("input").value, "zeta");
-  assert.equal(elements["title-keyword-count"].textContent, "2 keywords");
+  assert.equal(elements["keyword-count"].textContent, "2 keywords");
 
-  elements["add-title-keyword"].click();
+  elements["add-keyword"].click();
   keywordItems = getRenderedKeywords(elements);
   const input = keywordItems[0].querySelector("input");
   assert.equal(input.focused, true);
@@ -668,9 +766,9 @@ test("renders, edits and removes case-insensitive post keywords", async () => {
     JSON.parse(JSON.stringify(writes.at(-1).settings.blockedTitleKeywords)),
     ["climate CHANGE", "Trump", "zeta"],
   );
-  assert.equal(elements["title-keyword-count"].textContent, "3 keywords");
+  assert.equal(elements["keyword-count"].textContent, "3 keywords");
 
-  getRenderedKeywords(elements)[0].children[1].click();
+  getRenderedKeywords(elements)[0].querySelector(".remove-btn").click();
   await settle();
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes.at(-1).settings.blockedTitleKeywords)),
@@ -685,7 +783,7 @@ test("merges keywords that match alike, and keeps regular expressions as written
   });
   const values = () => Array.from(getRenderedKeywords(elements), (item) => item.querySelector("input").value);
   const type = async (value) => {
-    elements["add-title-keyword"].click();
+    elements["add-keyword"].click();
     const input = getRenderedKeywords(elements)[0].querySelector("input");
     input.value = value;
     input.dispatch("input");
@@ -697,40 +795,83 @@ test("merges keywords that match alike, and keeps regular expressions as written
   assert.deepEqual(values(), ["/\\d+/", "perche"]);
   await type("/\\D+/");
   assert.deepEqual(values(), ["/\\D+/", "/\\d+/", "perche"]);
-  assert.equal(elements["title-keyword-count"].textContent, "3 keywords");
+  assert.equal(elements["keyword-count"].textContent, "3 keywords");
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes.at(-1).settings.blockedTitleKeywords)),
     ["/\\D+/", "/\\d+/", "perche"],
   );
 });
 
-test("edits allowed keywords as keywords are edited", async () => {
+test("edits keyword exceptions as keywords are edited, in the same list", async () => {
   const { elements, writes } = await loadPopup({
     autoResolveWrites: true,
-    storedSettings: { allowedKeywords: ["Biden", "biden"] },
+    storedSettings: { blockedTitleKeywords: ["trump"], allowedKeywords: ["Biden", "biden"] },
   });
-  const items = () => elements["allowed-keyword-list"].querySelectorAll(".allowed-keyword-item");
-  assert.equal(items().length, 1);
-  assert.equal(elements["allowed-keyword-count"].textContent, "1 exception");
+  const items = () => getRenderedKeywords(elements);
+  assert.deepEqual(items().map((item) => [item.querySelector("input").value, selectedMode(item)]),
+    [["Biden", "allow"], ["trump", "block"]]);
+  assert.equal(elements["keyword-count"].textContent, "2 keywords");
+  assert.deepEqual(
+    items()[0].querySelector(".mode-badge").children.map((option) => [option.value, option.textContent]),
+    [["block", "Hidden"], ["allow", "Allowed"]],
+  );
+  assert.equal(items()[0].querySelector(".mode-badge").getAttribute("aria-label"), "Hide or allow");
 
-  elements["add-allowed-keyword"].click();
+  elements["add-keyword"].click();
   const input = items()[0].querySelector("input");
   assert.equal(input.focused, true);
-  input.value = "  /ukrain(e|ian)/ ";
-  input.dispatch("input");
-  input.dispatch("blur");
+  assert.equal(selectedMode(items()[0]), "block");
+  type(input, "  + /ukrain(e|ian)/ ");
   await settle();
   assert.equal(input.value, "/ukrain(e|ian)/");
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedTitleKeywords: ["trump"],
     allowedKeywords: ["/ukrain(e|ian)/", "Biden"],
   });
-  assert.equal(elements["allowed-keyword-count"].textContent, "2 exceptions");
+  assert.equal(elements["keyword-count"].textContent, "3 keywords");
 
-  items().find((item) => item.querySelector("input").value === "Biden").children[1].click();
+  // An exception and a rule that match alike merge into the exception.
+  elements["add-keyword"].click();
+  type(items()[0].querySelector("input"), "+TRUMP");
   await settle();
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
-    allowedKeywords: ["/ukrain(e|ian)/"],
+    blockedTitleKeywords: [],
+    allowedKeywords: ["/ukrain(e|ian)/", "Biden", "TRUMP"],
   });
+
+  items().find((item) => item.querySelector("input").value === "Biden").querySelector(".remove-btn").click();
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedTitleKeywords: [],
+    allowedKeywords: ["/ukrain(e|ian)/", "TRUMP"],
+  });
+});
+
+test("hides and allows flairs in one list", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedFlairs: ["*"], allowedFlairs: ["Discussion"] },
+  });
+  const items = () => elements["flair-list"].querySelectorAll(".flair-item");
+  assert.deepEqual(items().map((item) => [item.querySelector("input").value, selectedMode(item)]),
+    [["*", "block"], ["Discussion", "allow"]]);
+  elements["add-flair"].click();
+  type(items()[0].querySelector("input"), "+Question");
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedFlairs: ["*"],
+    allowedFlairs: ["Question", "Discussion"],
+  });
+});
+
+test("keeps users a list of blocks, with no exceptions", async () => {
+  const { elements } = await loadPopup({ autoResolveWrites: true });
+  elements["add-blocked-user"].click();
+  const row = elements["blocked-user-list"].querySelector(".user-item");
+  assert.equal(row.querySelector(".mode-badge"), null);
+  type(row.querySelector("input"), "+spez");
+  assert.equal(row.querySelector("input").value, "");
+  assert.equal(elements["toast"].textContent, "Enter a username, such as u/name, or a profile URL");
 });
 
 test("adds the current tab's subreddit and reports non-subreddit tabs", async () => {
@@ -765,18 +906,16 @@ test("adds the current tab's subreddit and reports non-subreddit tabs", async ()
   // The rule shows in its list, while the focus stays on the card.
   assert.equal(getRenderedItems(currentSubreddit.elements)[0].querySelector("input").focused, false);
 
+  // Allowing it turns its rule into an exception.
   await currentSubreddit.elements["add-current-allowed-subreddit"].click();
   await settle();
-  assert.equal(
-    getRenderedAllowedItems(currentSubreddit.elements)[0]
-      .querySelector("input").value,
-    "firefox",
-  );
+  const rows = getRenderedItems(currentSubreddit.elements);
+  assert.deepEqual(rows.map((item) => [item.querySelector("input").value, selectedMode(item)]),
+    [["firefox", "allow"]]);
+  assert.equal(currentSubreddit.elements["toast"].textContent, "r/firefox allowed");
   assert.deepEqual(
-    JSON.parse(JSON.stringify(
-      currentSubreddit.writes.at(-1).settings.allowedSubreddits,
-    )),
-    ["firefox"],
+    JSON.parse(JSON.stringify(currentSubreddit.writes.at(-1).settings)),
+    { blockedSubreddits: [], allowedSubreddits: ["firefox"] },
   );
 
   // Outside Reddit, browsers withhold the tab's URL.
@@ -800,6 +939,9 @@ test("tells what the rules do to the current subreddit, and offers only what cha
     [{ blockedSubreddits: [{ name: "new*", mode: "all" }] }, "Blocked everywhere by new*", true, false],
     [{ blockedSubreddits: [{ name: "news", mode: "all" }], allowedSubreddits: ["news"] },
       "Allowed, so it stays open", true, true],
+    [{ blockedSubreddits: [{ name: "*", mode: "all" }], allowedSubreddits: ["new*"] },
+      "Allowed by new*, so it stays open", true, true],
+    [{ blockedSubreddits: [{ name: "*", mode: "all" }] }, "Blocked everywhere by *", true, false],
   ];
   for (const [storedSettings, status, blockOff, allowOff] of states) {
     const { elements } = await loadPopup({
@@ -963,12 +1105,10 @@ test("asks no page for a count in a tab of its own", async () => {
 test("labels every list's Add button alike, and names each for its list", async () => {
   const { elements } = await loadPopup();
   const names = [
-    ["add-subreddit", "Add a blocked subreddit"],
-    ["add-allowed-subreddit", "Add an allowed subreddit"],
+    ["add-subreddit", "Add a subreddit"],
     ["add-blocked-user", "Add a user"],
-    ["add-title-keyword", "Add a keyword"],
-    ["add-allowed-keyword", "Add an allowed keyword"],
-    ["add-blocked-flair", "Add a flair"],
+    ["add-keyword", "Add a keyword"],
+    ["add-flair", "Add a flair"],
   ];
   for (const [id, name] of names) {
     assert.equal(elements[id].textContent.trim(), "Add", id);
@@ -979,14 +1119,16 @@ test("labels every list's Add button alike, and names each for its list", async 
 });
 
 // Block holds what keeps pages from opening; Filter, what hides posts and
-// comments, users included.
+// comments, users included. Exceptions are in the list of the rules they
+// override, which has no list of exceptions beside it.
 test("puts each list in the tab of what it does", () => {
   const { elements } = loadPage("popup/index.html");
-  for (const id of ["blocked-list", "allowed-list"]) {
-    assert.ok(elements["panel-block"].querySelector(`#${id}`), id);
-  }
-  for (const id of ["title-keyword-list", "allowed-keyword-list", "blocked-flair-list", "blocked-user-list"]) {
+  assert.ok(elements["panel-block"].querySelector("#subreddit-list"));
+  for (const id of ["keyword-list", "flair-list", "blocked-user-list"]) {
     assert.ok(elements["panel-filter"].querySelector(`#${id}`), id);
+  }
+  for (const id of ["allowed-list", "allowed-keyword-list", "add-allowed-subreddit", "add-allowed-keyword"]) {
+    assert.equal(elements[id], null, id);
   }
 });
 
@@ -1437,9 +1579,10 @@ test("preserves current settings during a partial import", async () => {
     ["italypersonalfinance"],
   );
   assert.equal(
-    getRenderedAllowedItems(elements)[0].querySelector("input").value,
+    getRenderedItems(elements)[0].querySelector("input").value,
     "italypersonalfinance",
   );
+  assert.equal(selectedMode(getRenderedItems(elements)[0]), "allow");
   assert.equal(
     getRenderedKeywords(elements)[0].querySelector("input").value,
     "*Trump*",
@@ -1509,7 +1652,9 @@ test("shows what an import would change, and changes nothing until it is confirm
     theme: "light",
     blockedSubreddits: [{ name: "news", mode: "all" }, { name: "pics", mode: "home" }],
     blockedTitleKeywords: ["ai", "nft"],
+    allowedKeywords: ["ai art"],
     blockedFlairs: [],
+    allowedSubreddits: ["science"],
   }) }];
   elements["import-file"].dispatch("change");
   await settle();
@@ -1522,7 +1667,8 @@ test("shows what an import would change, and changes nothing until it is confirm
   // Lists that the file leaves as they are, as blockPopular, go unmentioned.
   assert.deepEqual(
     elements["import-review-changes"].children.map((item) => item.textContent),
-    ["Blocked subreddits: 3 → 2 rules", "Keywords: 0 → 2 keywords", "2 other settings"],
+    // A list's rules and exceptions count together.
+    ["Subreddits: 3 rules, replaced", "Keywords: 0 → 3 keywords", "2 other settings"],
   );
   assert.equal(writes.length, 0);
 
@@ -1579,7 +1725,7 @@ test("keeps the settings an import replaces, and restores them, undoably", async
   await settle();
   assert.equal(elements["toast"].textContent, "Settings restored");
   assert.equal(elements["block-homepage"].checked, true);
-  assert.equal(elements["blocked-flair-list"].querySelector(".flair-item input").value, "Meme");
+  assert.equal(elements["flair-list"].querySelector(".flair-item input").value, "Meme");
   // The restore keeps what it replaced in turn.
   const swapped = writes.at(-1).settings.importBackup;
   assert.equal(swapped.replacedBy, "restore");
@@ -1652,8 +1798,8 @@ test("disables editing while an import is in progress", async () => {
   assert.equal(elements["block-sub-home"].disabled, true);
   assert.equal(elements["import-config"].disabled, true);
   assert.equal(elements["color-theme"].disabled, true);
-  assert.equal(elements["add-allowed-subreddit"].disabled, true);
-  assert.equal(elements["add-title-keyword"].disabled, true);
+  assert.equal(elements["add-subreddit"].disabled, true);
+  assert.equal(elements["add-keyword"].disabled, true);
 
   importRead.resolve({ blockPopular: true });
   await settle();
@@ -1666,8 +1812,8 @@ test("disables editing while an import is in progress", async () => {
   assert.equal(elements["block-sub-home"].disabled, false);
   assert.equal(elements["import-config"].disabled, false);
   assert.equal(elements["color-theme"].disabled, false);
-  assert.equal(elements["add-allowed-subreddit"].disabled, false);
-  assert.equal(elements["add-title-keyword"].disabled, false);
+  assert.equal(elements["add-subreddit"].disabled, false);
+  assert.equal(elements["add-keyword"].disabled, false);
 });
 
 test("loads and saves typed scroll settings and disables dependent controls", async () => {
@@ -1818,7 +1964,7 @@ test("imports typed scroll preferences without dropping unrelated settings", asy
 test("saves typed text once typing pauses", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const { elements, writes } = await loadPopup({ autoResolveWrites: true });
-  elements["add-title-keyword"].click();
+  elements["add-keyword"].click();
   const input = getRenderedKeywords(elements)[0].querySelector("input");
   input.value = "spoilers";
   input.dispatch("input");
@@ -1827,8 +1973,10 @@ test("saves typed text once typing pauses", async (t) => {
   assert.equal(writes.length, 0);
   t.mock.timers.tick(1);
   await settle();
+  // A list saves its rules and its exceptions together.
   assert.deepEqual(JSON.parse(JSON.stringify(writes[0].settings)), {
     blockedTitleKeywords: ["spoilers"],
+    allowedKeywords: [],
   });
 });
 
@@ -1840,7 +1988,7 @@ test("saves what is typed when the page closes before typing pauses", async (t) 
   elements["block-news"].dispatch("change");
   await settle();
   assert.equal(writes.length, 1);
-  elements["add-title-keyword"].click();
+  elements["add-keyword"].click();
   const input = getRenderedKeywords(elements)[0].querySelector("input");
   input.value = "spoilers";
   input.dispatch("input");
@@ -1848,6 +1996,7 @@ test("saves what is typed when the page closes before typing pauses", async (t) 
   assert.equal(writes.length, 2);
   assert.deepEqual(JSON.parse(JSON.stringify(writes[1].settings)), {
     blockedTitleKeywords: ["spoilers"],
+    allowedKeywords: [],
   });
   // Nothing is left to save twice.
   t.mock.timers.tick(700);
@@ -1896,11 +2045,11 @@ test("saves nothing when the page closes with everything saved", async () => {
 test("explains entries that cannot be used, and clears them", async () => {
   const { elements, writes } = await loadPopup({ autoResolveWrites: true });
   for (const [addId, list, value, message] of [
-    ["add-subreddit", "blocked-list", "not a subreddit!", "Enter a subreddit name, a pattern with *, or a Reddit URL"],
+    ["add-subreddit", "subreddit-list", "not a subreddit!", "Enter a subreddit name, a pattern with *, or a Reddit URL"],
     ["add-blocked-user", "blocked-user-list", "r/firefox", "Enter a username, such as u/name, or a profile URL"],
-    ["add-blocked-flair", "blocked-flair-list", "x".repeat(101), "Flairs can be at most 100 characters long"],
-    ["add-title-keyword", "title-keyword-list", "/(unclosed/", "Enter a keyword, or a valid regular expression between slashes"],
-    ["add-allowed-keyword", "allowed-keyword-list", "/[a/", "Enter a keyword, or a valid regular expression between slashes"],
+    ["add-flair", "flair-list", "x".repeat(101), "Flairs can be at most 100 characters long"],
+    ["add-keyword", "keyword-list", "/(unclosed/", "Enter a keyword, or a valid regular expression between slashes"],
+    ["add-keyword", "keyword-list", "+/[a/", "Enter a keyword, or a valid regular expression between slashes"],
   ]) {
     elements[addId].click();
     const input = elements[list].querySelector("input");
@@ -1911,7 +2060,10 @@ test("explains entries that cannot be used, and clears them", async () => {
     assert.equal(input.value, "");
     assert.equal(elements["toast"].textContent, message);
   }
-  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), { allowedKeywords: [] });
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedTitleKeywords: [],
+    allowedKeywords: [],
+  });
 });
 
 test("merges a row into an earlier one for the same rule", async () => {
@@ -1919,7 +2071,7 @@ test("merges a row into an earlier one for the same rule", async () => {
     autoResolveWrites: true,
     storedSettings: { blockedTitleKeywords: ["Spoilers"] },
   });
-  elements["add-title-keyword"].click();
+  elements["add-keyword"].click();
   const input = getRenderedKeywords(elements)[0].querySelector("input");
   input.value = "SPOILERS";
   input.dispatch("input");
@@ -1929,9 +2081,10 @@ test("merges a row into an earlier one for the same rule", async () => {
   const items = getRenderedKeywords(elements);
   assert.equal(items.length, 1);
   assert.equal(items[0].querySelector("input").focused, true);
-  assert.equal(elements["title-keyword-count"].textContent, "1 keyword");
+  assert.equal(elements["keyword-count"].textContent, "1 keyword");
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     blockedTitleKeywords: ["SPOILERS"],
+    allowedKeywords: [],
   });
 });
 
@@ -1951,7 +2104,7 @@ test("adds a row for each entry of a pasted list, merging those already there", 
   assert.deepEqual(items.map((item) => item.children[1].children[1].selected), [true, true, true]);
   assert.deepEqual(items.map((item) => item.classList.contains("pop-in")), [true, true, true]);
   assert.equal(items[0].querySelector("input").focused, true);
-  assert.equal(elements["blocked-count"].textContent, "3 rules");
+  assert.equal(elements["subreddit-count"].textContent, "3 rules");
   assert.equal(elements["toast"].textContent, "Added 2 rules; 1 entry could not be used");
   assert.equal(elements["toast"].className, "show error");
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
@@ -1960,6 +2113,7 @@ test("adds a row for each entry of a pasted list, merging those already there", 
       { name: "firefox", mode: "all" },
       { name: "news", mode: "all" },
     ],
+    allowedSubreddits: [],
   });
 
   // The row the list replaced leaves the page without saving again.
@@ -1996,7 +2150,40 @@ test("pastes a list in the row's mode, with what the row holds around it", async
       { name: "funny", mode: "home" },
       { name: "pics", mode: "home" },
     ],
+    allowedSubreddits: [],
   });
+});
+
+test("pastes exceptions written with a +, in any row", async () => {
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockedSubreddits: [{ name: "news", mode: "all" }] },
+  });
+  elements["add-subreddit"].click();
+  assert.equal(paste(getRenderedItems(elements)[0].querySelector("input"),
+    "*\n+AskHistorians, + r/science\n+news, +not valid!"), true);
+  await settle();
+  const rows = () => getRenderedItems(elements)
+    .map((item) => [item.querySelector("input").value, selectedMode(item)]);
+  assert.deepEqual(rows(), [
+    ["*", "all"], ["askhistorians", "allow"], ["news", "allow"], ["science", "allow"],
+  ]);
+  // An exception for a rule already there replaces it, and is no new rule.
+  assert.equal(elements["toast"].textContent, "Added 3 rules; 1 entry could not be used");
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedSubreddits: [{ name: "*", mode: "all" }],
+    allowedSubreddits: ["askhistorians", "news", "science"],
+  });
+
+  // Pasted in an exception, a list is of exceptions.
+  const science = getRenderedItems(elements)[3].querySelector("input");
+  Object.assign(science, { selectionStart: 0, selectionEnd: science.value.length });
+  assert.equal(paste(science, "science, space"), true);
+  await settle();
+  assert.deepEqual(rows(), [
+    ["*", "all"], ["askhistorians", "allow"], ["news", "allow"], ["science", "allow"],
+    ["space", "allow"],
+  ]);
 });
 
 test("pastes a single entry as usual, and keeps the row if no entry can be used", async () => {
@@ -2026,7 +2213,7 @@ test("pastes keyword lists without splitting regular expressions", async () => {
     autoResolveWrites: true,
     storedSettings: { blockedTitleKeywords: ["perche"], blockedFlairs: ["Meme"] },
   });
-  elements["add-title-keyword"].click();
+  elements["add-keyword"].click();
   assert.equal(paste(getRenderedKeywords(elements)[0].querySelector("input"), "/a{1,3}/, spoiler*\nPerché"), true);
   await settle();
   assert.deepEqual(
@@ -2036,11 +2223,21 @@ test("pastes keyword lists without splitting regular expressions", async () => {
   assert.equal(elements["toast"].textContent, "Added 2 keywords");
   assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
     blockedTitleKeywords: ["/a{1,3}/", "Perché", "spoiler*"],
+    allowedKeywords: [],
+  });
+
+  // An expression keeps its commas as an exception too.
+  elements["add-keyword"].click();
+  assert.equal(paste(getRenderedKeywords(elements)[0].querySelector("input"), "+/b{1,3}/, +ai art"), true);
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.at(-1).settings)), {
+    blockedTitleKeywords: ["/a{1,3}/", "Perché", "spoiler*"],
+    allowedKeywords: ["/b{1,3}/", "ai art"],
   });
 
   // Only keywords keep commas between slashes; a list of rules already there adds none.
-  const flairs = () => elements["blocked-flair-list"].querySelectorAll(".flair-item");
-  elements["add-blocked-flair"].click();
+  const flairs = () => elements["flair-list"].querySelectorAll(".flair-item");
+  elements["add-flair"].click();
   assert.equal(paste(flairs()[0].querySelector("input"), "meme, MEME"), true);
   await settle();
   assert.deepEqual(flairs().map((item) => item.querySelector("input").value), ["meme"]);
@@ -2050,15 +2247,13 @@ test("pastes keyword lists without splitting regular expressions", async () => {
 
 test("tells empty lists apart and counts their rules", async () => {
   const { elements } = await loadPopup({ storedSettings: { blockedFlairs: ["Meme"] } });
-  assert.equal(elements["blocked-list"].textContent, "No subreddits blocked yet");
-  assert.equal(elements["blocked-count"].textContent, "0 rules");
-  assert.equal(elements["allowed-list"].textContent, "No subreddit exceptions yet");
+  assert.equal(elements["subreddit-list"].textContent, "No subreddits blocked or allowed yet");
+  assert.equal(elements["subreddit-count"].textContent, "0 rules");
   assert.equal(elements["blocked-user-list"].textContent, "No users filtered yet");
   assert.equal(elements["blocked-user-count"].textContent, "0 users");
-  assert.equal(elements["title-keyword-list"].textContent, "No keywords filtered yet");
-  assert.equal(elements["allowed-keyword-list"].textContent, "No keyword exceptions yet");
-  assert.equal(elements["allowed-keyword-count"].textContent, "0 exceptions");
-  assert.equal(elements["blocked-flair-count"].textContent, "1 flair");
+  assert.equal(elements["keyword-list"].textContent, "No keywords filtered yet");
+  assert.equal(elements["keyword-count"].textContent, "0 keywords");
+  assert.equal(elements["flair-count"].textContent, "1 flair");
 });
 
 // The rows a list shows, by their rule.
@@ -2082,8 +2277,8 @@ function listTools(elements, listId) {
 test("shows short lists in full, without a search or a Show all button", async () => {
   const flairs = Array.from({ length: 8 }, (_, index) => `Flair ${index}`);
   const { elements } = await loadPopup({ storedSettings: { blockedFlairs: flairs } });
-  const { tools, more } = listTools(elements, "blocked-flair-list");
-  assert.equal(shownValues(elements["blocked-flair-list"]).length, 8);
+  const { tools, more } = listTools(elements, "flair-list");
+  assert.equal(shownValues(elements["flair-list"]).length, 8);
   assert.equal(tools.hidden, true);
   assert.equal(more.hidden, true);
 });
@@ -2091,8 +2286,8 @@ test("shows short lists in full, without a search or a Show all button", async (
 test("folds a long list to its first rules, and shows it all on request", async () => {
   const keywords = Array.from({ length: 30 }, (_, index) => `keyword ${String(index).padStart(2, "0")}`);
   const { elements, writes } = await loadPopup({ storedSettings: { blockedTitleKeywords: keywords } });
-  const list = elements["title-keyword-list"];
-  const { tools, more } = listTools(elements, "title-keyword-list");
+  const list = elements["keyword-list"];
+  const { tools, more } = listTools(elements, "keyword-list");
   // Every rule is still in the list, so edits and saves see them all.
   assert.equal(getRenderedKeywords(elements).length, 30);
   assert.deepEqual(shownValues(list), keywords.slice(0, 6));
@@ -2114,9 +2309,9 @@ test("searches a long list ignoring case and accents, and says when nothing matc
   const subreddits = Array.from({ length: 20 }, (_, index) => ({ name: `sub${index}`, mode: "home" }));
   subreddits.push({ name: "news", mode: "all" }, { name: "worldnews", mode: "home" });
   const { elements, writes } = await loadPopup({ storedSettings: { blockedSubreddits: subreddits } });
-  const list = elements["blocked-list"];
-  const { search, more, noMatch } = listTools(elements, "blocked-list");
-  assert.equal(search.getAttribute("aria-label"), "Search blocked subreddits");
+  const list = elements["subreddit-list"];
+  const { search, more, noMatch } = listTools(elements, "subreddit-list");
+  assert.equal(search.getAttribute("aria-label"), "Search subreddits");
 
   search.value = "NÉWS";
   search.dispatch("input");
@@ -2146,8 +2341,8 @@ test("keeps rules just added or merged in view, however the list folds", async (
     storedSettings: { blockedSubreddits: subreddits },
     tabs: [{ url: "https://www.reddit.com/r/zebra/" }],
   });
-  const list = elements["blocked-list"];
-  const { search } = listTools(elements, "blocked-list");
+  const list = elements["subreddit-list"];
+  const { search } = listTools(elements, "subreddit-list");
 
   // A new draft shows at the top, even while a search hides other rows.
   search.value = "sub0";
@@ -2183,11 +2378,11 @@ test("shows the rules of a pasted list, wherever they sort", async () => {
     autoResolveWrites: true,
     storedSettings: { blockedTitleKeywords: keywords },
   });
-  elements["add-title-keyword"].click();
+  elements["add-keyword"].click();
   const input = getRenderedKeywords(elements)[0].querySelector("input");
   assert.equal(paste(input, "zeta\nyankee"), true);
   await settle();
-  const shown = shownValues(elements["title-keyword-list"]);
+  const shown = shownValues(elements["keyword-list"]);
   assert.ok(shown.includes("zeta") && shown.includes("yankee"), shown.join());
 });
 
@@ -2238,10 +2433,10 @@ test("shows settings changed elsewhere, and saves lists without undoing them", a
   });
   let items = getRenderedItems(elements);
   assert.deepEqual(items.map((item) => item.querySelector("input").value), ["firefox", "pics"]);
-  assert.equal(elements["blocked-count"].textContent, "2 rules");
+  assert.equal(elements["subreddit-count"].textContent, "2 rules");
 
   // Removing another rule here keeps the one added there.
-  items[0].children[2].click();
+  items[0].querySelector(".remove-btn").click();
   await settle();
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes.at(-1).settings.blockedSubreddits)),
@@ -2269,7 +2464,7 @@ test("keeps edits that are not saved yet when settings change elsewhere", async 
     autoResolveWrites: true,
     storedSettings: { blockedTitleKeywords: ["spoilers"], scrollLimit: 10 },
   });
-  elements["add-title-keyword"].click();
+  elements["add-keyword"].click();
   const input = getRenderedKeywords(elements)[0].querySelector("input");
   input.value = "trailer";
   input.dispatch("input");
@@ -2290,7 +2485,7 @@ test("keeps edits that are not saved yet when settings change elsewhere", async 
   await settle();
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes.at(-1).settings)),
-    { blockedTitleKeywords: ["trailer", "spoilers"] },
+    { blockedTitleKeywords: ["trailer", "spoilers"], allowedKeywords: [] },
   );
 });
 

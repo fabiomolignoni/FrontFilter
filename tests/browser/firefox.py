@@ -148,17 +148,18 @@ class FirefoxSettingsTests(ExtensionTestCase):
         self.assertFalse(suggested_communities.is_selected())
         suggested_communities.click()
         self.wait_until(lambda: suggested_communities.is_selected())
-        find("add-title-keyword").click()
+        find("add-keyword").click()
         keyword_draft = driver.find_element("css selector", ".keyword-item input")
         keyword_draft.send_keys("Trump")
         find("tab-filter").send_keys(Keys.ARROW_LEFT)
         self.selected("block")
         find("add-subreddit").click()
-        draft = driver.find_element("css selector", ".blocked-item input")
+        draft = driver.find_element("css selector", ".subreddit-item input")
         draft.send_keys("firefox")
-        find("add-allowed-subreddit").click()
-        allowed_draft = driver.find_element("css selector", ".allowed-item input")
-        allowed_draft.send_keys("ItalyPersonalFinance")
+        # A + makes an exception, in the same list.
+        find("add-subreddit").click()
+        allowed_draft = driver.find_element("css selector", ".subreddit-item input")
+        allowed_draft.send_keys("+ItalyPersonalFinance")
 
         find("tab-settings").click()
         self.selected("settings")
@@ -175,9 +176,14 @@ class FirefoxSettingsTests(ExtensionTestCase):
         self.selected("settings")
         find("tab-settings").send_keys(Keys.HOME, Keys.ARROW_RIGHT)
         self.selected("filter")
-        # Drafts survive tab changes, and subreddit names are normalized.
-        self.assertEqual(draft.get_property("value"), "firefox")
-        self.assertEqual(allowed_draft.get_property("value"), "italypersonalfinance")
+        # Drafts survive tab changes, and subreddit names are normalized. The
+        # second draft rendered the list again: its rows are read anew.
+        rules = {
+            field.get_property("value"):
+                field.find_element("xpath", "following-sibling::select").get_property("value")
+            for field in driver.find_elements("css selector", ".subreddit-item input")
+        }
+        self.assertEqual(rules, {"firefox": "all", "italypersonalfinance": "allow"})
         self.assertEqual(keyword_draft.get_property("value"), "Trump")
         self.wait_until(lambda: find("save-indicator").get_property("textContent") == "Saved")
 
@@ -190,8 +196,13 @@ class FirefoxSettingsTests(ExtensionTestCase):
         values = lambda selector: [
             field.get_property("value") for field in driver.find_elements("css selector", selector)
         ]
-        self.assertIn("firefox", values(".blocked-item input"))
-        self.assertIn("italypersonalfinance", values(".allowed-item input"))
+        self.assertIn("firefox", values(".subreddit-item input"))
+        self.assertIn("italypersonalfinance", values(".subreddit-item input"))
+        stored = driver.execute_async_script(
+            "chrome.storage.local.get('allowedSubreddits')"
+            ".then((stored) => arguments[0](stored.allowedSubreddits))"
+        )
+        self.assertEqual(stored, ["italypersonalfinance"])
         self.assertIn("Trump", values(".keyword-item input"))
 
     def test_settings_page_keeps_rules_added_elsewhere(self):
@@ -206,7 +217,7 @@ class FirefoxSettingsTests(ExtensionTestCase):
         settings_window = driver.current_window_handle
         driver.find_element("id", "tab-block").click()
         values = lambda: [
-            field.get_property("value") for field in driver.find_elements("css selector", ".blocked-item input")
+            field.get_property("value") for field in driver.find_elements("css selector", ".subreddit-item input")
         ]
         self.assertEqual(values(), [])
 
@@ -231,7 +242,7 @@ class FirefoxSettingsTests(ExtensionTestCase):
             {"name": f"community{index}", "mode": "home"} for index in range(60)
         ])
         self.session.open_settings_page()
-        self.wait_until(lambda: driver.find_element("id", "blocked-count").get_property("textContent") == "60 rules")
+        self.wait_until(lambda: driver.find_element("id", "subreddit-count").get_property("textContent") == "60 rules")
         for width in (560, 320):
             driver.set_window_size(width, 750)
             for name in TABS:
@@ -245,11 +256,11 @@ class FirefoxSettingsTests(ExtensionTestCase):
                     top = driver.find_element("css selector", "[role=tablist]").rect["y"]
                     if name == "block":
                         # A long list folds until it is shown in full.
-                        more = driver.find_element("css selector", "#blocked-list ~ .list-footer .list-more")
+                        more = driver.find_element("css selector", "#subreddit-list ~ .list-footer .list-more")
                         if more.get_attribute("aria-expanded") == "false":
                             self.assertEqual(more.text, "Show all 60")
                             more.click()
-                        driver.find_elements("css selector", ".blocked-item input")[-1].click()
+                        driver.find_elements("css selector", ".subreddit-item input")[-1].click()
                     elif name == "simplify":
                         driver.find_element("id", "scroll-limit").click()
                     self.assertEqual(driver.find_element("css selector", "[role=tablist]").rect["y"], top)
