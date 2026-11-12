@@ -65,6 +65,13 @@ async function loadBackground({
     },
   };
   if (scripting) chrome.scripting = scripting;
+  // The lock's one alarm, by name, as browsers keep it.
+  const alarms = new Map();
+  chrome.alarms = {
+    async create(name, info) { alarms.set(name, info); },
+    async clear(name) { return alarms.delete(name); },
+    onAlarm: { addListener(listener) { listeners.alarm = listener; } },
+  };
   // Each background gets its own console, so tests can read its warnings.
   const backgroundConsole = { error: console.error, warn: console.warn };
   const context = vm.createContext({
@@ -75,11 +82,15 @@ async function loadBackground({
     console: backgroundConsole,
   });
 
-  runScripts(context, ["shared/core.js", "shared/stats.js", "background/navigation-rules.js", "background/main.js"]);
+  runScripts(context, [
+    "shared/core.js", "shared/stats.js", "shared/settings-lock.js",
+    "background/navigation-rules.js", "background/main.js",
+  ]);
   await settle();
   await settle();
 
   return {
+    alarms,
     chrome,
     console: backgroundConsole,
     createdTabs,
@@ -438,4 +449,88 @@ test("deletes the statistics after the records sent before", async () => {
   // Counting starts again from there.
   await sendMessage(background.listeners.message, { action: "recordStats", record: { posts: { ads: 1 } } });
   assert.equal(background.storedSettings().stats.totals.posts, 1);
+});
+
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+const plain = (value) => JSON.parse(JSON.stringify(value));
+
+test("locks the settings, and saves them through the lock, as the settings page asks", async () => {
+  const background = await loadBackground({ settings: { hideNsfw: true } });
+  const ask = (message) => sendMessage(background.listeners.message, message);
+  assert.deepEqual(plain([...background.alarms.keys()]), []);
+
+  const until = Date.now() + 7 * DAY;
+  const started = plain(await ask({ action: "startLock", until, delay: DAY }));
+  assert.equal(started.success, true);
+  assert.equal(started.result.lock.until, until);
+  assert.equal(background.storedSettings().settingsLock.until, until);
+  // The alarm wakes the background when the lock ends.
+  assert.equal(background.alarms.get("settingsLock").when, until);
+
+  // Past its grace period, turning a filter off waits a day.
+  const lock = background.storedSettings().settingsLock;
+  background.setSettings({
+    ...background.storedSettings(),
+    settingsLock: { ...lock, recent: [] },
+  });
+  const saved = plain(await ask({ action: "saveSettings", settings: { hideNsfw: false, hideAds: true } }));
+  assert.equal(saved.success, true);
+  assert.deepEqual(saved.result.waiting.map(({ key, value }) => [key, value]), [["hideNsfw", false]]);
+  assert.equal(background.storedSettings().hideNsfw, true);
+  assert.equal(background.storedSettings().hideAds, true);
+  const [request] = background.storedSettings().settingsLock.pending;
+  assert.equal(background.alarms.get("settingsLock").when, request.due);
+
+  // Locking again is refused, and answered as such.
+  assert.deepEqual(plain(await ask({ action: "startLock", until, delay: DAY })),
+    { success: false, error: "Settings are already locked" });
+
+  const cancelled = plain(await ask({ action: "cancelLockedChange", id: request.id }));
+  assert.deepEqual(cancelled, { success: true, result: { cancelled: true } });
+  assert.deepEqual(plain(background.storedSettings().settingsLock.pending), []);
+  assert.equal(background.alarms.get("settingsLock").when, until);
+});
+
+test("applies what waits when its alarm rings, and ends the lock, clearing the alarm", async () => {
+  const now = Date.now();
+  const settingsLock = {
+    until: now + DAY,
+    delay: HOUR,
+    lastId: 2,
+    pending: [
+      { id: 1, at: now - 2 * HOUR, due: now - HOUR, changes: [{ key: "hideNsfw", value: false }] },
+      { id: 2, at: now, due: now + HOUR, changes: [{ key: "allowedSubreddits", rule: "askreddit", value: "askreddit" }] },
+    ],
+    recent: [],
+  };
+  // What came due while the browser was closed applies as it starts.
+  const background = await loadBackground({ settings: { hideNsfw: true, settingsLock } });
+  await settle();
+  assert.equal(background.storedSettings().hideNsfw, false);
+  assert.deepEqual(plain(background.storedSettings().settingsLock.pending.map(({ id }) => id)), [2]);
+  assert.equal(background.alarms.get("settingsLock").when, now + HOUR);
+
+  // Once the lock is over, the alarm applies the rest and ends it.
+  background.setSettings({
+    ...background.storedSettings(),
+    settingsLock: { ...background.storedSettings().settingsLock, until: now - 1 },
+  });
+  background.listeners.alarm({ name: "elsewhere" });
+  await settle();
+  assert.ok(background.storedSettings().settingsLock);
+  background.listeners.alarm({ name: "settingsLock" });
+  await settle();
+  await settle();
+  assert.equal(background.storedSettings().settingsLock, undefined);
+  assert.deepEqual(plain(background.storedSettings().allowedSubreddits), ["askreddit"]);
+  assert.equal(background.alarms.has("settingsLock"), false);
+  assert.ok(background.removedKeys.includes("settingsLock"));
+});
+
+test("writes nothing for the lock when there is none", async () => {
+  const background = await loadBackground({ settings: { hideNsfw: true } });
+  await settle();
+  assert.deepEqual(background.storedValues, []);
+  assert.deepEqual(background.removedKeys, []);
 });

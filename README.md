@@ -71,6 +71,19 @@ To install from source, see [Development](#development). The
 - Statistics stay on your device and are not exported with your settings.
   You can pause them or delete them at any time.
 
+### Lock settings
+
+- Lock your settings until a date you choose, up to a year, after a warning
+  that says what the lock does. While it lasts, changes that block or hide
+  more apply at once, and changes that loosen your settings, such as
+  removing a rule, allowing a subreddit or turning a filter off, wait: an
+  hour to a week, as you choose, or until the lock ends. Ending the lock
+  early, or making it shorter or softer, waits too.
+- See what waits, and when it applies, and cancel it. For 10 minutes, a
+  change made while locked can be taken back at once, and so can a new
+  lock, so that a typo costs no wait.
+- The theme, statistics, Block buttons and the redirect stay free to change.
+
 Settings can be exported and imported as JSON. FrontFilter's pages follow your
 system theme or use a light or dark one.
 
@@ -81,8 +94,16 @@ follow the features above: **Block** covers pages, subreddits, the Block
 buttons and the block page, **Filter** hides suggestions, ads, sensitive
 posts, and posts and comments by keyword, flair or user, **Simplify** limits
 scrolling and hides parts of Reddit's pages, **Stats** shows your
-statistics, and **Settings** covers the theme, backups, and the project's
-links. Changes are saved automatically and apply right away.
+statistics, and **Settings** covers the theme, the settings lock, backups,
+and the project's links. Changes are saved automatically and apply right
+away.
+
+While settings are locked, a bar under the tabs says until when, and how
+many changes wait. A change that loosens your settings then shows as it
+applies, and a message says when the change you made applies; **Settings
+lock**, in **Settings**, lists what waits, with **Cancel**. Importing or
+restoring settings while locked applies what tightens them at once, and
+what loosens them waits.
 
 In **Stats**, time counts while a Reddit tab is in front and you have
 scrolled, clicked or typed in it in the last 5 minutes, and a new visit
@@ -114,9 +135,9 @@ settings, as FrontFilter's options.
 
 FrontFilter works entirely on your device. It has no servers, accounts,
 analytics, or ads, and never sends your data anywhere. It runs only on
-`reddit.com` and asks only for `storage` and
-`declarativeNetRequestWithHostAccess` permissions, and in Chrome for
-`scripting`. See the [privacy policy](PRIVACY.md) for details.
+`reddit.com` and asks only for `storage`,
+`declarativeNetRequestWithHostAccess` and `alarms` permissions, and in
+Chrome for `scripting`. See the [privacy policy](PRIVACY.md) for details.
 
 ## Development
 

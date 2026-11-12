@@ -96,6 +96,33 @@ document.addEventListener("DOMContentLoaded", () => {
       .find((element) => element.getAttribute("data-group") === parent),
   }));
 
+  const PAGE_SWITCHES = new Set([...FrontFilter.PAGE_ROUTES.map(({ key }) => key), "blockSubHome"]);
+
+  // A setting's name as the page says it: a switch's label, after its
+  // group's or its section's where the page joins them; a limit's option
+  // by its limit's.
+  function labelOf(key) {
+    const limit = limits.find(({ countKey, modeKey }) => key === countKey || key === modeKey);
+    const input = switches[limit ? limit.switchKey : key];
+    if (!input) return key;
+    const textOf = (element) => FrontFilter.normalizeText(element?.textContent ?? "");
+    const row = textOf(input.parentElement?.querySelector(".row-label"));
+    if (limit) return row;
+    const ids = (input.getAttribute("aria-labelledby") || "").split(/\s+/).filter(Boolean);
+    if (ids.length > 1) return ids.map((id) => textOf(document.getElementById(id))).join(": ");
+    const label = ids.length === 1 ? textOf(document.getElementById(ids[0])) : row;
+    // The switches that block pages are named by the page alone.
+    return PAGE_SWITCHES.has(key) ? `Block ${label}` : label;
+  }
+
+  // While settings are locked, the background saves them: what loosens
+  // them waits (popup/lock-card.js).
+  const lockCard = FrontFilter.createLockCard({
+    showToast,
+    labelOf,
+    showLockSection: () => selectTab(document.getElementById("tab-settings")),
+  });
+
   // The card for the Reddit page open in the current tab: its name, what
   // filters hide on it, and for a subreddit, what the rules do to it.
   const currentCard = {
@@ -145,6 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
     for (const control of content.querySelectorAll("input, select, button")) {
       control.disabled = disabled;
     }
+    lockCard.setDisabled(disabled);
     updateDependentControls();
     updateGroupControls();
     updateCurrentCard();
@@ -243,19 +271,41 @@ document.addEventListener("DOMContentLoaded", () => {
         lastReadBeforeSave.set(key, lastRead);
       }
     };
-    enqueueStorageOperation(() => chrome.storage.local.set(settings));
+    // Through the lock, what waits stays as stored, which shows once saved.
+    let throughLock = false;
+    enqueueStorageOperation(async () => {
+      if (!lockCard.savesThroughLock()) return chrome.storage.local.set(settings);
+      throughLock = true;
+      lockCard.report(await saveThroughLock(settings));
+    });
     saveQueue.then(
       () => {
         saved();
         showSaved(saveId);
+        if (throughLock) reloadSettings();
       },
       (error) => {
         saved();
         showSaveFailed(saveId);
         showToast(`Save failed: ${error.message}`, "error");
+        if (throughLock) reloadSettings();
       },
     );
     return saveQueue;
+  }
+
+  // Asks the background to save settings as the lock allows, with extra
+  // values such as an import's backup, and returns what waits.
+  async function saveThroughLock(settings, { extra, source } = {}) {
+    const response = await chrome.runtime.sendMessage({
+      action: "saveSettings", settings, ...(extra && { extra }), ...(source && { source }),
+    });
+    if (!response?.success) throw new Error(response?.error || "no answer");
+    return response.result;
+  }
+
+  function reloadSettings() {
+    loadSettings().catch((error) => console.error("Could not reload FrontFilter settings:", error));
   }
 
   // Whether a read may lack an edit of the setting made on this page: one
@@ -331,7 +381,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const snapshot = getSettingsSnapshot();
     const settings = Object.fromEntries(Array.from(pendingSaveKeys, (key) => [key, snapshot[key]]));
     pendingSaveKeys.clear();
-    void chrome.storage.local.set(settings).catch(() => undefined);
+    const write = lockCard.savesThroughLock()
+      ? chrome.runtime.sendMessage({ action: "saveSettings", settings })
+      : chrome.storage.local.set(settings);
+    void write.catch(() => undefined);
   });
 
   // A list that takes exceptions shows them among its rules: each row is
@@ -472,7 +525,13 @@ document.addEventListener("DOMContentLoaded", () => {
       countEl.hidden = count === 0;
     }
 
+    // While settings are locked, a rule saves once typed: each step of
+    // typing it would be a change of its own, which may wait.
     function save(immediate = true) {
+      if (!immediate && lockCard.savesThroughLock()) {
+        for (const settingKey of keys) pendingSaveKeys.add(settingKey);
+        return;
+      }
       scheduleAutoSave(keys, immediate);
     }
 
@@ -948,9 +1007,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const stored = await chrome.storage.local.get([
       ...FrontFilter.STORAGE_KEYS,
       FrontFilter.IMPORT_BACKUP_KEY,
+      FrontFilter.settingsLock.STORAGE_KEY,
     ]);
     if (read < lastShownRead) return;
     lastShownRead = read;
+    lockCard.show(stored[FrontFilter.settingsLock.STORAGE_KEY]);
     showSettings(FrontFilter.coerceSettings(stored), read);
     showBackup(stored[FrontFilter.IMPORT_BACKUP_KEY]);
   }
@@ -1047,6 +1108,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // An import waits for confirmation, after showing what it would change.
   let pendingImport = null;
+  const IMPORT_NOTE = FrontFilter.normalizeText(importReview.note.textContent);
+  const IMPORT_NOTE_LOCKED = "Lists in the file replace yours, but while settings are locked, "
+    + "what loosens them waits. You can restore your current settings afterwards.";
 
   async function reviewImport(file) {
     try {
@@ -1063,6 +1127,7 @@ document.addEventListener("DOMContentLoaded", () => {
         item.textContent = change;
         return item;
       }));
+      importReview.note.textContent = lockCard.isLocked() ? IMPORT_NOTE_LOCKED : IMPORT_NOTE;
       importReview.note.hidden = changes.length === 0;
       importReview.confirm.hidden = changes.length === 0;
       importReview.cancel.textContent = changes.length > 0 ? "Cancel" : "Close";
@@ -1089,16 +1154,24 @@ document.addEventListener("DOMContentLoaded", () => {
     setControlsDisabled(true);
     try {
       await flushPendingSave();
+      let result = null;
       await enqueueStorageOperation(async () => {
         const current = await readStoredSettings();
-        await chrome.storage.local.set({
-          ...FrontFilter.coerceSettings({ ...current, ...imported }),
+        const extra = {
           [FrontFilter.SETTINGS_VERSION_KEY]: FrontFilter.SETTINGS_VERSION,
           [FrontFilter.IMPORT_BACKUP_KEY]: backupOf(current, "import"),
+        };
+        if (lockCard.savesThroughLock()) {
+          result = await saveThroughLock(imported, { extra, source: "import" });
+          return;
+        }
+        await chrome.storage.local.set({
+          ...FrontFilter.coerceSettings({ ...current, ...imported }),
+          ...extra,
         });
       });
       await loadSettings();
-      showToast("Configuration imported!", "success");
+      if (!lockCard.report(result)) showToast("Configuration imported!", "success");
     } catch (error) {
       showToast(`Import failed: ${error.message}`, "error");
     } finally {
@@ -1124,19 +1197,25 @@ document.addEventListener("DOMContentLoaded", () => {
     setControlsDisabled(true);
     try {
       await flushPendingSave();
+      let result = null;
       await enqueueStorageOperation(async () => {
         const key = FrontFilter.IMPORT_BACKUP_KEY;
         const { [key]: backup } = await chrome.storage.local.get(key);
         if (!backup?.settings) throw new Error("no saved settings to restore");
         const current = await readStoredSettings();
-        await chrome.storage.local.set({
-          ...FrontFilter.coerceSettings(FrontFilter.upgradeSettings(backup.settings)),
+        const settings = FrontFilter.coerceSettings(FrontFilter.upgradeSettings(backup.settings));
+        const extra = {
           [FrontFilter.SETTINGS_VERSION_KEY]: FrontFilter.SETTINGS_VERSION,
           [key]: backupOf(current, "restore"),
-        });
+        };
+        if (lockCard.savesThroughLock()) {
+          result = await saveThroughLock(settings, { extra, source: "restore" });
+          return;
+        }
+        await chrome.storage.local.set({ ...settings, ...extra });
       });
       await loadSettings();
-      showToast("Settings restored", "success");
+      if (!lockCard.report(result)) showToast("Settings restored", "success");
     } catch (error) {
       showToast(`Restore failed: ${error.message}`, "error");
     } finally {
@@ -1177,7 +1256,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const subreddit = await findCurrentSubreddit();
       if (subreddit) {
         subredditList.add(subreddit, { moveFocus: false, mode });
-        showToast(message(subreddit), "success");
+        // While locked, an exception may wait, which its save tells.
+        if (mode !== ALLOW || !lockCard.isLocked()) showToast(message(subreddit), "success");
         return true;
       }
       showToast("No subreddit found on current tab", "error");
@@ -1412,7 +1492,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // block page or another settings page, show here too. Otherwise a list
   // saved here would put back rules removed elsewhere and drop rules added.
   chrome.storage.onChanged.addListener((changes, area) => {
-    const watched = [...FrontFilter.STORAGE_KEYS, FrontFilter.IMPORT_BACKUP_KEY];
+    const watched = [
+      ...FrontFilter.STORAGE_KEYS,
+      FrontFilter.IMPORT_BACKUP_KEY,
+      FrontFilter.settingsLock.STORAGE_KEY,
+    ];
     if (area !== "local" || !watched.some((key) => Object.hasOwn(changes, key))) {
       return;
     }

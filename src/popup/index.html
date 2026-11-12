@@ -75,6 +75,16 @@
             </button>
           </div>
         </div>
+
+        <!-- While settings are locked, above every tab. -->
+        <div class="lock-banner" id="lock-banner" hidden>
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+            <rect x="3.25" y="7" width="9.5" height="6.75" rx="1.5" />
+            <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+          </svg>
+          <span class="lock-banner-text" id="lock-banner-text"></span>
+          <button type="button" id="lock-banner-details" class="lock-banner-button">Details</button>
+        </div>
       </header>
 
       <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -747,6 +757,61 @@
             </div>
           </section>
 
+          <!-- Filled from the stored lock (popup/lock-card.js). -->
+          <section class="section" aria-labelledby="lock-heading">
+            <h2 class="section-title" id="lock-heading" tabindex="-1">Settings lock</h2>
+            <div class="card lock-card">
+              <div class="lock-summary">
+                <p class="lock-state" id="lock-state" hidden></p>
+                <p class="card-text" id="lock-text">Keep your settings strict until a date you
+                  choose: blocking or hiding more applies at once, and loosening them waits.</p>
+              </div>
+              <div class="setting-group" id="lock-fields">
+                <label class="row field-row" for="lock-until">
+                  <span class="row-label">Locked until</span>
+                  <input type="datetime-local" id="lock-until" class="field" />
+                </label>
+                <label class="row field-row" for="lock-delay">
+                  <span class="row-label">Loosening changes wait</span>
+                  <select id="lock-delay" class="field"></select>
+                </label>
+              </div>
+              <div class="lock-actions">
+                <button type="button" id="lock-start" class="btn btn-primary">Lock
+                  settings…</button>
+                <button type="button" id="lock-change" class="btn btn-secondary"
+                  hidden>Change…</button>
+                <button type="button" id="lock-end" class="btn btn-secondary" hidden>End
+                  lock</button>
+                <button type="button" id="lock-save" class="btn btn-primary" hidden>Save</button>
+                <button type="button" id="lock-edit-cancel" class="btn btn-secondary"
+                  hidden>Cancel</button>
+              </div>
+              <!-- Locking asks first, saying what the lock will do. -->
+              <div class="confirm-box" id="lock-confirm" role="group"
+                aria-labelledby="lock-confirm-title" hidden>
+                <p class="confirm-title" id="lock-confirm-title" tabindex="-1"></p>
+                <ul class="lock-confirm-details" id="lock-confirm-details"></ul>
+                <label class="lock-acknowledge">
+                  <input type="checkbox" id="lock-acknowledge" />
+                  <span id="lock-acknowledge-text"></span>
+                </label>
+                <div class="backup-actions">
+                  <button type="button" id="lock-confirm-button" class="btn btn-primary"
+                    disabled>Lock</button>
+                  <button type="button" id="lock-confirm-cancel"
+                    class="btn btn-secondary">Cancel</button>
+                </div>
+              </div>
+              <!-- What waits, and when it applies. -->
+              <div class="lock-pending" id="lock-pending" hidden>
+                <h3 class="lock-pending-title" id="lock-pending-title">Waiting</h3>
+                <ul class="lock-pending-list" id="lock-pending-list"
+                  aria-labelledby="lock-pending-title"></ul>
+              </div>
+            </div>
+          </section>
+
           <section class="section" aria-labelledby="backup-heading">
             <h2 class="section-title" id="backup-heading">Configuration backup</h2>
             <div class="card card-padded">
@@ -809,7 +874,9 @@
     </div>
     <script src="../shared/core.js"></script>
     <script src="../shared/stats.js"></script>
+    <script src="../shared/settings-lock.js"></script>
     <script src="stats-tab.js"></script>
+    <script src="lock-card.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

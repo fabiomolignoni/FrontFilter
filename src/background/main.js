@@ -1,8 +1,8 @@
 /**
  * FrontFilter's background script: keeps the declarative navigation rules in
- * step with the settings, opens the settings page for other pages, and
- * keeps the statistics they record, adding the recorder to Reddit pages
- * open before an update.
+ * step with the settings, opens the settings page for other pages, keeps
+ * the statistics they record, adding the recorder to Reddit pages open
+ * before an update, and keeps the settings lock.
  */
 
 // These settings belonged to features removed in previous releases. Removing
@@ -162,14 +162,56 @@ function resetStats() {
   return updateStats(() => chrome.storage.local.remove([FrontFilter.stats.STORAGE_KEY]));
 }
 
-// Answers a message with whether the operation succeeded.
-function respond(operation, sendResponse) {
+// The settings lock has one writer too: while it is on, the settings page
+// asks the background to save settings, which applies what tightens them
+// and keeps what loosens them waiting (shared/settings-lock.js). An alarm
+// applies what waits once it is due, and ends the lock.
+const LOCK = FrontFilter.settingsLock;
+const LOCK_ALARM = "settingsLock";
+let lockQueue = Promise.resolve();
+
+// Runs a lock operation on the stored settings and lock, stores what it
+// returns, and answers its result.
+function updateLock(operation, message = {}) {
+  lockQueue = lockQueue.catch(() => undefined).then(async () => {
+    const stored = await chrome.storage.local.get([...FrontFilter.STORAGE_KEYS, LOCK.STORAGE_KEY]);
+    const { set, remove, lock, result } = operation(stored, message, Date.now());
+    if (Object.keys(set).length > 0) await chrome.storage.local.set(set);
+    if (remove.length > 0) await chrome.storage.local.remove(remove);
+    // Browsers may drop alarms when they restart: each update sets it again.
+    if (lock) await chrome.alarms.create(LOCK_ALARM, { when: LOCK.nextUpdate(lock) });
+    else await chrome.alarms.clear(LOCK_ALARM);
+    return result;
+  });
+  return lockQueue;
+}
+
+function updateLockInBackground() {
+  void updateLock(LOCK.update).catch((error) => {
+    console.error("Could not update the settings lock:", error);
+  });
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm?.name === LOCK_ALARM) updateLockInBackground();
+});
+
+// Answers a message with whether the operation succeeded, and with what
+// it answered when asked to.
+function respond(operation, sendResponse, { withResult = false } = {}) {
   operation.then(
-    () => sendResponse({ success: true }),
+    (result) => sendResponse(withResult ? { success: true, result } : { success: true }),
     (error) => sendResponse({ success: false, error: error?.message ?? String(error) }),
   );
   return true;
 }
+
+const LOCK_OPERATIONS = Object.freeze({
+  startLock: LOCK.start,
+  saveSettings: LOCK.save,
+  cancelLockedChange: LOCK.cancel,
+  updateLock: LOCK.update,
+});
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.action === "openSettings") {
@@ -186,7 +228,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.action === "resetStats") {
     return respond(resetStats(), sendResponse);
   }
+  if (Object.hasOwn(LOCK_OPERATIONS, message?.action)) {
+    return respond(updateLock(LOCK_OPERATIONS[message.action], message), sendResponse, { withResult: true });
+  }
   return false;
 });
 
 syncNavigationRulesInBackground();
+// What came due while the browser was closed applies now.
+updateLockInBackground();

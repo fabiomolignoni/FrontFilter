@@ -45,11 +45,14 @@ test("asks only for the permissions it uses, and for host access only to Reddit"
   // only where the host permissions below allow, which redirects need anyway.
   // scripting shows none either, and also acts only there: Chrome needs it
   // to add the statistics recorder to Reddit pages open before an update,
-  // which Firefox gives their content scripts itself.
-  assert.deepEqual(manifest.permissions, ["storage", "declarativeNetRequestWithHostAccess", "scripting"]);
+  // which Firefox gives their content scripts itself. alarms shows none:
+  // it applies the settings lock's changes once they are due.
+  assert.deepEqual(manifest.permissions, [
+    "storage", "declarativeNetRequestWithHostAccess", "scripting", "alarms",
+  ]);
   assert.equal("optional_permissions" in manifest, false);
   assert.deepEqual(manifest.host_permissions, ["*://*.reddit.com/*"]);
-  assert.deepEqual(firefoxManifest.permissions, ["storage", "declarativeNetRequestWithHostAccess"]);
+  assert.deepEqual(firefoxManifest.permissions, ["storage", "declarativeNetRequestWithHostAccess", "alarms"]);
   assert.deepEqual(firefoxManifest.host_permissions, manifest.host_permissions);
 });
 
