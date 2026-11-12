@@ -137,8 +137,8 @@ Notable changes to FrontFilter, newest first.
   installed, updated or reloaded: such a page stayed until reloaded.
 - A link from another website to a blocked Reddit page shows the block
   page, instead of the browser's error page.
-- `ALL` rules also hide crossposts of the subreddit's posts from other
-  subreddits and feeds, and the scroll limit no longer counts them.
+- **Everywhere** rules also hide crossposts of the subreddit's posts from
+  other subreddits and feeds, and the scroll limit no longer counts them.
 - A rule, number or website address typed in the settings is saved when
   the settings close right after typing, as when their tab is closed: it
   was lost.
