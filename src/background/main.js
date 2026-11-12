@@ -215,7 +215,9 @@ const LOCK_OPERATIONS = Object.freeze({
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.action === "openSettings") {
-    const url = chrome.runtime.getURL(FrontFilter.settingsPagePath(message.currentSubreddit));
+    const url = chrome.runtime.getURL(FrontFilter.settingsPagePath(
+      message.currentSubreddit, { importing: message.importing === true },
+    ));
     return respond(chrome.tabs.create({ url }), sendResponse);
   }
   // Extension pages wait for the rules before revisiting an unblocked page.

@@ -1137,6 +1137,11 @@ test("opens the settings page in a tab of its own, for a subreddit", () => {
     FrontFilter.settingsPagePath("r/Firefox"),
     "popup/index.html?standalone=true&currentSubreddit=firefox",
   );
+  assert.equal(
+    FrontFilter.settingsPagePath("firefox", { importing: true }),
+    "popup/index.html?standalone=true&currentSubreddit=firefox&import=true",
+  );
+  assert.equal(FrontFilter.settingsPagePath("", { importing: "yes" }), "popup/index.html?standalone=true");
   for (const invalid of ["fire*", "", "https://example.com/r/firefox", 42]) {
     assert.equal(FrontFilter.settingsPagePath(invalid), "popup/index.html?standalone=true", invalid);
   }

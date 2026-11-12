@@ -1464,21 +1464,28 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("export-config").addEventListener("click", exportConfig);
   // Saves what is being typed, opens the page in a tab, for the same
   // subreddit, and closes the popup.
-  openInTab.addEventListener("click", async () => {
+  async function openSettingsTab({ importing = false } = {}) {
     await flushPendingSave().catch(() => undefined);
     const subreddit = currentCard.subreddit;
     try {
       const response = await chrome.runtime.sendMessage({
-        action: "openSettings", currentSubreddit: subreddit,
+        action: "openSettings", currentSubreddit: subreddit, ...(importing && { importing }),
       });
       if (!response?.success) throw new Error(response?.error);
     } catch {
-      await chrome.tabs.create({ url: chrome.runtime.getURL(FrontFilter.settingsPagePath(subreddit)) });
+      const path = FrontFilter.settingsPagePath(subreddit, { importing });
+      await chrome.tabs.create({ url: chrome.runtime.getURL(path) });
     }
     globalThis.close?.();
-  });
+  }
+  openInTab.addEventListener("click", () => openSettingsTab());
+  // A file picker can close the popup, as Firefox's always does, and the
+  // import with it: the popup imports from a tab of its own.
   const importConfigButton = document.getElementById("import-config");
-  importConfigButton.addEventListener("click", () => importFile.click());
+  importConfigButton.addEventListener("click", () => {
+    if (standalone) importFile.click();
+    else void openSettingsTab({ importing: true });
+  });
   importFile.addEventListener("change", () => {
     const [file] = importFile.files;
     if (file) void reviewImport(file);
@@ -1505,11 +1512,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const statsTab = FrontFilter.createStatsTab({ showToast });
 
+  // Opened from the popup's Import, the page offers its own, which can
+  // open a file picker: browsers open one only on a click.
+  const openedToImport = standalone && pageParams.get("import") === "true";
+  if (openedToImport) selectTab(document.getElementById("tab-settings"));
+
   void showCurrentPage();
   void statsTab.load();
   setControlsDisabled(true);
   loadSettings()
-    .then(() => setControlsDisabled(false))
+    .then(() => {
+      setControlsDisabled(false);
+      if (!openedToImport) return;
+      importConfigButton.focus();
+      showToast("Click Import to choose the file");
+    })
     .catch((error) => {
       showToast(`Could not load settings: ${error.message}`, "error");
     });

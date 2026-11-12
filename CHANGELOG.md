@@ -2,6 +2,15 @@
 
 Notable changes to FrontFilter, newest first.
 
+## Unreleased
+
+### Fixed
+
+- **Import**, in the popup, opens the settings in a tab, on their
+  **Settings** tab, where **Import** chooses the file. In Firefox, the file
+  picker closed the popup, and the import with it, so the file could not be
+  imported from there.
+
 ## 3.0.0 - 2026-11-12
 
 ### Added

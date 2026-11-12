@@ -831,11 +831,12 @@ var FrontFilter = (() => {
 
   // The settings page in a tab of its own. Its card for the page in front
   // shows the subreddit given here, as the tab it would read is the
-  // settings page.
-  function settingsPagePath(subreddit) {
+  // settings page. Opened to import, it shows its Import button.
+  function settingsPagePath(subreddit, { importing = false } = {}) {
     const params = new URLSearchParams({ standalone: "true" });
     const name = normalizeExactSubredditName(subreddit);
     if (name) params.set("currentSubreddit", name);
+    if (importing === true) params.set("import", "true");
     return `popup/index.html?${params.toString()}`;
   }
 

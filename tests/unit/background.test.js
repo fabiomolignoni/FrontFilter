@@ -294,6 +294,16 @@ test("opens standalone settings and reports failures through message responses",
     "chrome-extension://frontfilter/popup/index.html?standalone=true&currentSubreddit=firefox",
   );
 
+  // The popup's Import opens the page to import.
+  await sendMessage(
+    background.listeners.message,
+    { action: "openSettings", currentSubreddit: "Firefox", importing: true },
+  );
+  assert.equal(
+    background.createdTabs[1].url,
+    "chrome-extension://frontfilter/popup/index.html?standalone=true&currentSubreddit=firefox&import=true",
+  );
+
   background.chrome.tabs.create = async () => {
     throw new Error("tabs unavailable");
   };
