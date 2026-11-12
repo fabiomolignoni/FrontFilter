@@ -16,9 +16,11 @@ Notable changes to FrontFilter, newest first.
   The settings page lists what waits, and when it applies, and cancels it,
   and a bar under its tabs says until when settings are locked. For 10
   minutes, a change made while locked, or a new lock, can be taken back at
-  once. The theme, statistics, Block buttons and the redirect stay free to
-  change. FrontFilter asks for the `alarms` permission, which shows no
-  warning, to apply what waits when it is due.
+  once. What no impulse would loosen stays free to change: ads, avatars,
+  awards and usernames, the left sidebar's Resources, the Block buttons, the
+  block page's options, the theme and statistics. FrontFilter asks for the
+  `alarms` permission, which shows no warning, to apply what waits when it
+  is due.
 
 - **Stats**, a new tab of the settings page: how long you spent on Reddit
   today and on each of the last 7 days, in how many visits, with your daily
