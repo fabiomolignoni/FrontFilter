@@ -129,7 +129,8 @@ leaves **Undo** in its place.
 
 Importing a configuration shows what it would change before it does, and
 keeps the settings it replaces: **Restore**, under **Configuration backup**,
-puts them back. The settings also open in a tab of their own, from the
+puts them back. From the popup, **Import** opens the settings in a tab,
+where you choose the file. The settings also open in a tab of their own, from the
 popup's button beside the save state, or from the browser's extension
 settings, as FrontFilter's options.
 

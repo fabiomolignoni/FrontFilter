@@ -2418,7 +2418,9 @@ test("tells how much of a mixed group is hidden, and nothing otherwise", async (
 });
 
 test("saves the scroll mode and opens the file picker for imports", async () => {
-  const { elements, writes } = await loadPopup({ autoResolveWrites: true });
+  const { elements, writes } = await loadPopup({
+    autoResolveWrites: true, locationSearch: "?standalone=true",
+  });
   elements["scroll-mode"].value = "button";
   elements["scroll-mode"].dispatch("change");
   await settle();
@@ -2426,6 +2428,49 @@ test("saves the scroll mode and opens the file picker for imports", async () => 
 
   elements["import-config"].click();
   assert.equal(elements["import-file"].clickCount, 1);
+});
+
+// A file picker can close the popup, as Firefox's always does, and the
+// import with it.
+test("imports from a tab of its own when it is the popup", async () => {
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    tabs: [{ url: "https://www.reddit.com/r/news/" }],
+  });
+  await popup.elements["import-config"].click();
+  await settle();
+  assert.equal(popup.elements["import-file"].clickCount ?? 0, 0);
+  assert.deepEqual(JSON.parse(JSON.stringify(popup.sentMessages)),
+    [{ action: "openSettings", currentSubreddit: "news", importing: true }]);
+  assert.equal(popup.closed, true);
+
+  // Without the background, the popup opens the tab itself.
+  const alone = await loadPopup({
+    sendMessage: async () => ({ success: false, error: "no tabs" }),
+  });
+  await alone.elements["import-config"].click();
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(alone.createdTabs)),
+    [{ url: "chrome-extension://frontfilter/popup/index.html?standalone=true&import=true" }]);
+  assert.equal(alone.closed, true);
+});
+
+test("opened to import, shows its Import button, which opens the file picker", async () => {
+  const { elements } = await loadPopup({ locationSearch: "?standalone=true&import=true" });
+  assert.equal(elements["tab-settings"].getAttribute("aria-selected"), "true");
+  assert.equal(elements["panel-settings"].hidden, false);
+  assert.equal(elements["panel-block"].hidden, true);
+  assert.equal(elements["import-config"].disabled, false);
+  assert.equal(elements["import-config"].focused, true);
+  assert.equal(elements.toast.textContent, "Click Import to choose the file");
+
+  elements["import-config"].click();
+  assert.equal(elements["import-file"].clickCount, 1);
+
+  // Only a tab of its own is opened to import.
+  const popup = await loadPopup({ locationSearch: "?import=true" });
+  assert.equal(popup.elements["tab-block"].getAttribute("aria-selected"), "true");
+  assert.equal(popup.elements["import-config"].focused, false);
 });
 
 test("shows settings changed elsewhere, and saves lists without undoing them", async () => {
