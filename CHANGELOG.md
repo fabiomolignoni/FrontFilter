@@ -7,8 +7,8 @@ Notable changes to FrontFilter, newest first.
 ### Added
 
 - **Settings lock**, in the **Settings** tab: lock your settings until a
-  date you choose, up to a year, after a warning that says what the lock
-  does and asks you to confirm it. While it lasts, changes that block or
+  date you choose, after a warning that says what the lock does, with its
+  end date, and asks you to confirm it. While it lasts, changes that block or
   hide more apply at once, and changes that loosen your settings, such as
   removing a rule, allowing a subreddit or turning a filter off, wait an
   hour, 6 hours, a day, 3 days or a week, as you choose, or until the lock

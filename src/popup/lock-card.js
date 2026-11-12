@@ -113,7 +113,6 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
   function untilProblem(until, now) {
     if (!Number.isFinite(until)) return "Choose when the lock ends";
     if (until - now < LOCK.MIN_DURATION) return "Choose a time in the future";
-    if (until - now > LOCK.MAX_DURATION) return "A lock can last a year at most";
     return "";
   }
 

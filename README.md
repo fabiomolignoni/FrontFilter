@@ -73,12 +73,12 @@ To install from source, see [Development](#development). The
 
 ### Lock settings
 
-- Lock your settings until a date you choose, up to a year, after a warning
-  that says what the lock does. While it lasts, changes that block or hide
-  more apply at once, and changes that loosen your settings, such as
-  removing a rule, allowing a subreddit or turning a filter off, wait: an
-  hour to a week, as you choose, or until the lock ends. Ending the lock
-  early, or making it shorter or softer, waits too.
+- Lock your settings until any date you choose, after a warning that says
+  what the lock does. While it lasts, changes that block or hide more apply
+  at once, and changes that loosen your settings, such as removing a rule,
+  allowing a subreddit or turning a filter off, wait: an hour to a week, as
+  you choose, or until the lock ends. Ending the lock early, or making it
+  shorter or softer, waits too.
 - See what waits, and when it applies, and cancel it. For 10 minutes, a
   change made while locked can be taken back at once, and so can a new
   lock, so that a typo costs no wait.

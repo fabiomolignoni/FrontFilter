@@ -332,10 +332,12 @@ test("locks the settings for a time and a delay that can be used", () => {
     recent: [{ key: "lockUntil", before: 0, at: NOW }, { key: "lockDelay", before: 0, at: NOW }],
   });
   assert.equal(LOCK.isActive(LOCK.normalizeLock(started.set.settingsLock), NOW), true);
+  // However far away the end is.
+  const far = LOCK.start({}, { until: NOW + 10 * 366 * DAY, delay: DAY }, NOW);
+  assert.equal(far.set.settingsLock.until, NOW + 10 * 366 * DAY);
 
   const refusals = [
     [{ until: NOW + 30 * 1000, delay: DAY }, /in the future/],
-    [{ until: NOW + 367 * DAY, delay: DAY }, /a year at most/],
     [{ until: "tomorrow", delay: DAY }, /when the lock ends/],
     [{ until: NOW + DAY, delay: 5 * MINUTE }, /how long changes wait/],
   ];
@@ -379,7 +381,10 @@ test("extends a lock at once, and shortens or softens it only after its delay", 
   assert.deepEqual(result.waiting.map(({ key, due }) => [key, due]), [
     ["lockUntil", NOW + 20 * MINUTE + 3 * DAY], ["lockDelay", NOW + 20 * MINUTE + 3 * DAY],
   ]);
-  assert.throws(() => save(stored, { lockUntil: NOW + 400 * DAY }), /a year at most/);
+  // However far.
+  ({ stored } = save(stored, { lockUntil: NOW + 10 * 366 * DAY }, NOW + 30 * MINUTE));
+  assert.equal(stored.settingsLock.until, NOW + 10 * 366 * DAY);
+  assert.deepEqual(waitingChanges(stored).map(({ key }) => key), ["lockDelay"]);
 });
 
 test("refuses to end or soften a lock when that could only apply once it is over", () => {
