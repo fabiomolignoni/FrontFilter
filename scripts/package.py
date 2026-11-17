@@ -9,9 +9,11 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "src"
 DIST = ROOT / "dist"
-CHROME_MANIFEST = json.loads((SOURCE / "manifest.json").read_text())
-FIREFOX_OVERRIDES = json.loads((ROOT / "manifests/firefox.json").read_text())
+CHROME_MANIFEST = json.loads((SOURCE / "manifest.json").read_text(encoding="utf-8"))
+FIREFOX_OVERRIDES = json.loads((ROOT / "manifests/firefox.json").read_text(encoding="utf-8"))
 VERSION = CHROME_MANIFEST["version"]
+# The earliest time a zip archive can record, 1980-01-01, in seconds since 1970.
+ZIP_EPOCH = 315532800
 
 
 def source_files():
@@ -35,12 +37,14 @@ def browser_manifest(browser):
 
 
 def timestamp():
-    epoch = int(os.environ.get("SOURCE_DATE_EPOCH", "315532800"))
-    value = datetime.fromtimestamp(max(epoch, 315532800), timezone.utc)
+    """The time every archived file carries: SOURCE_DATE_EPOCH, or the earliest."""
+    epoch = int(os.environ.get("SOURCE_DATE_EPOCH", ZIP_EPOCH))
+    value = datetime.fromtimestamp(max(epoch, ZIP_EPOCH), timezone.utc)
     return (value.year, value.month, value.day, value.hour, value.minute, value.second)
 
 
 def build(name, browser):
+    """Writes one browser's package to dist/, with that browser's manifest."""
     target = DIST / name
     manifest = (json.dumps(browser_manifest(browser), indent=2) + "\n").encode()
     with ZipFile(target, "w", ZIP_DEFLATED, compresslevel=9) as archive:

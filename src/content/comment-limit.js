@@ -12,12 +12,11 @@
 FrontFilter.createCommentLimiter = function ({ getSettings, isBlocked }) {
   const COMMENT = FrontFilter.SELECTORS.comment;
   const POSTS = FrontFilter.posts;
+  const VIEW = FrontFilter.limitView;
   // The comment tree being limited. In it, top-level comments, ad slots
   // and loaders stay hidden until marked visible (feed-limit.css), so none
   // shows before the limit has counted it.
   const LIMIT_ATTRIBUTE = "data-frontfilter-comment-limit";
-  const VISIBLE_ATTRIBUTE = "data-frontfilter-limit-visible";
-  const HIDDEN_ATTRIBUTE = "data-frontfilter-limit-hidden";
   const LOAD_EVENT = "frontfilter-comments-load-request";
   // What the limit shows or hides, when it is outside every comment.
   const PARTS = [COMMENT.modern, COMMENT.treeAds, COMMENT.moreComments].join(", ");
@@ -31,6 +30,17 @@ FrontFilter.createCommentLimiter = function ({ getSettings, isBlocked }) {
   let observing = false;
   let limitedTree = null;
   let session = null;
+  // Changes elsewhere in the page matter only until the tree is found, or
+  // once it is gone or the page has moved on.
+  const observer = new MutationObserver((mutations) => {
+    const changes = mutations.filter((mutation) => !POSTS.isUnreadTextChange(mutation, COMMENT.bodies));
+    if (changes.length === 0) return;
+    if (session) changes.forEach(({ target }) => forgetComment(session.comments, target));
+    const tree = session?.tree || limitedTree;
+    if (tree?.isConnected && (!session || session.key === key())
+      && !changes.some(({ target }) => tree.contains(target))) return;
+    update();
+  });
 
   // Until settings load, comment pages are limited, so that no comment
   // shows only to be hidden once they do.
@@ -49,24 +59,6 @@ FrontFilter.createCommentLimiter = function ({ getSettings, isBlocked }) {
 
   function signature(settings) {
     return `${settings.commentLimit}:${settings.commentLimitMode}`;
-  }
-
-  function setAttribute(element, name, active) {
-    if (active) {
-      if (!element.hasAttribute(name)) element.setAttribute(name, "");
-    } else if (element.hasAttribute(name)) element.removeAttribute(name);
-  }
-
-  function setVisible(element, visible) {
-    setAttribute(element, VISIBLE_ATTRIBUTE, visible);
-    setAttribute(element, HIDDEN_ATTRIBUTE, !visible);
-  }
-
-  function clearMarkers(tree) {
-    for (const element of tree.querySelectorAll(`[${VISIBLE_ATTRIBUTE}], [${HIDDEN_ATTRIBUTE}]`)) {
-      element.removeAttribute(VISIBLE_ATTRIBUTE);
-      element.removeAttribute(HIDDEN_ATTRIBUTE);
-    }
   }
 
   // A comment whose text has not rendered yet is judged by its author
@@ -96,12 +88,7 @@ FrontFilter.createCommentLimiter = function ({ getSettings, isBlocked }) {
 
   // Forgets the comments a change happened in, so they are read again.
   function forgetComment(comments, target) {
-    const element = target.closest ? target : target.parentElement;
-    let comment = element?.closest(COMMENT.modern);
-    while (comment) {
-      comments.delete(comment);
-      comment = comment.parentElement?.closest(COMMENT.modern);
-    }
+    for (const comment of POSTS.enclosing(target, COMMENT.modern)) comments.delete(comment);
   }
 
   function render(current) {
@@ -128,7 +115,7 @@ FrontFilter.createCommentLimiter = function ({ getSettings, isBlocked }) {
       if (row.type === "ad") show = index < lastShown;
       // Reddit loads more comments only while the limit wants them.
       if (row.type === "loader") show = !full;
-      setVisible(row.element, show);
+      VIEW.setVisible(row.element, show);
     });
     renderControls(current, { shown, held, full, loadable: Boolean(loader) });
   }
@@ -151,14 +138,8 @@ FrontFilter.createCommentLimiter = function ({ getSettings, isBlocked }) {
 
   function startSession(tree) {
     const settings = getSettings();
-    const controls = document.createElement("div");
-    controls.className = "frontfilter-feed-controls frontfilter-comment-controls";
-    const status = document.createElement("div");
-    status.setAttribute("role", "status");
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "frontfilter-comment-next";
-    controls.append(status);
+    const { controls, status } = VIEW.createControls("frontfilter-comment-controls");
+    const button = VIEW.createButton({ className: "frontfilter-comment-next" });
     // Fixed mode has no expansion control.
     if (settings.commentLimitMode === "button") controls.append(button);
     const current = {
@@ -185,7 +166,7 @@ FrontFilter.createCommentLimiter = function ({ getSettings, isBlocked }) {
   function stopSession() {
     if (!session) return;
     session.controls.remove();
-    clearMarkers(session.tree);
+    VIEW.clearMarkers(session.tree);
     session = null;
   }
 
@@ -203,7 +184,7 @@ FrontFilter.createCommentLimiter = function ({ getSettings, isBlocked }) {
       limitedTree?.removeAttribute(LIMIT_ATTRIBUTE);
       limitedTree = tree;
     }
-    if (tree) setAttribute(tree, LIMIT_ATTRIBUTE, true);
+    tree?.toggleAttribute(LIMIT_ATTRIBUTE, true);
     if (session && (session.tree !== tree || session.key !== key()
       || session.signature !== signature(getSettings()))) stopSession();
     if (!ready || !tree) return;
@@ -211,17 +192,6 @@ FrontFilter.createCommentLimiter = function ({ getSettings, isBlocked }) {
     render(session);
   }
 
-  // Changes elsewhere in the page matter only until the tree is found, or
-  // once it is gone or the page has moved on.
-  const observer = new MutationObserver((mutations) => {
-    const changes = mutations.filter((mutation) => !POSTS.isUnreadTextChange(mutation, COMMENT.bodies));
-    if (changes.length === 0) return;
-    if (session) changes.forEach(({ target }) => forgetComment(session.comments, target));
-    const tree = session?.tree || limitedTree;
-    if (tree?.isConnected && (!session || session.key === key())
-      && !changes.some(({ target }) => tree.contains(target))) return;
-    update();
-  });
   update();
 
   // Settings apply once loaded.

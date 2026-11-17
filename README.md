@@ -1,193 +1,143 @@
 # FrontFilter
 
+[![CI](https://github.com/fabiomolignoni/FrontFilter/actions/workflows/ci.yml/badge.svg)](https://github.com/fabiomolignoni/FrontFilter/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/fabiomolignoni/FrontFilter)](https://github.com/fabiomolignoni/FrontFilter/releases/latest)
+[![License: MPL 2.0](https://img.shields.io/badge/license-MPL--2.0-blue)](LICENSE)
+
 A browser extension that makes Reddit less distracting: block feeds and
-subreddits, filter posts and comments, and limit endless scrolling.
+subreddits, filter posts and comments, and limit endless scrolling. It works
+entirely on your device, with no account, servers or tracking.
 
 ## Install
 
-- [Chrome Web Store](https://chromewebstore.google.com/detail/frontfilter-reddit-feed-d/ekjnpdhgghniefiljlfopdjgoegneiie)
-  (Chrome 121 or later)
-- [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/frontfilter-reddit-feed/eimajmdhafjkjaomdffniplpgijoemdm)
-  (Edge 121 or later)
-- [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/frontfilter/)
-  (Firefox 140 or later, Firefox for Android 142 or later)
+| Browser | Store | Requires |
+| --- | --- | --- |
+| Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/frontfilter-reddit-feed-d/ekjnpdhgghniefiljlfopdjgoegneiie) | Chrome 121 |
+| Edge | [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/frontfilter-reddit-feed/eimajmdhafjkjaomdffniplpgijoemdm) | Edge 121 |
+| Firefox | [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/frontfilter/) | Firefox 140, Firefox for Android 142 |
 
-To install from source, see [Development](#development). The
+To run it from source, see [Development](#development). The
 [changelog](CHANGELOG.md) lists what changed in each version.
 
 ## Features
 
-### Block
-
-- Block Home, Popular, Explore, News, or every subreddit's front page.
-- Block subreddits by exact name or with `*` wildcards, `*` alone matching
-  every subreddit. **Front page** rules block a subreddit's front page and
-  sort views; **Everywhere** rules block every page of it and hide its
-  posts, and crossposts of them, from other feeds.
-- Allow exceptions, in the same list, that override subreddit rules: block
-  `*` everywhere and allow a few subreddits to keep only those.
-- Optionally add one-click **Block** buttons to feed posts and subreddit
-  pages, with undo.
-- Optionally hide the **Open settings** button from the page shown in place
-  of blocked content, or go to a website of your choice instead of that page.
-
-### Filter
-
-- Hide posts and comments that contain your keywords, as whole words in any
-  case and with or without accents, or inside words with `*`, as in
-  `spoiler*`, or that match a regular expression. Allowed keywords keep the
-  posts and comments that contain them.
-- Hide posts by flair, with `*` wildcards, and allow flairs that keep them.
-- Hide the posts and comments of users, by name, `u/name` or profile URL,
-  from every Reddit page, and block their profiles.
-- Hide suggested posts in the Home feed, suggested communities, and ads and
-  promoted posts.
-- Hide NSFW content: posts tagged NSFW and posts from NSFW communities, on
-  every Reddit page, Old Reddit included, with the comments on an NSFW
-  post's own page.
-- Hide spoilers: posts tagged as spoilers, on every Reddit page, Old Reddit
-  included, with the comments on a spoiler's own page.
-
-### Simplify
-
-- Hide comments or only their replies, and the right sidebar.
-- Hide the navbar and the left sidebar, or only some of their sections.
-- Hide votes, karma, awards, avatars, and usernames.
-- Turn off video autoplay.
-
-### Limit scrolling
-
-- Show a fixed number of posts, or reveal them in groups of your chosen size.
-- Show only the first comments on a post's page, each with its replies, a
-  fixed number of them or in groups of your chosen size.
-
-### Statistics
-
-- See how long you spend on Reddit today and on each of the last 7 days, in
-  how many visits, with your daily average and how it compares with the week
-  before.
-- See how many pages FrontFilter blocked, and which most, and how many posts
-  and comments its filters hid, and why.
-- Statistics stay on your device and are not exported with your settings.
-  You can pause them or delete them at any time.
-
-### Lock settings
-
-- Lock your settings until any date you choose, after a warning that says
-  what the lock does. While it lasts, changes that block or hide more apply
-  at once, and changes that loosen your settings, such as removing a rule,
-  allowing a subreddit or turning a filter off, wait: an hour to a week, as
-  you choose, or until the lock ends. Ending the lock early, or making it
-  shorter or softer, waits too.
-- See what waits, and when it applies, and cancel it. For 10 minutes, a
-  change made while locked can be taken back at once, and so can a new
-  lock, so that a typo costs no wait.
-- What no impulse would loosen stays free to change: ads, avatars, awards
-  and usernames, the left sidebar's Resources, the Block buttons, the block
-  page's options, the theme and statistics.
-
-Settings can be exported and imported as JSON. FrontFilter's pages follow your
-system theme or use a light or dark one.
+- **Block pages.** Home, Popular, Explore, News, every subreddit's front
+  page, or subreddits of your choice, on their front page or everywhere. A
+  blocked page shows a block page, or leads to a website you choose.
+- **Filter posts and comments** by keyword, flair or user, and hide ads,
+  suggested posts and communities, NSFW posts and spoilers.
+- **Simplify Reddit.** Hide comments or their replies, the navbar, the
+  sidebars, votes, karma, awards, avatars and usernames, and turn off video
+  autoplay.
+- **Limit scrolling.** Show a fixed number of posts, or of top-level
+  comments, or reveal them in groups of a size you choose.
+- **See your statistics.** Time on Reddit and visits, today and over the last
+  7 days, and what FrontFilter blocked and hid. You can pause or delete them.
+- **Lock your settings** until a date you choose. Changes that block or hide
+  more apply at once; changes that loosen your settings wait, from an hour to
+  a week or until the lock ends, and can be cancelled.
+- **Block in one click**, optionally, from buttons on feed posts and
+  subreddit pages, with undo.
+- **Export and import** your settings as JSON, with a backup of what an
+  import replaces. Light, dark or system theme.
 
 ## Usage
 
-Open FrontFilter from the browser toolbar or extensions menu. Its tabs
-follow the features above: **Block** covers pages, subreddits, the Block
-buttons and the block page, **Filter** hides suggestions, ads, sensitive
-posts, and posts and comments by keyword, flair or user, **Simplify** limits
-scrolling and hides parts of Reddit's pages, **Stats** shows your
-statistics, and **Settings** covers the theme, the settings lock, backups,
-and the project's links. Changes are saved automatically and apply right
-away.
+Open FrontFilter from the browser toolbar. Changes are saved as you make
+them and apply to open Reddit tabs right away. On Reddit, the **Block** tab
+starts with a card for the page in front: how many posts and comments your
+filters hide on it and, on a subreddit, buttons to block or allow it.
 
-While settings are locked, a bar under the tabs says until when, and how
-many changes wait. A change that loosens your settings then shows as it
-applies, and a message says when the change you made applies; **Settings
-lock**, in **Settings**, lists what waits, with **Cancel**. Importing or
-restoring settings while locked applies what tightens them at once, and
-what loosens them waits.
+Rules go in lists, one per row. Paste several at once, one per line or
+separated by commas. Each list's **?** button shows its syntax:
 
-In **Stats**, time counts while a Reddit tab is in front and you have
-scrolled, clicked or typed in it in the last 5 minutes, and a new visit
-starts after 10 minutes away from Reddit. Point at a day of the chart, or
-move through the days with the arrow keys, to see its time. The **?**
-button beside **Today** explains each figure.
+| List | A rule is | Examples |
+| --- | --- | --- |
+| Subreddits | a name, a pattern with `*`, or a Reddit URL | `news`, `gam*`, `*` |
+| Keywords | a whole word or phrase, ignoring case and accents; `*` at an end to match inside words; or a `/regular expression/` | `ai`, `spoiler*`, `/colou?r/` |
+| Flairs | a flair, or a pattern with `*` | `Meme`, `*politic*` |
+| Users | a name, `u/name` or a profile URL | `u/spez` |
 
-On Reddit, the **Block** tab opens with a card for the page in front. It
-names the page and says how many posts and comments your filters hide on
-it, as the page shows them now; Old Reddit and search results get no
-count. On a subreddit, it also says whether your rules block or allow it,
-and blocks or allows it in one click. A switch with sections, such as **Hide navbar**, shows them from
-its arrow. In the lists of subreddits, keywords and flairs, a rule's badge
-says whether it blocks, hides or allows, and a `+` before a rule, as in
-`+worldnews`, makes it an exception, which overrides the list's other
-rules. To add several rules at once, paste a list into a field of a
-list, one per line or separated by commas. A long list shows its first
-rules, with a field that searches it and a button that shows it all. The
-**?** button next to a list shows how to write its rules. Removing a rule
-leaves **Undo** in its place.
+A `+` before a subreddit, keyword or flair makes it an exception, which
+overrides the list's other rules: block `*` and allow `+askscience` to keep
+only that subreddit.
 
-Importing a configuration shows what it would change before it does, and
-keeps the settings it replaces: **Restore**, under **Configuration backup**,
-puts them back. From the popup, **Import** opens the settings in a tab,
-where you choose the file. The settings also open in a tab of their own, from the
-popup's button beside the save state, or from the browser's extension
-settings, as FrontFilter's options.
+While settings are locked, a bar under the tabs says until when, and
+**Settings lock**, in **Settings**, lists the changes that wait. For 10
+minutes, a change made while locked, or a new lock, can be taken back at
+once. Settings that no impulse would loosen stay free to change: ads,
+avatars, awards, usernames, the left sidebar's Resources, the Block buttons,
+the block page's options, the theme and statistics.
 
-## Privacy
+## Privacy and permissions
 
-FrontFilter works entirely on your device. It has no servers, accounts,
-analytics, or ads, and never sends your data anywhere. It runs only on
-`reddit.com` and asks only for `storage`,
-`declarativeNetRequestWithHostAccess` and `alarms` permissions, and in
-Chrome for `scripting`. See the [privacy policy](PRIVACY.md) for details.
+FrontFilter has no servers, accounts, analytics or ads, and never sends your
+data anywhere: settings and statistics stay in your browser. It runs only on
+`reddit.com`. The [privacy policy](PRIVACY.md) has the details.
+
+| Permission | Why |
+| --- | --- |
+| Access to `reddit.com` | Hide and filter what Reddit's pages show |
+| `storage` | Keep your settings and statistics on your device |
+| `declarativeNetRequestWithHostAccess` | Redirect blocked Reddit pages before they load |
+| `alarms` | Apply the settings lock's waiting changes when they are due |
+| `scripting` (Chrome and Edge) | Count time on Reddit tabs already open when FrontFilter updates |
 
 ## Development
 
-FrontFilter has no runtime or npm dependencies. Development requires Node.js
-22 or later; building packages also requires Python 3.
+FrontFilter has no runtime or npm dependencies. You need Node.js 22 or
+later, and Python 3 to build packages.
 
 ```bash
 npm test        # unit tests, and checks of the manifests and pages
 npm run build   # the tests, then the Chrome and Firefox packages in dist/
 ```
 
-`SOURCE_DATE_EPOCH` sets the archive timestamps for reproducible builds.
+To try a local copy, load `src/` as an unpacked extension from
+`chrome://extensions` (with **Developer mode** on), or run `npm run build`
+and load `dist/frontfilter-firefox-<version>.xpi` as a temporary add-on from
+`about:debugging#/runtime/this-firefox`.
 
-To try a local copy:
+```text
+src/
+  manifest.json   Chrome's manifest; manifests/firefox.json holds Firefox's overrides
+  shared/         settings, rule matching, statistics, the settings lock, the theme
+  background/     navigation rules, and the one writer of statistics and the lock
+  content/        what runs on Reddit: filters, limits, Block buttons
+  popup/          the settings page, as the toolbar popup and in a tab
+  blocked/        the page shown in place of a blocked one
+scripts/          packaging and releases
+tests/            unit tests, browser tests on local fixtures, the Reddit canary
+```
 
-- **Chrome:** open `chrome://extensions`, turn on **Developer mode**, choose
-  **Load unpacked**, and select the `src/` folder.
-- **Firefox:** run `npm run build`, open
-  `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**,
-  and select `dist/frontfilter-firefox-<version>.xpi`.
-
-Browser tests load the extension in Firefox and Chrome with Selenium and
-check what it hides on local copies of Reddit's markup. They never visit
-Reddit, and CI runs them on every push. To run them, install Selenium with
-`pip install -r tests/browser/requirements.txt`:
+Browser tests load the extension in Firefox and Chrome with Selenium, on
+local copies of Reddit's markup. They never visit Reddit, and CI runs them
+on every push:
 
 ```bash
+pip install -r tests/browser/requirements.txt
 python3 tests/browser/firefox.py [--firefox /path/to/firefox]
 python3 tests/browser/chrome.py --chrome /path/to/chrome [--driver /path/to/chromedriver]
 ```
 
-Chrome 137 and later ignore the `--load-extension` switch these tests rely
-on, so run the Chrome suite with Chromium or Chrome for Testing, which
-`npx @puppeteer/browsers install chrome@stable` downloads (and
-`chromedriver@stable` its driver). Both suites accept unittest options, such
-as `-k navbar` to run only matching tests.
+The Chrome suite needs Chromium or Chrome for Testing, as Chrome 137 and
+later ignore `--load-extension`: `npx @puppeteer/browsers install
+chrome@stable` downloads it, and `chromedriver@stable` its driver. Both
+suites take unittest options, such as `-k navbar`. Set `SOURCE_DATE_EPOCH`
+for reproducible packages.
 
-A canary, `tests/reddit/canary.py`, checks the extension on reddit.com
-itself to catch changes in Reddit's markup. Reddit refuses CI's runners, so
-it runs by hand before each release; see
-[CONTRIBUTING.md](CONTRIBUTING.md#when-reddit-changes).
+Reddit changes its pages without notice. Everything FrontFilter relies on in
+Reddit's markup is in `src/content/selectors.js`, and a canary,
+`tests/reddit/canary.py`, checks the extension on reddit.com itself before
+each release. See [CONTRIBUTING.md](CONTRIBUTING.md#when-reddit-changes).
 
 ## Contributing
 
-Bug reports, questions, and focused pull requests are welcome in the
-[issue tracker](https://github.com/fabiomolignoni/FrontFilter/issues). Read
-[CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+Bug reports, questions and focused pull requests are welcome in the
+[issue tracker](https://github.com/fabiomolignoni/FrontFilter/issues); read
+[CONTRIBUTING.md](CONTRIBUTING.md) first. Report security problems
+privately, through
+[GitHub's vulnerability reporting](https://github.com/fabiomolignoni/FrontFilter/security/advisories/new).
 
 Development is human-directed and uses AI coding tools; this note is included
 for transparency.

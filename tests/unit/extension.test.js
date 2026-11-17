@@ -123,7 +123,7 @@ test("loads each content script after the modules it uses", () => {
   for (const file of ["content/posts.js", "content/page-style.js", "content/autoplay.js"]) {
     assert.ok(position("content/selectors.js") < position(file), file);
   }
-  for (const file of ["content/feed-window.js", "content/posts.js"]) {
+  for (const file of ["content/feed-window.js", "content/limit-view.js", "content/posts.js"]) {
     assert.ok(position(file) < position("content/feed-limit.js"), file);
   }
   assert.ok(position("content/posts.js") < position("content/comment-limit.js"));

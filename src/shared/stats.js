@@ -298,15 +298,9 @@ FrontFilter.stats = (() => {
 
   return Object.freeze({
     STORAGE_KEY,
-    DAYS_KEPT,
-    VISIT_GAP,
-    POST_REASONS,
-    COMMENT_REASONS,
-    REASON_LABELS,
     dayKey,
     shiftDay,
     normalizeStats,
-    normalizeRecord,
     isEmptyRecord,
     addRecord,
     blockedTarget,

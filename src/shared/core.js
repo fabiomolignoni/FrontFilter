@@ -1,6 +1,7 @@
 /**
  * FrontFilter's settings, filter matching and page routes, shared by the
- * background, the content scripts and the extension pages.
+ * background, the content scripts and the extension pages, with the few
+ * helpers they have in common.
  */
 
 var FrontFilter = (() => {
@@ -27,8 +28,7 @@ var FrontFilter = (() => {
     hideSuggestedCommunities: false,
     hideSuggestedPosts: false,
     hideAds: false,
-    // Posts tagged NSFW, or from communities tagged NSFW. Not blockNsfw, a
-    // setting of an earlier release that updates remove (background/main.js).
+    // Posts tagged NSFW, or from communities tagged NSFW.
     hideNsfw: false,
     // Posts tagged spoiler.
     hideSpoilers: false,
@@ -102,9 +102,9 @@ var FrontFilter = (() => {
   // Not a setting: the settings an import or a restore replaced, kept so
   // that the settings page can put them back.
   const IMPORT_BACKUP_KEY = "importBackup";
-  // Not a setting either: the version of the stored settings' format, also
-  // written in exports. Version 2 matches keywords as whole words; earlier
-  // settings have no version.
+  // Not a setting either: the version of the settings' format, stored with
+  // them and written in exports and backups. Version 2 matches keywords as
+  // whole words; files exported before it have no version.
   const SETTINGS_VERSION_KEY = "settingsVersion";
   const SETTINGS_VERSION = 2;
   const NAVIGATION_STORAGE_KEYS = Object.freeze([
@@ -141,7 +141,7 @@ var FrontFilter = (() => {
   const PAGE_PATTERNS = new Map(PAGE_ROUTES.map((route) =>
     [route, new RegExp(`^${route.path}$`, "i")]
   ));
-  const FRONT_PAGE_PATTERN = PAGE_PATTERNS.get(PAGE_ROUTES[0]);
+  const FRONT_PAGE_PATTERN = PAGE_PATTERNS.get(PAGE_ROUTES.find(({ page }) => page === "homepage"));
   const FEED_PAGE_PATTERN = new RegExp(
     `^/r/[^/]+(?:/(?:${LISTING_SORT_PATTERN}))?/?$`,
     "i",
@@ -153,13 +153,21 @@ var FrontFilter = (() => {
   const SUBREDDIT_SORTS = new Set(LISTING_SORTS);
   const REDDIT_HOST_PATTERN = /(^|\.)reddit\.com$/i;
 
+  // Stored and imported values, and messages, can be anything.
+  function isObject(value) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  }
+
+  function isWebUrl(url) {
+    return url.protocol === "http:" || url.protocol === "https:";
+  }
+
   function getRedditUrl(value, baseUrl) {
     if (typeof value !== "string" && !(value instanceof URL)) return null;
 
     try {
       const url = baseUrl ? new URL(value, baseUrl) : new URL(value);
-      const isWebUrl = url.protocol === "http:" || url.protocol === "https:";
-      return isWebUrl && REDDIT_HOST_PATTERN.test(url.hostname) ? url : null;
+      return isWebUrl(url) && REDDIT_HOST_PATTERN.test(url.hostname) ? url : null;
     } catch {
       return null;
     }
@@ -205,21 +213,27 @@ var FrontFilter = (() => {
     return name.includes("*") ? "" : name;
   }
 
-  // Filters match every post on each page update; compile each pattern once.
-  const wildcardPatterns = new Map();
-  function getWildcardPattern(pattern) {
-    let regex = wildcardPatterns.get(pattern);
-    if (!regex) {
-      const regexSource = pattern
-        .split("*")
-        .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-        .join(".*");
-      regex = new RegExp(`^${regexSource}$`, "i");
-      if (wildcardPatterns.size > 1000) wildcardPatterns.clear();
-      wildcardPatterns.set(pattern, regex);
-    }
-    return regex;
+  function escapeRegex(text) {
+    return text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
   }
+
+  // Filters match every post on each page update, and settings are checked
+  // often: each pattern compiles once. A cache that grew too large starts
+  // over.
+  const COMPILED_PATTERN_LIMIT = 1000;
+  function compileOnce(compile) {
+    const compiled = new Map();
+    return (source) => {
+      if (!compiled.has(source)) {
+        if (compiled.size > COMPILED_PATTERN_LIMIT) compiled.clear();
+        compiled.set(source, compile(source));
+      }
+      return compiled.get(source);
+    };
+  }
+
+  const getWildcardPattern = compileOnce((pattern) =>
+    new RegExp(`^${pattern.split("*").map(escapeRegex).join(".*")}$`, "i"));
 
   function matchesSubredditPattern(pattern, subredditName) {
     const normalizedPattern = normalizeSubredditName(pattern);
@@ -258,7 +272,7 @@ var FrontFilter = (() => {
       return name ? { name, mode: "home" } : null;
     }
 
-    if (!entry || typeof entry !== "object") return null;
+    if (!isObject(entry)) return null;
     const name = normalizeSubredditName(entry.name);
     return name ? { name, mode: normalizeMode(entry.mode) } : null;
   }
@@ -312,16 +326,15 @@ var FrontFilter = (() => {
     });
   }
 
+  // A list of names: each name its normalizer accepts, once.
+  function normalizeNames(entries, normalizeName) {
+    if (!Array.isArray(entries)) return [];
+    return Array.from(new Set(entries.map(normalizeName).filter(Boolean)));
+  }
+
   // Exceptions take the same names and patterns as subreddit rules.
   function normalizeAllowedSubreddits(entries = []) {
-    if (!Array.isArray(entries)) return [];
-
-    const deduped = new Set();
-    for (const entry of entries) {
-      const name = normalizeSubredditName(entry);
-      if (name) deduped.add(name);
-    }
-    return Array.from(deduped);
+    return normalizeNames(entries, normalizeSubredditName);
   }
 
   // Reddit usernames hold up to 20 letters, digits, _ and -, and compare
@@ -338,14 +351,7 @@ var FrontFilter = (() => {
   }
 
   function normalizeBlockedUsers(entries = []) {
-    if (!Array.isArray(entries)) return [];
-
-    const deduped = new Set();
-    for (const entry of entries) {
-      const name = normalizeUserName(entry);
-      if (name) deduped.add(name);
-    }
-    return Array.from(deduped);
+    return normalizeNames(entries, normalizeUserName);
   }
 
   function isSubredditAllowed(subredditName, allowedSubreddits = []) {
@@ -381,10 +387,6 @@ var FrontFilter = (() => {
   const WORD_START = `(?:(?<!${WORD_CHARACTER})|(?<=${UNSPACED_CHARACTER}))`;
   const WORD_END = `(?:(?!${WORD_CHARACTER})|(?=${UNSPACED_CHARACTER}))`;
 
-  function escapeRegex(text) {
-    return text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
-  }
-
   // A keyword between slashes, such as /colou?r/, is a regular expression.
   function getKeywordRegexSource(keyword) {
     return keyword.length > 2 && keyword.startsWith("/") && keyword.endsWith("/")
@@ -392,22 +394,15 @@ var FrontFilter = (() => {
       : null;
   }
 
-  // Settings are checked often: compile each expression once, as null when
-  // it is not valid.
-  const keywordRegexes = new Map();
-  function getKeywordRegex(source) {
-    if (!keywordRegexes.has(source)) {
-      let regex = null;
-      try {
-        regex = new RegExp(source, "iu");
-      } catch {
-        // An invalid expression filters nothing.
-      }
-      if (keywordRegexes.size > 1000) keywordRegexes.clear();
-      keywordRegexes.set(source, regex);
+  // The expression a keyword between slashes holds, or null when it is not
+  // valid: it then filters nothing.
+  const getKeywordRegex = compileOnce((source) => {
+    try {
+      return new RegExp(source, "iu");
+    } catch {
+      return null;
     }
-    return keywordRegexes.get(source);
-  }
+  });
 
   // Any other keyword: its folded text, and whether its start and its end
   // must each be a word boundary. A * at an end lets the keyword go on
@@ -559,11 +554,11 @@ var FrontFilter = (() => {
     return `${start ? "*" : ""}${text}${end ? "*" : ""}`;
   }
 
-  // Values stored or exported by an earlier version, as values of this one.
-  // Those from before keywords matched whole words have no version: their
-  // keywords are upgraded to match the same texts.
+  // Values exported or backed up by an earlier version, as values of this
+  // one. Those from before keywords matched whole words have no version:
+  // their keywords are upgraded to match the same texts.
   function upgradeSettings(values) {
-    const source = values && typeof values === "object" && !Array.isArray(values) ? values : {};
+    const source = isObject(values) ? values : {};
     const upgraded = { ...source, [SETTINGS_VERSION_KEY]: SETTINGS_VERSION };
     if (!(source[SETTINGS_VERSION_KEY] >= SETTINGS_VERSION)
       && Array.isArray(source.blockedTitleKeywords)) {
@@ -581,8 +576,7 @@ var FrontFilter = (() => {
     const text = value.trim();
     try {
       const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(text) ? text : `https://${text}`);
-      const isWebUrl = url.protocol === "http:" || url.protocol === "https:";
-      return isWebUrl && url.hostname ? url.href : "";
+      return isWebUrl(url) && url.hostname ? url.href : "";
     } catch {
       return "";
     }
@@ -636,7 +630,7 @@ var FrontFilter = (() => {
   }
 
   function getInvalidSettingKeys(values = {}) {
-    if (!values || typeof values !== "object" || Array.isArray(values)) return [];
+    if (!isObject(values)) return [];
     return STORAGE_KEYS.filter((key) =>
       Object.hasOwn(values, key) && !isValidSettingValue(key, values[key])
     );
@@ -645,7 +639,7 @@ var FrontFilter = (() => {
   // Settings for stored or imported values: invalid and missing values take
   // their defaults, and switches that imply their sections turn them on.
   function coerceSettings(values = {}) {
-    const source = values && typeof values === "object" ? values : {};
+    const source = isObject(values) ? values : {};
     const settings = {};
     for (const key of STORAGE_KEYS) {
       const value = Object.hasOwn(source, key) ? source[key] : DEFAULT_SETTINGS[key];
@@ -661,7 +655,7 @@ var FrontFilter = (() => {
   // Applies storage.onChanged changes to stored values, which stay raw:
   // settings are derived from them with coerceSettings.
   function applyStorageChanges(storedValues, changes = {}) {
-    const source = changes && typeof changes === "object" ? changes : {};
+    const source = isObject(changes) ? changes : {};
     const values = {};
     for (const key of STORAGE_KEYS) {
       const value = Object.hasOwn(source, key)
@@ -758,13 +752,21 @@ var FrontFilter = (() => {
     return subreddit.rest === "" || SUBREDDIT_SORTS.has(firstSegment);
   }
 
+  function matchesPageRoute(route, pathname) {
+    return PAGE_PATTERNS.get(route).test(pathname);
+  }
+
+  // The main page at a path, if it is one that settings can block.
+  function getPageRoute(pathname) {
+    return PAGE_ROUTES.find((route) => matchesPageRoute(route, pathname)) ?? null;
+  }
+
   function getBlockedRoute(pathname, settings) {
     const config = coerceSettings(settings);
     const subreddit = getSubredditPath(pathname);
 
-    for (const route of PAGE_ROUTES) {
-      if (config[route.key] && PAGE_PATTERNS.get(route).test(pathname)) return route;
-    }
+    const pageRoute = PAGE_ROUTES.find((route) => config[route.key] && matchesPageRoute(route, pathname));
+    if (pageRoute) return pageRoute;
 
     // Subreddit exceptions do not apply to a blocked user's profile.
     const user = getProfileUser(pathname);
@@ -840,6 +842,29 @@ var FrontFilter = (() => {
     return `popup/index.html?${params.toString()}`;
   }
 
+  // Runs operations one at a time, in the order given, each whether or not
+  // the one before it failed: storage has no transactions, so whoever reads
+  // values to write them back does so alone.
+  function createQueue() {
+    let last = Promise.resolve();
+    return Object.freeze({
+      run(operation) {
+        last = last.catch(() => undefined).then(operation);
+        return last;
+      },
+      // Settles with the operation run last, or at once without any.
+      last: () => last,
+    });
+  }
+
+  // Asks the background script (background/main.js) and returns what it
+  // answers. Throws when it fails, or does not answer.
+  async function askBackground(message) {
+    const response = await chrome.runtime.sendMessage(message);
+    if (!response?.success) throw new Error(response?.error || "no answer");
+    return response.result;
+  }
+
   return {
     STORAGE_KEYS,
     SETTING_GROUPS,
@@ -848,7 +873,6 @@ var FrontFilter = (() => {
     IMPORT_BACKUP_KEY,
     SETTINGS_VERSION_KEY,
     SETTINGS_VERSION,
-    EXCEPTION_PREFIX,
     LISTING_SORTS,
     PAGE_ROUTES,
     SUBREDDIT_FRONTS_ROUTE,
@@ -857,6 +881,7 @@ var FrontFilter = (() => {
     createSettingsStore,
     coerceSettings,
     getBlockedRoute,
+    getPageRoute,
     getBlockRedirectUrl,
     getInvalidSettingKeys,
     getSubredditPath,
@@ -888,5 +913,7 @@ var FrontFilter = (() => {
     isFeedPath,
     isCommentsPath,
     isHomeFeedPath,
+    createQueue,
+    askBackground,
   };
 })();

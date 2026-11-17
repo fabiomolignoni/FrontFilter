@@ -712,16 +712,34 @@ class PageTests:
         self.assertTrue(self.js("return !document.querySelector('.frontfilter-feed-controls')"))
 
     def test_native_load_guard_releases_when_the_limit_is_removed(self):
+        # Reddit's feed and posts start the next page with the loader's load().
         self.configure(limitInfiniteScroll=True, scrollLimit=3, scrollMode="fixed")
         self.js("""
             resetFeed([post("a"), post("b"), post("c")], [{rows: [post("d"), post("e")]}], true);
-            document.querySelector("faceplate-partial").loadContent();
+            document.querySelector("faceplate-partial").load();
         """)
         self.pause(200)
         self.assertEqual(self.js("return loadCalls"), 0)
         self.configure(limitInfiniteScroll=False)
         self.wait_until(lambda: self.js("return shown().length") == 5)
         self.assertEqual(self.js("return loadCalls"), 1)
+
+    def test_native_loading_waits_for_the_limit_however_reddit_starts_it(self):
+        # With a limit, Reddit's own loading, as when its loader nears the
+        # window, brings a page only once the limit asks for it.
+        self.configure(limitInfiniteScroll=True, scrollLimit=3, scrollMode="button")
+        self.js(
+            "resetFeed([post('a'), post('b'), post('c')], [{rows: [post('d'), post('e'), post('f')], next: '2'},"
+            " {rows: [post('g')]}], true); enableNativeLoading()"
+        )
+        self.expect("abc")
+        self.pause(400)
+        self.assertEqual(self.js("return loadCalls"), 0)
+        self.click_feed_button()
+        self.expect("abcdef")
+        self.pause(400)
+        self.assertEqual(self.js("return loadCalls"), 1)
+        self.js("disableNativeLoading()")
 
     def test_load_error_retry_and_partial_final_group(self):
         self.configure(limitInfiniteScroll=True, scrollLimit=3, scrollMode="button")
@@ -820,6 +838,57 @@ class PageTests:
         self.wait_until(lambda: self.js("return shown().length === 0"))
         self.js("document.querySelector('#t3_a').setAttribute('subreddit-name', 'safe')")
         self.expect("abc")
+
+    def test_scroll_limit_counts_posts_reddit_no_longer_identifies(self):
+        # Reddit could rename what names a post. After waiting for the
+        # names, the limit counts the cards as the page shows them.
+        shown_titles = (
+            "return Array.from(document.querySelectorAll('main shreddit-post'))"
+            ".filter((post) => post.getClientRects().length).map((post) => post.getAttribute('post-title'))"
+        )
+        self.configure(limitInfiniteScroll=True, scrollLimit=2, scrollMode="button")
+        self.js(
+            "resetFeed([post('a'), post('b'), post('c', 'safe', {title: 'Trump'}), post('d'), post('e')]);"
+            " for (const card of document.querySelectorAll('main shreddit-post')) {"
+            "   for (const name of ['id', 'permalink', 'subreddit-name']) card.removeAttribute(name);"
+            "   card.querySelector('a').removeAttribute('href');"
+            " }"
+        )
+        self.pause(500)
+        self.assertEqual(self.js(shown_titles), [])
+        self.wait_until(lambda: self.js(shown_titles) == ["Post a", "Post b"], timeout=25)
+        # The cards still count once each, and filters still read them.
+        self.configure(blockedTitleKeywords=["Trump"])
+        self.click_feed_button()
+        self.wait_until(lambda: self.js(shown_titles) == ["Post a", "Post b", "Post d", "Post e"])
+
+    def test_scroll_limit_lets_reddit_load_when_the_page_bridge_cannot(self):
+        # Reddit could rename the method the page bridge calls. After waiting
+        # for the bridge, the limit shows Reddit's loader while it wants more
+        # posts, and Reddit loads them by itself.
+        self.open_fixture("/r/test/?renamed-loader=1")
+        self.configure(limitInfiniteScroll=True, scrollLimit=5, scrollMode="button")
+        self.js(
+            "const rows = (start, n) => Array.from({length: n}, (_, i) => post(String(start + i)));"
+            " resetFeed(rows(0, 2), [{rows: rows(2, 2), next: '2'}, {rows: rows(4, 4), next: '3'},"
+            " {rows: rows(8, 4), next: '4'}, {rows: rows(12, 4)}], true); enableNativeLoading()"
+        )
+        self.assertFalse(self.js("return document.documentElement.hasAttribute('data-frontfilter-feed-bridge')"))
+        self.expect(["0", "1"])
+        self.assertEqual(self.js("return loadCalls"), 0)
+        try:
+            self.wait_until(lambda: self.js("return shown().length") == 5, timeout=25)
+        except Exception:
+            self.fail(f"shown: {self.js('return shown()')}, loads: {self.js('return loadCalls')}")
+        self.expect(["0", "1", "2", "3", "4"])
+        # At the limit, Reddit loads no more.
+        self.pause(500)
+        self.assertEqual(self.js("return loadCalls"), 2)
+        self.click_feed_button()
+        self.expect([str(i) for i in range(10)])
+        self.pause(500)
+        self.assertEqual(self.js("return loadCalls"), 3)
+        self.js("disableNativeLoading()")
 
     def check_lazy_loading_up_to_100(self, mode):
         """n=100 must not fetch the entire quota before the reader needs it."""

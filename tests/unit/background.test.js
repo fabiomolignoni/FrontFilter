@@ -161,55 +161,21 @@ test("resynchronizes only for relevant local setting changes", async () => {
   assert.equal(background.updates[3].addRules[0].action.redirect.url, "https://example.com/");
 });
 
-test("removes obsolete settings when the extension is installed or updated", async () => {
-  const background = await loadBackground({
-    settings: {
-      blockNsfw: true,
-      blockAll: true,
-      blockNew: true,
-      blockTop: true,
-      blockHomepage: true,
-    },
-  });
+test("leaves stored settings as they are when the extension or the browser updates", async () => {
+  const settings = { blockedTitleKeywords: ["ai", "spoiler*"], blockHomepage: true, settingsVersion: 2 };
+  const background = await loadBackground({ settings });
 
-  background.listeners.installed({ reason: "update" });
-  await settle();
-  await settle();
-
-  assert.deepEqual(
-    background.removedKeys,
-    ["blockNsfw", "blockAll", "blockNew", "blockTop"],
-  );
-  assert.equal(background.updates.length, 2);
-  assert.equal(background.updates[1].addRules.length, 1);
-});
-
-test("upgrades keywords saved by an earlier version once, so they match the same texts", async () => {
-  const background = await loadBackground({
-    settings: { blockedTitleKeywords: ["ai", "[50%]", "/r/", "climate change"], blockHomepage: true },
-  });
-
-  background.listeners.installed({ reason: "update" });
-  await settle();
-  await settle();
-
-  assert.deepEqual(JSON.parse(JSON.stringify(background.storedSettings())), {
-    blockedTitleKeywords: ["*ai*", "[50%]", "/\\/r\\//", "*climate change*"],
-    blockHomepage: true,
-    settingsVersion: 2,
-  });
-  assert.equal(background.updates.length, 2);
-
-  // Settings already upgraded, or written by this version, stay as they are.
   background.listeners.installed({ reason: "update" });
   background.listeners.installed({ reason: "browser_update" });
   await settle();
   await settle();
-  assert.equal(background.storedValues.length, 1);
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(background.storedSettings().blockedTitleKeywords)),
-    ["*ai*", "[50%]", "/\\/r\\//", "*climate change*"],
-  );
+
+  assert.deepEqual(background.storedValues, []);
+  assert.deepEqual(background.removedKeys, []);
+  assert.deepEqual(JSON.parse(JSON.stringify(background.storedSettings())), settings);
+  // The rules are rebuilt, as this version writes them.
+  assert.equal(background.updates.length, 3);
+  assert.equal(background.updates[2].addRules.length, 1);
 });
 
 test("marks a new installation's settings as this version's", async () => {
@@ -221,6 +187,12 @@ test("marks a new installation's settings as this version's", async () => {
 
   assert.deepEqual(JSON.parse(JSON.stringify(background.storedValues)), [{ settingsVersion: 2 }]);
   assert.equal(background.updates.length, 2);
+
+  // Once marked, they stay as they are.
+  background.listeners.installed({ reason: "install" });
+  await settle();
+  await settle();
+  assert.equal(background.storedValues.length, 1);
 });
 
 // Chrome's scripting API for open tabs: in some, the content script runs,

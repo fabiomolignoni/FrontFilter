@@ -184,10 +184,17 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
     return true;
   }
 
+  // Asks the background for a change to the lock, with the card's controls
+  // off until it answers, and shows the card again.
   async function ask(message) {
-    const response = await chrome.runtime.sendMessage(message);
-    if (!response?.success) throw new Error(response?.error || "no answer");
-    return response.result;
+    disabled = true;
+    updateControls();
+    try {
+      return await FrontFilter.askBackground(message);
+    } finally {
+      disabled = false;
+      render();
+    }
   }
 
   function renderPending(now) {
@@ -267,7 +274,7 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
     if (lock && LOCK.nextUpdate(lock) <= Date.now()) {
       if (!updateAsked) {
         updateAsked = true;
-        void ask({ action: "updateLock" }).catch((error) => {
+        void FrontFilter.askBackground({ action: "updateLock" }).catch((error) => {
           console.error("Could not update the settings lock:", error);
         });
       }
@@ -341,27 +348,21 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
       closeConfirm();
       return;
     }
-    disabled = true;
-    updateControls();
     try {
       const result = await ask({ action: "startLock", until, delay });
       lock = LOCK.normalizeLock(result?.lock) ?? lock;
       confirming = null;
       card.confirm.hidden = true;
+      render();
       showToast(`Settings locked until ${formatTime(until)}`, "success");
     } catch (error) {
       showToast(`Could not lock settings: ${error.message}`, "error");
-    } finally {
-      disabled = false;
-      render();
     }
     card.heading.focus();
   }
 
   // Saves the lock's end or delay through the lock itself.
   async function saveLock(settings, done) {
-    disabled = true;
-    updateControls();
     try {
       const result = await ask({ action: "saveSettings", settings });
       if (!report(result)) done(result);
@@ -369,9 +370,6 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
     } catch (error) {
       showToast(`Could not change the lock: ${error.message}`, "error");
       return false;
-    } finally {
-      disabled = false;
-      render();
     }
   }
 
@@ -418,17 +416,12 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
   }
 
   async function cancelRequest(id) {
-    disabled = true;
-    updateControls();
     try {
       const result = await ask({ action: "cancelLockedChange", id });
       showToast(result?.cancelled ? "Change cancelled" : "That change already applied",
         result?.cancelled ? "success" : "info");
     } catch (error) {
       showToast(`Could not cancel the change: ${error.message}`, "error");
-    } finally {
-      disabled = false;
-      render();
     }
     card.heading.focus();
   }

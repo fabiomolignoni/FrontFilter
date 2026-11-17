@@ -8,6 +8,12 @@
  * comments the comment limit's next group lacks, and ask players whose
  * autoplay was restored to try it again. No extension APIs, settings, or
  * data enter the page world.
+ *
+ * Reddit starts a feed's next page in two ways, both through its loader's
+ * load(): its feed, once the loader is within two windows of view, and its
+ * posts, once one of the last of a page is seen. Other loaders, and earlier
+ * versions of the feed, load through loadContent(). The gate holds back
+ * both methods, wherever Reddit's classes define them.
  */
 (() => {
   "use strict";
@@ -28,8 +34,24 @@
   const COMMENT_LOAD_EVENT = "frontfilter-comments-load-request";
   const PLAYER = "shreddit-player";
   const AUTOPLAY_RESTORED_EVENT = "frontfilter-autoplay-restored";
+  // The methods that start a load. The first one found loads what the
+  // limits ask for: it works on every loader, where load() only does on
+  // those that load on request.
+  const LOAD_METHODS = ["loadContent", "load"];
+  // Reddit's loader reports a load that failed with this event, and
+  // resolves; earlier versions rejected.
+  const NATIVE_ERROR_EVENT = "faceplate-error";
   const suppressed = new Set();
   let originalLoad = null;
+
+  // Holds a load back until the gate opens. Loaders of feeds the page has
+  // left are let go: they would keep those feeds in memory.
+  function suppress(loader) {
+    for (const other of suppressed) {
+      if (!other.isConnected) suppressed.delete(other);
+    }
+    suppressed.add(loader);
+  }
 
   function isFeedLoader(element) {
     return element instanceof Element
@@ -47,32 +69,53 @@
     loader.dispatchEvent(new Event(ERROR_EVENT));
   }
 
+  // The class of the loader, or one it extends, that defines a method.
+  function findOwner(prototype, name) {
+    let owner = prototype;
+    while (owner && owner !== HTMLElement.prototype && !Object.hasOwn(owner, name)) {
+      owner = Object.getPrototypeOf(owner);
+    }
+    return owner && owner !== HTMLElement.prototype && typeof owner[name] === "function" ? owner : null;
+  }
+
+  // Replaces a method that starts a load with one the gate holds back for
+  // feed loaders, and returns the original. Other elements that share the
+  // method load as before.
+  function guard(owner, name) {
+    const original = owner[name];
+    const descriptor = Object.getOwnPropertyDescriptor(owner, name);
+    Object.defineProperty(owner, name, {
+      configurable: descriptor.configurable ?? true,
+      enumerable: descriptor.enumerable ?? false,
+      writable: descriptor.writable ?? true,
+      value(...args) {
+        if (document.documentElement?.hasAttribute(GATE_ATTRIBUTE) && isFeedLoader(this)) {
+          suppress(this);
+          return Promise.resolve();
+        }
+        return Reflect.apply(original, this, args);
+      },
+    });
+    return original;
+  }
+
   function install() {
     const prototype = customElements.get("faceplate-partial")?.prototype;
-    if (!prototype || typeof prototype.loadContent !== "function" || originalLoad) return;
+    if (!prototype || originalLoad) return;
 
-    originalLoad = prototype.loadContent;
-    const descriptor = Object.getOwnPropertyDescriptor(prototype, "loadContent");
-    const guardedLoad = function (...args) {
-      if (document.documentElement?.hasAttribute(GATE_ATTRIBUTE) && isFeedLoader(this)) {
-        suppressed.add(this);
-        return Promise.resolve();
+    const originals = [];
+    for (const name of LOAD_METHODS) {
+      const owner = findOwner(prototype, name);
+      if (!owner) continue;
+      try {
+        originals.push(guard(owner, name));
+      } catch (error) {
+        console.error(`FrontFilter could not control Reddit's ${name}:`, error);
       }
-      return Reflect.apply(originalLoad, this, args);
-    };
-
-    try {
-      Object.defineProperty(prototype, "loadContent", {
-        configurable: descriptor?.configurable ?? true,
-        enumerable: descriptor?.enumerable ?? false,
-        writable: descriptor?.writable ?? true,
-        value: guardedLoad,
-      });
-    } catch (error) {
-      console.error("FrontFilter could not control feed loading:", error);
-      originalLoad = null;
-      return;
     }
+    // Without any of them, the limits let Reddit load by itself.
+    if (originals.length === 0) return;
+    [originalLoad] = originals;
 
     document.documentElement?.setAttribute(READY_ATTRIBUTE, "");
     document.dispatchEvent(new Event(READY_EVENT));
@@ -85,11 +128,13 @@
     if (!token) return;
     suppressed.delete(loader);
 
+    const fail = () => reportError(loader, token);
+    loader.addEventListener(NATIVE_ERROR_EVENT, fail, { once: true });
     try {
       const result = invoke(loader);
-      if (result?.then) Promise.resolve(result).catch(() => reportError(loader, token));
+      if (result?.then) Promise.resolve(result).catch(fail);
     } catch {
-      reportError(loader, token);
+      fail();
     }
   });
 

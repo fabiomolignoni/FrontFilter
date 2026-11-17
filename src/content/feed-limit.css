@@ -4,7 +4,7 @@ html[data-frontfilter-feed-gate] shreddit-feed shreddit-ad-post:not([data-frontf
 html[data-frontfilter-feed-gate] shreddit-feed [data-testid="ad-container"]:not([data-frontfilter-limit-visible]),
 html[data-frontfilter-feed-gate] shreddit-feed article:has(shreddit-post, shreddit-ad-post, [data-testid="ad-container"]):not(shreddit-post *):not([data-frontfilter-limit-visible]),
 html[data-frontfilter-feed-gate] shreddit-feed > hr:not([data-frontfilter-limit-visible]),
-html[data-frontfilter-feed-gate] shreddit-feed faceplate-partial[slot="load-after"],
+html[data-frontfilter-feed-gate] shreddit-feed faceplate-partial[slot="load-after"]:not([data-frontfilter-limit-visible]),
 [data-frontfilter-limit-hidden] {
   display: none !important;
 }

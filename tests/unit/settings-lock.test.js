@@ -424,9 +424,9 @@ test("cancels a request, which tightens and so applies at once", () => {
 
 test("saves settings as they are without a lock, with only the extra values it knows", () => {
   const { set, result } = save({ hideNsfw: true }, { hideNsfw: false, lockUntil: 0, unknown: 1 }, NOW, {
-    extra: { importBackup: { settings: {} }, settingsVersion: 2, settingsLock: { until: 1 } },
+    extra: { importBackup: { settings: {} }, settingsVersion: 1, settingsLock: { until: 1 } },
   });
-  assert.deepEqual(set, { hideNsfw: false, importBackup: { settings: {} }, settingsVersion: 2 });
+  assert.deepEqual(set, { hideNsfw: false, importBackup: { settings: {} } });
   assert.deepEqual(result, { locked: false, waiting: [], refused: [] });
 });
 
@@ -434,10 +434,10 @@ test("names an import's or a restore's changes as theirs", () => {
   const before = lockedSince({ hideNsfw: true, blockedUsers: ["spez"] });
   const { stored } = save(before, { hideNsfw: false, blockedUsers: [] }, NOW, {
     source: "import",
-    extra: { settingsVersion: 2 },
+    extra: { importBackup: { settings: {} } },
   });
   assert.equal(stored.settingsLock.pending[0].source, "import");
-  assert.equal(stored.settingsVersion, 2);
+  assert.deepEqual(stored.importBackup, { settings: {} });
   const other = save(before, { hideNsfw: false }, NOW, { source: "elsewhere" }).stored;
   assert.equal("source" in other.settingsLock.pending[0], false);
 });

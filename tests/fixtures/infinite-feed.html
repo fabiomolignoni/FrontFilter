@@ -482,6 +482,13 @@ article { padding: 10px; }
     feed.append(loader);
     return loader;
   };
+  // Reddit's loader starts a load through load(), which its feed and its
+  // posts call and only loaders that load on request have, or through
+  // loadContent(). Reddit could rename them, which FrontFilter's page bridge
+  // guards and calls: with ?renamed-loader, the page names them otherwise.
+  const RENAMED = new URLSearchParams(location.search).has("renamed-loader");
+  const LOAD = RENAMED ? "fetchNow" : "load";
+  const LOAD_CONTENT = RENAMED ? "fetchContent" : "loadContent";
   customElements.define("faceplate-partial", class extends HTMLElement {
     // The loader of more top-level comments loads by itself once in view,
     // as Reddit's does, and on a click once Reddit renders it as a button.
@@ -489,27 +496,45 @@ article { padding: 10px; }
       if (!this.closest("shreddit-comment-tree")) return;
       if (this.getAttribute("loading") === "lazy") {
         this.visibility ??= new IntersectionObserver((entries) => {
-          if (entries.some((entry) => entry.isIntersecting)) this.loadContent();
+          if (entries.some((entry) => entry.isIntersecting)) this._load();
         });
         this.visibility.observe(this);
       } else if (!this.clicks) {
         this.clicks = true;
-        this.addEventListener("click", () => this.loadContent());
+        this.addEventListener("click", () => this._load());
       }
     }
     disconnectedCallback() {
       this.visibility?.disconnect();
     }
-    loadContent() {
+    [LOAD]() {
+      if (this.getAttribute("loading") !== "programmatic") {
+        throw new Error("Calling load only supported with loading=programmatic");
+      }
+      return this._load();
+    }
+    [LOAD_CONTENT]() {
+      return this._load();
+    }
+    // As Reddit's: one load at a time, and a load that fails resolves, after
+    // an event that says so.
+    _load() {
       if (this.inflight) return this.inflight;
       if (this.closest("shreddit-comment-tree")) return this.loadComments();
       loadCalls++;
       const plan = plans.shift();
       loadLog.push({ src: this.getAttribute("src"), plan, stack: new Error().stack });
+      // A test that plans no answer made a mistake: earlier versions of
+      // Reddit's loader rejected, as this does.
       if (!plan) return Promise.reject(new Error("No planned response"));
       const feed = this.closest("shreddit-feed");
-      this.inflight = new Promise((resolve, reject) => setTimeout(() => {
-        if (plan.error) { this.inflight = null; reject(new Error("Network error")); return; }
+      this.inflight = new Promise((resolve) => setTimeout(() => {
+        if (plan.error) {
+          this.inflight = null;
+          this.dispatchEvent(new CustomEvent("faceplate-error"));
+          resolve();
+          return;
+        }
         appendRows(feed, plan.rows || []);
         if (!plan.keepLoader) {
           this.remove();
@@ -534,13 +559,15 @@ article { padding: 10px; }
       return this.inflight;
     }
   });
-  // Emulates shreddit-feed's load-after controller, which loads its loader
-  // whenever an IntersectionObserver finds it within two screens of view.
+  // Emulates shreddit-feed's load-after controller, which loads its loader,
+  // through load(), whenever an IntersectionObserver finds it within two
+  // screens of view. Reddit's posts load it the same way once one of the
+  // last of a page is seen, which tests do by calling load() themselves.
   let stopNativeLoading = null;
   window.enableNativeLoading = () => {
     const observer = new IntersectionObserver((entries) => {
       for (const { isIntersecting, target } of entries) {
-        if (isIntersecting && !target.inflight) target.loadContent();
+        if (isIntersecting && !target.inflight) target[LOAD]();
       }
     }, { rootMargin: `${2 * innerHeight}px` });
     const observeLoaders = () => {

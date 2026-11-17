@@ -1580,7 +1580,8 @@ test("preserves current settings during a partial import", async () => {
     JSON.parse(JSON.stringify(writes[0].settings.blockedTitleKeywords)),
     ["*Trump*"],
   );
-  assert.equal(writes[0].settings.settingsVersion, 2);
+  // The stored settings' version stays the background's to write.
+  assert.equal("settingsVersion" in writes[0].settings, false);
   assert.deepEqual(
     JSON.parse(JSON.stringify(writes[0].settings.allowedSubreddits)),
     ["italypersonalfinance"],
@@ -1619,7 +1620,6 @@ test("imports keywords as the version that exported them wrote them", async () =
   });
   assert.deepEqual(current.blockedTitleKeywords, ["ai", "spoiler*"]);
   assert.deepEqual(current.allowedKeywords, ["biden"]);
-  assert.equal(current.settingsVersion, 2);
 
   // Earlier files, whose keywords between slashes or with stars were text,
   // and which never had allowed keywords.
@@ -1633,16 +1633,12 @@ test("imports keywords as the version that exported them wrote them", async () =
   );
   assert.deepEqual(legacy.allowedKeywords, ["biden"]);
 
-  // Stored keywords not yet upgraded are upgraded with a partial import.
-  const partial = await importKeywords({ settingsVersion: 2, blockPopular: true }, {
-    blockedTitleKeywords: ["ai"],
-  });
-  assert.deepEqual(partial.blockedTitleKeywords, ["*ai*"]);
-  const upgraded = await importKeywords({ settingsVersion: 2, blockPopular: true }, {
+  // Stored keywords are this version's, whatever the file's version.
+  const partial = await importKeywords({ blockPopular: true }, {
     blockedTitleKeywords: ["ai"],
     settingsVersion: 2,
   });
-  assert.deepEqual(upgraded.blockedTitleKeywords, ["ai"]);
+  assert.deepEqual(partial.blockedTitleKeywords, ["ai"]);
 });
 
 test("shows what an import would change, and changes nothing until it is confirmed", async () => {
@@ -3182,7 +3178,7 @@ test("imports and restores through the lock while settings are locked", async ()
   assert.equal(message.action, "saveSettings");
   assert.equal(message.source, "import");
   assert.deepEqual(message.settings, { blockedUsers: [], hideAds: true });
-  assert.deepEqual(Object.keys(message.extra), ["settingsVersion", "importBackup"]);
+  assert.deepEqual(Object.keys(message.extra), ["importBackup"]);
   assert.equal(popup.stored().hideAds, true);
   assert.deepEqual(plain(popup.stored().blockedUsers), ["spez"]);
   assert.match(elements.toast.textContent, /^Remove u\/spez: waits until /);

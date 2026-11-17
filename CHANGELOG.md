@@ -2,6 +2,40 @@
 
 Notable changes to FrontFilter, newest first.
 
+## Unreleased
+
+### Changed
+
+- With the scroll limit on, Reddit loads a page of posts only once the limit
+  asks for it. Reddit had come to load the next page by itself, in the
+  background, as soon as the last posts of a page were seen, even past the
+  limit.
+- The scroll limit keeps working when Reddit changes its pages. Posts that
+  Reddit no longer names in a way FrontFilter can read count as the page
+  shows them, after a short wait, instead of staying hidden behind a
+  message. And when FrontFilter cannot ask Reddit for the next page, Reddit
+  loads it by itself, only while the limit wants more posts.
+- The scroll limit says at once when Reddit could not load the next posts,
+  where it used to wait 10 seconds.
+- A change in Reddit's pages that makes one filter fail no longer stops the
+  others on that page.
+- Messages in the settings page stay longer the longer they are, and those
+  that report a problem stay at least 4 seconds.
+- **Post flairs**, in the **Filter** tab, says what the list does, as the
+  other lists do.
+- FrontFilter no longer converts settings saved by versions before 3.0 when
+  it updates: every installation updated to 3.0 has them converted already.
+  Files exported by those versions still import with their meaning.
+
+### Fixed
+
+- A `*` subreddit rule no longer redirects `reddit.com/r/`, which names no
+  subreddit.
+- With the scroll limit on, a Reddit tab could keep in memory the feeds it
+  had left.
+- The settings page's card for the page in front always gets an answer from
+  that page, so its **Block** button cannot wait on one.
+
 ## 3.0.1 - 2026-11-12
 
 ### Fixed

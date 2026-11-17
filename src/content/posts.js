@@ -5,7 +5,8 @@
  * they judge a post or a comment the same way. A post nested in another is
  * judged on its own: its title, text, flair and author are not the outer
  * post's. A crosspost does not nest the post it shares but shows it, so it
- * is judged by that post's subreddit as well as its own.
+ * is judged by that post's subreddit as well as its own. They also tell
+ * which page changes alter what was read, and in which posts or comments.
  */
 FrontFilter.posts = (() => {
   const {
@@ -121,6 +122,21 @@ FrontFilter.posts = (() => {
     return Boolean(post.getAttribute(POST.recommendationAttribute));
   }
 
+  // The element a page change happened in: text is in its parent's.
+  function elementOf(node) {
+    return node.closest ? node : node.parentElement;
+  }
+
+  // The elements matching a selector that a node is in, from the innermost:
+  // posts nest, and so do comments.
+  function* enclosing(node, selector) {
+    let element = elementOf(node)?.closest(selector);
+    while (element) {
+      yield element;
+      element = element.parentElement?.closest(selector);
+    }
+  }
+
   // Whether a page change only changes text that filters do not read, such
   // as a timestamp or a counter: those change all the time. Filters read
   // the text of posts, and the text that matches readText.
@@ -134,6 +150,7 @@ FrontFilter.posts = (() => {
 
   return Object.freeze({
     subreddits, crosspostedFrom, title, bodyTexts, flair, author,
-    isAd, isNsfw, isSpoiler, isRecommended, commentText, isUnreadTextChange,
+    isAd, isNsfw, isSpoiler, isRecommended, commentText,
+    elementOf, enclosing, isUnreadTextChange,
   });
 })();

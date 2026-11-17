@@ -169,9 +169,10 @@ test("allows the subreddits a pattern exception matches, and those only", () => 
   ]) {
     assert.equal(action(url), "redirect", url);
   }
-  // Pages that are not subreddits stay open.
+  // Pages that are not subreddits stay open, as does /r/, which names none.
   assert.equal(action("https://www.reddit.com/"), undefined);
   assert.equal(action("https://www.reddit.com/user/spez/"), undefined);
+  assert.equal(action("https://www.reddit.com/r/"), undefined);
 
   // A pattern exception takes no rule while no rule blocks a subreddit.
   assert.deepEqual(

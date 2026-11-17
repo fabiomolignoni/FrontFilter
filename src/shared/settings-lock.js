@@ -32,9 +32,9 @@ FrontFilter.settingsLock = (() => {
   const UNTIL = "lockUntil";
   const DELAY = "lockDelay";
   const LOCK_SETTINGS = Object.freeze([UNTIL, DELAY]);
-  // Stored with the settings an import or a restore writes, whose changes
-  // that wait are described as theirs.
-  const EXTRA_KEYS = Object.freeze([FrontFilter.IMPORT_BACKUP_KEY, FrontFilter.SETTINGS_VERSION_KEY]);
+  // Stored with the settings an import or a restore writes: the settings
+  // they replace. Their changes that wait are described as theirs.
+  const EXTRA_KEYS = Object.freeze([FrontFilter.IMPORT_BACKUP_KEY]);
   const SOURCES = Object.freeze(["import", "restore"]);
 
   // Settings free while locked: those no impulse would loosen, as they hide
@@ -452,7 +452,6 @@ FrontFilter.settingsLock = (() => {
     loosens,
     nextUpdate,
     normalizeLock,
-    readLock,
     start,
     save,
     cancel,

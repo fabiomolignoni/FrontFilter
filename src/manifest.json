@@ -53,6 +53,7 @@
         "content/page-style.js",
         "content/autoplay.js",
         "content/feed-window.js",
+        "content/limit-view.js",
         "content/feed-limit.js",
         "content/comment-limit.js",
         "content/quick-block.js",
