@@ -288,7 +288,6 @@ function isPostCollectionSelector(selector) {
 
 test("does not scan the Reddit DOM when feed filters are inactive", async () => {
   const content = await loadContent({
-    fetch: async () => ({ ok: false }),
     settings: {},
     startUrl: "https://www.reddit.com/",
   });
@@ -934,7 +933,6 @@ test("hides posts from ALL-mode subreddits using post attributes", async () => {
   const allowedPost = createPost({ subreddit: "javascript" });
 
   await loadContent({
-    fetch: async () => ({ ok: false }),
     querySelectorAll: (selector) => isPostCollectionSelector(selector)
       ? [blockedPost, allowedPost]
       : [],
@@ -1411,7 +1409,6 @@ test("does not hide feed posts for HOME-mode subreddit entries", async () => {
   const post = createPost({ subreddit: "firefox" });
 
   await loadContent({
-    fetch: async () => ({ ok: false }),
     querySelectorAll: (selector) => isPostCollectionSelector(selector) ? [post] : [],
     settings: {
       blockedSubreddits: [{ name: "firefox", mode: "home" }],
@@ -1432,7 +1429,6 @@ test("uses post permalinks when a Reddit layout has no known post selector", asy
   };
 
   await loadContent({
-    fetch: async () => ({ ok: false }),
     querySelectorAll(selector) {
       if (selector.startsWith('a[href*="/comments/"]:not(')) return [link];
       return [];
@@ -1594,7 +1590,6 @@ test("hides blocked communities but keeps exceptions inside popular panels", asy
   };
 
   await loadContent({
-    fetch: async () => ({ ok: false }),
     querySelectorAll: (selector) => selector.includes("popular-communities")
       ? [panel]
       : [],
@@ -1636,7 +1631,6 @@ test("clears stale hidden markers while filters remain active", async () => {
   };
 
   await loadContent({
-    fetch: async () => ({ ok: false }),
     querySelectorAll(selector) {
       if (selector === '[data-frontfilter-post-hidden="true"]') {
         return [hiddenPost];
@@ -1663,7 +1657,6 @@ test("clears stale hidden markers while filters remain active", async () => {
 test("reveals a current post candidate when its blocking entry changes", async () => {
   const post = createPost({ subreddit: "firefox" });
   const content = await loadContent({
-    fetch: async () => ({ ok: false }),
     querySelectorAll: (selector) => isPostCollectionSelector(selector) ? [post] : [],
     settings: {
       blockedSubreddits: [{ name: "firefox", mode: "all" }],
@@ -1686,7 +1679,6 @@ test("reveals a current post candidate when its blocking entry changes", async (
 test("merges storage changes received while the initial config is loading", async () => {
   const initialSettings = deferred();
   const content = await loadContent({
-    fetch: async () => ({ ok: false }),
     settings: initialSettings.promise,
     startUrl: "https://www.reddit.com/r/popular",
   });
