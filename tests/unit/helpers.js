@@ -160,6 +160,18 @@ class FakeElement {
     return siblings[siblings.indexOf(this) - 1] || null;
   }
 
+  get nextElementSibling() {
+    const siblings = this.parentElement?.children.filter((child) => child instanceof FakeElement) || [];
+    return siblings[siblings.indexOf(this) + 1] || null;
+  }
+
+  // The element itself or its nearest ancestor that matches.
+  closest(selector) {
+    let element = this;
+    while (element && !element.matches(selector)) element = element.parentElement;
+    return element;
+  }
+
   get lastElementChild() {
     return this.children.filter((child) => child instanceof FakeElement).at(-1) || null;
   }

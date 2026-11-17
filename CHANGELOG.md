@@ -35,6 +35,11 @@ Notable changes to FrontFilter, newest first.
   had left.
 - The settings page's card for the page in front always gets an answer from
   that page, so its **Block** button cannot wait on one.
+- A feed post's **Block** button sits beside **Join** however Reddit lays
+  out the line above the post's title. In the layout that part of Reddit's
+  visitors get, the button stood on a line of its own; link posts and polls
+  got none; and a post whose line was still arriving could get it at the
+  wrong end.
 
 ## 3.0.1 - 2026-11-12
 
