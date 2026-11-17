@@ -85,8 +85,25 @@ seems to have changed:
 python3 tests/reddit/canary.py --snapshots reddit-snapshots [--firefox /path/to/firefox]
 ```
 
-A failure says whether Reddit changed or refused the network. To fix a
-change:
+A failure says whether Reddit changed or refused the network, and saves the
+page as it was, in `reddit-snapshots/` or the folder given.
+
+Reddit gives part of its visitors another markup, as it tries changes on
+them, and each run of the canary is a new visitor. A test can so fail in one
+run and pass in the next for a fault that is real: do not take a failure
+that goes away for chance. A failing run names the visitor it ran as, and
+`--visitor ID` runs the canary as that visitor again, on the same markup,
+until the fix passes there too.
+
+What does come by chance, the canary handles itself. Its tests wait for what
+they read instead of reading it once, and never expect Reddit to keep a
+count from one reading to the next: write new ones the same way (`expect`,
+`read`). A page that Reddit leaves without its content is loaded again, and
+the run says so at its end. Reddit refuses requests from a network that
+makes many in a short time (HTTP 429): when a run reports such refusals,
+wait a few minutes before the next one.
+
+To fix a change:
 
 1. Look at the pages in `reddit-snapshots/`. Each page is saved with its
    shadow DOM and an inventory of component names, slots and test IDs. Text

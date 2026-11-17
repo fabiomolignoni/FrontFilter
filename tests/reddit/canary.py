@@ -1,6 +1,6 @@
 """Canary tests: the published extension on the real reddit.com.
 
-Run: python3 tests/reddit/canary.py [--firefox PATH] [--snapshots DIR] [unittest options]
+Run: python3 tests/reddit/canary.py [--firefox PATH] [--snapshots DIR] [--visitor ID] [unittest options]
 
 The fixture tests show that the extension works on the markup the fixtures
 describe. These tests show that reddit.com still uses that markup. In
@@ -14,10 +14,19 @@ Features that only exist for signed-in users (the left navigation sections,
 chat, notifications, karma, suggested Home posts) and Old Reddit, which now
 requires an account, cannot be checked here: test them by hand.
 
+Reddit is no fixture. Each run meets other posts, and pages keep loading,
+rendering and recycling their content while the tests read them: tests wait
+for what they check, look for the content they need and skip when Reddit
+shows none. A page whose content never comes is loaded again, and the run
+says so at its end. Reddit also gives part of its visitors another markup,
+and every run is a new visitor: a run can fail where the one before passed,
+for a fault that is real. A failing run names its visitor, and --visitor
+runs the canary as that visitor again, on the same markup.
+
 With --snapshots, each page visited is saved to that folder, redacted, with
-an inventory of its component names, slots and test IDs; a failing test also
-saves the page as it was then. CONTRIBUTING.md explains how to use them to
-update the fixtures.
+an inventory of its component names, slots and test IDs. A failing test
+always saves the page as it was then, there or in reddit-snapshots/.
+CONTRIBUTING.md explains how to use them to update the fixtures.
 """
 import argparse
 import json
@@ -25,24 +34,39 @@ from pathlib import Path
 import re
 import sys
 import tempfile
+import time
 import unittest
 
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "browser"))
 import harness  # noqa: E402
 
 REDDIT = "https://www.reddit.com"
+ROOT = Path(__file__).resolve().parents[2]
 WINDOW_SIZE = (1440, 1000)
 PAGE_TIMEOUT = 45
 EFFECT_TIMEOUT = 15
+# How long a feed may take to load a page of posts.
+FEED_TIMEOUT = 20
+# How often a page is read while a test waits for it, in seconds.
+POLL_INTERVAL = 0.25
+# Reddit sometimes refuses the requests a page makes for its content, as
+# when it gets many in a short time: the page is then loaded again, after a
+# pause that grows with each attempt.
+LOAD_ATTEMPTS = 3
+RELOAD_PAUSE = 10
+# The cookie by which Reddit knows a logged-out visitor, and chooses the
+# markup it gives them.
+VISITOR_COOKIE = "loid"
 SNAPSHOT_SCRIPT = Path(__file__).with_name("snapshot.js").read_text() + "\nreturn snapshotPage();"
-OPTIONS = argparse.Namespace(firefox=None, snapshots=None)
+OPTIONS = argparse.Namespace(firefox=None, snapshots=None, visitor=None)
 
 # Defines deep(selector) to search open shadow roots too, visible(element),
-# countVisible(selector), feedPosts(), hasSpoilerTag(element) and
-# searchResults(). Prepended to page scripts.
+# countVisible(selector), feedPosts(), feedLoader(), creditBar(post),
+# outline(element), hasSpoilerTag(element) and searchResults(). Prepended
+# to page scripts.
 PAGE_HELPERS = """
 const deep = (selector, root = document) => {
   const found = Array.from(root.querySelectorAll(selector));
@@ -56,6 +80,16 @@ const visible = (element) => Boolean(element?.isConnected) && element.getClientR
 const countVisible = (selector) => deep(selector).filter(visible).length;
 const feedPosts = () => Array.from(document.querySelectorAll("main shreddit-feed shreddit-post"))
   .filter((post) => !post.parentElement.closest("shreddit-post"));
+// The loader of the feed's next page, after its last post.
+const feedLoader = () => Array.from(
+  document.querySelectorAll('main shreddit-feed faceplate-partial[slot="load-after"]')).at(-1) || null;
+// A post's own credit bar: slim cards, such as link posts, hold it inside.
+const creditBar = (post) => Array.from(post.querySelectorAll('[slot="credit-bar"]'))
+  .find((bar) => bar.closest("shreddit-post") === post) || null;
+// The tags an element holds, two levels deep: enough to tell one of
+// Reddit's layouts from another.
+const outline = (element, depth = 2) => element.localName + (depth > 0 && element.children.length > 0
+  ? `(${Array.from(element.children, (child) => outline(child, depth - 1)).join(" ")})` : "");
 const hasSpoilerTag = (element) => !!element.querySelector('.content-tags [icon-name="caution-fill"]');
 // Post results on a search page, in either layout, what their tracking data
 // says of each post, and whether a divider follows each.
@@ -74,8 +108,40 @@ const searchResults = () => Array.from(document.querySelectorAll("search-telemet
     };
   });
 """
+# What the extension leaves on a page: the rules it writes, the attributes
+# it marks elements with and the elements it adds, all named after it.
+FOOTPRINT = """
+const attributes = {};
+const elements = {};
+const count = (table, name) => { table[name] = (table[name] || 0) + 1; };
+for (const element of deep("*")) {
+  for (const {name} of element.attributes) if (name.startsWith("data-frontfilter-")) count(attributes, name);
+  for (const name of element.classList) if (name.startsWith("frontfilter-")) count(elements, name);
+}
+return {
+  rules: deep('style[id^="frontfilter-"]').map((style) => style.textContent).filter(Boolean),
+  attributes, elements,
+};
+"""
 # Whole words, as keywords match them: no letter or digit next to them.
-WORD = re.compile(r"(?<![^\W_])[^\W\d_]{5,}(?![^\W_])")
+# Plain letters only, which every way of comparing text reads alike.
+WORD = re.compile(r"(?<![^\W_])[A-Za-z]{5,}(?![^\W_])")
+# A subreddit's name, and not a profile's, which Reddit names u_<user>.
+SUBREDDIT = re.compile(r"(?!u_)\w{2,21}", re.ASCII | re.IGNORECASE)
+USER = re.compile(r"[\w-]{1,20}", re.ASCII)
+
+
+class NotReady(AssertionError):
+    """A page lacks what the tests use, though another load may bring it."""
+
+
+class NotServed(NotReady):
+    """Reddit served no page of its own."""
+
+
+def shorten(value, length=300):
+    text = repr(value)
+    return text if len(text) <= length else f"{text[:length]}… ({len(text)} characters)"
 
 
 class Browser:
@@ -84,6 +150,13 @@ class Browser:
     def __init__(self):
         self.temp = tempfile.TemporaryDirectory(prefix="frontfilter-canary-")
         self.driver = harness.start_firefox(OPTIONS.firefox)
+        # The visitor Reddit takes this run for, once a page has loaded.
+        self.visitor = None
+        # Whether a test failed, the pages loaded again and why, and what
+        # Reddit served when it would serve no page of its own.
+        self.failed = False
+        self.reloads = []
+        self.refusal = None
         try:
             addon = harness.build_extension(Path(self.temp.name) / "frontfilter.xpi", "firefox")
             self.driver.install_addon(str(addon), temporary=True)
@@ -97,9 +170,37 @@ class Browser:
                 lambda driver: driver.find_element("id", "add-subreddit").is_enabled()
             )
             self.driver.switch_to.window(self.page_window)
+            if OPTIONS.visitor:
+                # A cookie is set from a page of its website.
+                self.driver.get(f"{REDDIT}/robots.txt")
+                self.driver.delete_all_cookies()
+                self.driver.add_cookie({
+                    "name": VISITOR_COOKIE, "value": OPTIONS.visitor,
+                    "domain": ".reddit.com", "path": "/", "secure": True,
+                })
         except Exception:
             self.quit()
             raise
+
+    def remember_visitor(self):
+        """Reads the visitor's cookie, from a Reddit page."""
+        if not self.visitor:
+            cookie = self.driver.get_cookie(VISITOR_COOKIE)
+            self.visitor = cookie and cookie["value"]
+
+    def report(self):
+        """What the run met on Reddit, for its reader."""
+        lines = []
+        if self.reloads:
+            lines.append("Reddit left pages without their content, and they were loaded again:")
+            lines.extend(f"  {reload}" for reload in self.reloads)
+        if self.failed and self.visitor and not self.refusal:
+            lines.append(
+                "Reddit gives part of its visitors another markup, and each run is a new visitor."
+                " To run the canary again as this run's visitor:"
+            )
+            lines.append(f"  python3 tests/reddit/canary.py --visitor '{self.visitor}'")
+        return "\n".join(lines)
 
     def run_in_settings(self, script, *values):
         self.driver.switch_to.window(self.settings_window)
@@ -126,17 +227,37 @@ def tearDownModule():
 
 
 class RedditTestCase(unittest.TestCase):
-    """Loads one Reddit page per class; each test starts from default settings."""
+    """Loads one Reddit page per class; each test starts from default settings.
+
+    Tests wait for what they read: Reddit loads and renders on its own
+    time, and so does the extension once a setting changes. They never
+    expect Reddit to keep a count from one reading to the next.
+    """
 
     path = None
+    # What the extension leaves on the page with default settings.
+    defaults = None
 
     @classmethod
     def setUpClass(cls):
         cls.reset_settings()
-        if cls.path:
-            cls.load(cls.path)
-            cls.page_ready()
-            cls.save_snapshot(cls.__name__)
+        if not cls.path:
+            return
+        try:
+            cls.open_page()
+            # The extension writes its rules once it has read its settings.
+            found, cls.defaults = cls.poll(lambda: cls.js(FOOTPRINT), lambda footprint: footprint["rules"])
+            if not found:
+                raise AssertionError("the extension wrote no rules on the page: it may not run there")
+        except Exception:
+            cls.save_failure(f"{cls.__name__}.setUpClass")
+            raise
+        cls.save_snapshot(cls.__name__)
+
+    @classmethod
+    def open_page(cls):
+        """Loads the page the class's tests share."""
+        cls.load_ready(cls.path, cls.page_ready)
 
     @classmethod
     def page_ready(cls):
@@ -144,6 +265,7 @@ class RedditTestCase(unittest.TestCase):
 
     def setUp(self):
         self.reset_settings()
+        self.wait_for_defaults()
 
     @property
     def driver(self):
@@ -154,62 +276,177 @@ class RedditTestCase(unittest.TestCase):
         return BROWSER.driver.execute_script(PAGE_HELPERS + script, *values)
 
     @classmethod
-    def wait_until(cls, condition, message, timeout=EFFECT_TIMEOUT):
-        return WebDriverWait(BROWSER.driver, timeout).until(lambda _: condition(), message)
+    def poll(cls, read, accept, timeout=EFFECT_TIMEOUT, interval=POLL_INTERVAL):
+        """Reads the page until a value is accepted: whether one was, and the last value read."""
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                value = read()
+            except WebDriverException as error:
+                # The page changed under the script: read it again.
+                value = error
+            else:
+                if accept(value):
+                    return True, value
+            if time.monotonic() >= deadline:
+                return False, value
+            time.sleep(interval)
+
+    @classmethod
+    def wait_until(cls, condition, message, timeout=EFFECT_TIMEOUT, interval=POLL_INTERVAL):
+        """Waits until a condition holds on the page, which is not ready otherwise."""
+        found, value = cls.poll(condition, bool, timeout, interval)
+        if not found:
+            raise NotReady(f"{message}: {value}" if isinstance(value, Exception) else message)
+        return value
 
     @classmethod
     def load(cls, path):
+        if BROWSER.refusal:
+            # Reddit serves this network no page: more loads would only wait.
+            raise NotServed(BROWSER.refusal)
         driver = BROWSER.driver
         url = path if path.startswith("http") else REDDIT + path
-        driver.get(url)
         try:
-            # Reddit may first serve a JavaScript check that reloads the page.
-            cls.wait_until(lambda: driver.execute_script(
-                "return document.readyState === 'complete' && !!document.querySelector('shreddit-app')"
-            ), "no Reddit app", PAGE_TIMEOUT)
-        except Exception:
+            driver.get(url)
+        except WebDriverException as error:
+            raise NotServed(f"{url} did not load: {error.msg}") from None
+        # Reddit may first serve a JavaScript check that reloads the page.
+        served, _ = cls.poll(lambda: driver.execute_script(
+            "return document.readyState === 'complete' && !!document.querySelector('shreddit-app')"
+        ), bool, PAGE_TIMEOUT)
+        if not served:
             text = driver.execute_script("return document.body?.innerText.slice(0, 300) || ''")
-            raise AssertionError(
+            raise NotServed(
                 f"Reddit did not serve {url}: it may be blocking automated browsers from this"
                 f" network. Title {driver.title!r}, URL {driver.current_url}, text {text!r}"
-            ) from None
+            )
+        BROWSER.remember_visitor()
+
+    @classmethod
+    def refused_requests(cls):
+        """The page's requests that Reddit refused, which tell its limits from a change of its markup."""
+        try:
+            return sorted(set(BROWSER.driver.execute_script("""
+                return performance.getEntriesByType("resource")
+                  .filter((entry) => entry.responseStatus >= 400 && entry.name.startsWith(location.origin))
+                  .map((entry) => `${new URL(entry.name).pathname} (HTTP ${entry.responseStatus})`);
+            """)))
+        except WebDriverException:
+            return []
+
+    @classmethod
+    def load_ready(cls, path, ready):
+        """Loads a page until it has what the tests use.
+
+        Reddit sometimes refuses a page's requests for its content, which
+        then never comes: only another load brings it.
+        """
+        for attempt in range(1, LOAD_ATTEMPTS + 1):
+            try:
+                cls.load(path)
+                ready()
+                return
+            except NotReady as error:
+                if BROWSER.refusal:
+                    raise
+                refused = cls.refused_requests()
+                reason = f"{error}; Reddit refused {', '.join(refused)}" if refused else str(error)
+                if attempt == LOAD_ATTEMPTS:
+                    if isinstance(error, NotServed):
+                        BROWSER.refusal = reason
+                    raise NotReady(reason) from None
+                BROWSER.reloads.append(f"{path}: {reason}")
+                time.sleep(RELOAD_PAUSE * attempt)
+
+    @classmethod
+    def load_feed(cls, posts):
+        """Waits until the feed shows this many posts.
+
+        Reddit renders a feed's first posts and loads its next page once the
+        loader after them is within two windows of the one in view. After
+        tall posts it is not, and nothing loads until the reader scrolls:
+        bringing the loader into view loads the page wherever it is.
+        """
+        def loaded():
+            return cls.js("""
+                if (feedPosts().filter(visible).length >= arguments[0]) return true;
+                feedLoader()?.scrollIntoView({block: "end"});
+                return false;
+            """, posts)
+        cls.wait_until(loaded, f"the feed did not load {posts} posts", FEED_TIMEOUT)
+        cls.js("window.scrollTo(0, 0)")
 
     @classmethod
     def reset_settings(cls):
         result = BROWSER.run_in_settings(harness.RESET_SCRIPT)
         assert result == {"success": True}, result
 
+    @classmethod
+    def wait_for_defaults(cls):
+        """Waits until the page is as default settings leave it.
+
+        The page applies a change of settings on its own time, so the last
+        test's settings could still show when the next one reads the page.
+        """
+        if cls.defaults is None:
+            return
+        restored, footprint = cls.poll(lambda: cls.js(FOOTPRINT), lambda footprint: footprint == cls.defaults)
+        if not restored:
+            changed = {
+                key: {"now": footprint[key], "default": cls.defaults[key]}
+                for key in cls.defaults if footprint[key] != cls.defaults[key]
+            } if isinstance(footprint, dict) else footprint
+            raise AssertionError(f"the page kept what earlier settings changed: {shorten(changed, 1500)}")
+
     def configure(self, **settings):
         result = BROWSER.run_in_settings(harness.STORE_SCRIPT, settings)
         self.assertEqual(result, {"success": True})
 
     @classmethod
-    def save_snapshot(cls, name):
-        if not OPTIONS.snapshots:
-            return
-        folder = Path(OPTIONS.snapshots)
+    def save_snapshot(cls, name, folder=None):
+        """Saves the page to the folder for snapshots, or to the one given, and returns where."""
+        folder = folder or OPTIONS.snapshots
+        if not folder:
+            return None
+        folder = Path(folder)
         folder.mkdir(parents=True, exist_ok=True)
         snapshot = BROWSER.driver.execute_script(SNAPSHOT_SCRIPT)
         (folder / f"{name}.html").write_text(snapshot["html"])
         (folder / f"{name}.json").write_text(json.dumps(snapshot["inventory"], indent=2, sort_keys=True) + "\n")
+        return folder / f"{name}.html"
+
+    @classmethod
+    def save_failure(cls, name):
+        """Saves the Reddit page as it was when a test, or the setup of its class, failed."""
+        try:
+            if BROWSER.driver.current_url.startswith(REDDIT):
+                saved = cls.save_snapshot(f"{name}.failure", OPTIONS.snapshots or ROOT / "reddit-snapshots")
+                print(f"\nSaved the page as it was to {saved}", file=sys.stderr)
+        except Exception as error:
+            print(f"\nCould not save a snapshot: {error}", file=sys.stderr)
 
     def run(self, result=None):
         problems = lambda: len(result.failures) + len(result.errors)
         before = problems() if result else 0
         outcome = super().run(result)
         if result and problems() > before and BROWSER:
-            try:
-                self.save_snapshot(f"{type(self).__name__}.{self._testMethodName}.failure")
-            except Exception as error:
-                print(f"Could not save a snapshot: {error}", file=sys.stderr)
+            BROWSER.failed = True
+            self.save_failure(f"{type(self).__name__}.{self._testMethodName}")
         return outcome
 
     def expect(self, script, expected, message, *values):
         """Waits until a page script returns the expected value."""
-        try:
-            self.wait_until(lambda: self.js(script, *values) == expected, message)
-        except Exception:
-            self.fail(f"{message}: expected {expected!r}, got {self.js(script, *values)!r}")
+        found, value = self.poll(lambda: self.js(script, *values), lambda value: value == expected)
+        if not found:
+            self.fail(f"{message}: expected {expected!r}, got {value!r}")
+
+    def read(self, script, accept, message, *values, timeout=EFFECT_TIMEOUT):
+        """Waits until a page script returns a value that is accepted, and returns it."""
+        found, value = self.poll(lambda: self.js(script, *values), accept, timeout)
+        if not found:
+            self.fail(f"{message}: {value!r}")
+        return value
 
     def visible_counts(self, selectors):
         return self.js(
@@ -233,65 +470,69 @@ class FeedTests(RedditTestCase):
 
     @classmethod
     def page_ready(cls):
-        cls.wait_until(lambda: cls.js("return feedPosts().filter(visible).length") >= 5, "no feed posts")
+        cls.load_feed(5)
 
     def visible_posts(self):
-        return self.js("""
+        """The posts the feed shows, once it shows a few."""
+        return self.read("""
             return feedPosts().filter(visible).map((post) => ({
               id: post.id,
-              subreddit: post.getAttribute("subreddit-name"),
+              subreddit: post.getAttribute("subreddit-name") || "",
               title: post.getAttribute("post-title") || "",
               author: post.getAttribute("author") || "",
             }));
-        """)
+        """, lambda posts: len(posts) >= 5, "the feed shows fewer than 5 posts")
 
     def test_feed_markup_the_extension_relies_on(self):
-        markup = self.js("""
+        # Reddit adds posts before it renders their buttons: the feed is
+        # read until no post lacks a part.
+        self.read("""
             const posts = feedPosts();
-            const count = (test) => posts.filter(test).length;
+            const parts = {
+              description: (post) => ["subreddit-name", "permalink", "post-title"]
+                .every((name) => post.getAttribute(name)),
+              wrapperAndDivider: (post) => post.parentElement.localName === "article"
+                && post.parentElement.nextElementSibling?.localName === "hr",
+              title: (post) => post.querySelector('[slot="title"]'),
+              voteGroup: (post) => post.shadowRoot?.querySelector(".rpl-vote-button-group button[upvote]"),
+              commentButton: (post) => post.shadowRoot?.querySelector('[data-action-bar-action="comments"]'),
+            };
             return {
               posts: posts.length,
-              described: count((post) => ["subreddit-name", "permalink", "post-title"]
-                .every((name) => post.getAttribute(name))),
-              wrappedWithDivider: count((post) => post.parentElement.localName === "article"
-                && post.parentElement.nextElementSibling?.localName === "hr"),
-              titled: count((post) => post.querySelector('[slot="title"]')),
-              voteGroups: count((post) => post.shadowRoot?.querySelector(".rpl-vote-button-group button[upvote]")),
-              commentButtons: count((post) => post.shadowRoot?.querySelector('[data-action-bar-action="comments"]')),
-              loader: document.querySelector('main shreddit-feed faceplate-partial[slot="load-after"]')
-                ?.getAttribute("loading"),
+              lacking: Object.fromEntries(Object.entries(parts)
+                .map(([part, has]) => [part, posts.filter((post) => !has(post)).map((post) => post.id)])
+                .filter(([, ids]) => ids.length > 0)),
+            };
+        """, lambda markup: markup["posts"] >= 5 and not markup["lacking"],
+            "feed posts lack parts the extension relies on")
+        self.expect("""
+            return {
+              loader: feedLoader()?.getAttribute("loading"),
               // Reddit's feed and posts start the next page with load(); the
               // page bridge guards it, and loads with loadContent().
               load: typeof customElements.get("faceplate-partial")?.prototype.load,
               loadContent: typeof customElements.get("faceplate-partial")?.prototype.loadContent,
               bridge: document.documentElement.hasAttribute("data-frontfilter-feed-bridge"),
             };
-        """)
-        self.assertGreaterEqual(markup["posts"], 5, markup)
-        every_post = ["described", "wrappedWithDivider", "titled", "voteGroups", "commentButtons"]
-        self.assertEqual(
-            {key: markup[key] for key in every_post}, dict.fromkeys(every_post, markup["posts"]), markup,
-        )
-        self.assertEqual(
-            {key: markup[key] for key in ["loader", "load", "loadContent", "bridge"]},
-            {"loader": "programmatic", "load": "function", "loadContent": "function", "bridge": True},
-            "the scroll limit cannot drive Reddit's feed loader",
-        )
+        """, {"loader": "programmatic", "load": "function", "loadContent": "function", "bridge": True},
+            "the scroll limit cannot drive Reddit's feed loader")
 
     def test_all_mode_rule_hides_a_subreddits_posts(self):
         posts = self.visible_posts()
-        subreddit = posts[0]["subreddit"]
+        subreddit = next((post["subreddit"] for post in posts if SUBREDDIT.fullmatch(post["subreddit"])), None)
+        self.assertIsNotNone(subreddit, f"no post names its subreddit: {posts}")
         self.configure(blockedSubreddits=[{"name": subreddit, "mode": "all"}])
         self.expect("""
             const posts = feedPosts();
             const shown = (post) => visible(post) || visible(post.closest("article"));
-            const isTarget = (post) => post.getAttribute("subreddit-name").toLowerCase() === arguments[0].toLowerCase();
+            const isTarget = (post) =>
+              (post.getAttribute("subreddit-name") || "").toLowerCase() === arguments[0].toLowerCase();
             return {target: posts.filter(isTarget).some(shown), others: posts.some((post) => !isTarget(post) && shown(post))};
         """, {"target": False, "others": True}, f"posts from r/{subreddit} stayed visible", subreddit)
 
     def test_blocked_users_posts_hide(self):
         posts = self.visible_posts()
-        author = next((post["author"] for post in posts if re.fullmatch(r"[\w-]{1,20}", post["author"])), None)
+        author = next((post["author"] for post in posts if USER.fullmatch(post["author"])), None)
         self.assertIsNotNone(author, f"no post names its author: {posts}")
         self.configure(blockedUsers=[author])
         self.expect("""
@@ -350,7 +591,8 @@ class FeedTests(RedditTestCase):
               share: countVisible("shreddit-post-share-button") > 0,
             };
         """
-        self.assertEqual(self.js(controls), {"votes": True, "comments": True, "share": True})
+        self.expect(controls, {"votes": True, "comments": True, "share": True},
+                    "posts lack vote, comment or share buttons")
         self.configure(hideVotes=True, hideComments=True, hideCommentReplies=True)
         self.expect(controls, {"votes": False, "comments": False, "share": True},
                     "vote or comment buttons stayed visible, or other actions were hidden")
@@ -363,13 +605,14 @@ class FeedTests(RedditTestCase):
             "signup": 'reddit-header-large [data-part="secondary"] a',
             "logo": "reddit-header-large #reddit-logo",
         }
-        before = self.visible_counts(sections)
-        self.assertTrue(all(before.values()), f"navbar parts missing: {before}")
+        shown = (
+            "return Object.fromEntries(Object.entries(arguments[0])"
+            ".map(([name, selector]) => [name, countVisible(selector) > 0]))"
+        )
+        self.expect(shown, dict.fromkeys(sections, True), "navbar parts missing", sections)
         self.configure(hideNavbarSearch=True, hideNavbarProfile=True, hideNavbarOthers=True)
         self.expect(
-            "return Object.fromEntries(Object.entries(arguments[0])"
-            ".map(([name, selector]) => [name, countVisible(selector) > 0]))",
-            {"search": False, "profile": False, "login": False, "signup": False, "logo": True},
+            shown, {"search": False, "profile": False, "login": False, "signup": False, "logo": True},
             "navbar sections did not hide as expected", sections,
         )
         self.configure(blockHomepage=True)
@@ -383,44 +626,49 @@ class FeedTests(RedditTestCase):
               space: app.paddingTop,
             };
         """
-        before = self.js(navbar)
-        self.assertRegex(before["height"], r"^[1-9]\d*px$", f"Reddit no longer sizes its navbar this way: {before}")
-        self.assertEqual(before["space"], before["height"], "Reddit reserves the navbar's space differently")
+        self.read(
+            navbar,
+            lambda before: re.fullmatch(r"[1-9]\d*px", before["height"]) and before["space"] == before["height"],
+            "Reddit no longer sizes its navbar, or reserves its space, this way",
+        )
         self.configure(hideNavbar=True)
         self.expect(navbar, {"navbar": False, "height": "0px", "space": "0px"}, "the navbar or its space stayed")
 
     def test_left_and_right_sidebars_hide(self):
-        sidebars = {"left": "#left-sidebar-container", "right": "#right-sidebar-container"}
-        self.assertEqual(self.visible_counts(sidebars), {"left": 1, "right": 1})
-        self.configure(hideLeftSidebar=True, hideRelatedPosts=True)
-        self.expect(
+        sidebars = (
             "return [countVisible('#left-sidebar-container'), countVisible('#right-sidebar-container'),"
-            " feedPosts().filter(visible).length > 0]",
-            [0, 0, True], "a sidebar stayed visible, or the feed was hidden",
+            " feedPosts().filter(visible).length > 0]"
         )
+        self.expect(sidebars, [1, 1, True], "the page lacks a sidebar, or its feed")
+        self.configure(hideLeftSidebar=True, hideRelatedPosts=True)
+        self.expect(sidebars, [0, 0, True], "a sidebar stayed visible, or the feed was hidden")
 
     def test_block_buttons_join_each_posts_credit_bar(self):
+        # Every post of a subreddit gets a button in its credit bar, before
+        # Join, however Reddit lays the bar out: it gives part of its
+        # visitors another layout, and slim cards hold the bar inside.
+        # Profile posts have no subreddit to block.
         self.configure(showBlockSubredditButton=True)
-        buttons = """
-            return feedPosts().filter(visible).flatMap((post) => {
-              const bar = post.querySelector(':scope > [slot="credit-bar"]');
-              if (!bar) return [];
-              const button = bar.querySelector(".frontfilter-block-subreddit");
-              return [{
-                subreddit: post.getAttribute("subreddit-name").toLowerCase(),
+        found, posts = self.poll(lambda: self.js("""
+            const posts = feedPosts().filter(visible).map((post) => {
+              const bar = creditBar(post);
+              const button = post.querySelector(".frontfilter-block-subreddit");
+              return {
+                id: post.id,
+                subreddit: (post.getAttribute("subreddit-name") || "").toLowerCase(),
+                bar: bar && outline(bar),
                 button: button?.dataset.subreddit || null,
                 visible: visible(button),
+                inBar: !!bar && bar.contains(button),
                 beforeJoin: button?.nextElementSibling?.localName === "shreddit-join-button",
-              }];
-            });
-        """
-        self.wait_until(lambda: any(post["button"] for post in self.js(buttons)), "no Block buttons appeared")
-        posts = [post for post in self.js(buttons) if not post["subreddit"].startswith("u_")]
-        self.assertTrue(posts)
-        for post in posts:
-            self.assertEqual(
-                post, {**post, "button": post["subreddit"], "visible": True, "beforeJoin": True},
-            )
+              };
+            }).filter(({subreddit}) => subreddit && !subreddit.startsWith("u_"));
+            const wrong = posts.filter((post) =>
+              !(post.button === post.subreddit && post.visible && post.inBar && post.beforeJoin));
+            return {posts: posts.length, wrong: wrong.length, examples: wrong.slice(0, 3)};
+        """), lambda buttons: buttons["posts"] >= 5 and buttons["wrong"] == 0)
+        if not found:
+            self.fail(f"posts without a Block button before Join: {posts}")
 
     def test_video_autoplay_turns_off(self):
         autoplaying = """
@@ -439,36 +687,68 @@ class FeedLimitTests(RedditTestCase):
 
     @classmethod
     def page_ready(cls):
-        FeedTests.page_ready()
+        # Only the feed's first page: the test needs the next one to be
+        # loaded by the limiter, so the feed must not load it before.
+        cls.load_feed(5)
 
     def test_button_mode_loads_more_posts_through_reddits_loader(self):
+        # Reddit may refuse the limiter's request, as any other of the
+        # page: the test then starts again, on a page loaded anew.
+        for attempt in range(1, LOAD_ATTEMPTS + 1):
+            refused = self.load_second_group()
+            if not refused:
+                return
+            if attempt == LOAD_ATTEMPTS:
+                self.fail(f"the second group did not load: {refused}")
+            BROWSER.reloads.append(f"{self.path}: {refused}")
+            time.sleep(RELOAD_PAUSE * attempt)
+            self.reset_settings()
+            self.open_page()
+            self.wait_for_defaults()
+
+    def load_second_group(self):
+        """Shows two groups of 25 posts; returns what the limiter says if Reddit did not load the second."""
         shown = "return feedPosts().filter((post) => visible(post) && !post.hasAttribute('is-promoted')).length"
-        status = "return document.querySelector('.frontfilter-feed-controls [role=status]')?.textContent"
-        requests = "return performance.getEntriesByType('resource').filter((entry) => entry.name.includes('/svc/shreddit/feeds/')).length"
+        status = "return document.querySelector('.frontfilter-feed-controls [role=status]')?.textContent ?? null"
+        to_controls = "document.querySelector('.frontfilter-feed-controls')?.scrollIntoView({block: 'end'})"
         self.configure(limitInfiniteScroll=True, scrollLimit=25, scrollMode="button")
         self.expect(status, "25 posts shown", "the first group did not have 25 posts")
         self.assertEqual(self.js(shown), 25)
         # Firefox records a limited number of requests: start from none.
-        self.js("performance.clearResourceTimings()")
-        self.js("document.querySelector('.frontfilter-feed-controls').scrollIntoView({block: 'end'})")
-        self.wait_until(lambda: self.js(
-            "return !!document.querySelector('.frontfilter-feed-next:not([hidden]):not(:disabled)')"
-        ), "no button for the next group")
+        self.js("performance.setResourceTimingBufferSize(1000); performance.clearResourceTimings()")
+        self.js(to_controls)
+        self.expect(
+            "return !!document.querySelector('.frontfilter-feed-next:not([hidden]):not(:disabled)')",
+            True, "no button for the next group",
+        )
         self.js("document.querySelector('.frontfilter-feed-next').click()")
 
         # The second group needs posts that only Reddit's loader can fetch,
         # and the limiter fetches them as the reader nears the end.
-        def second_group_shown():
-            self.js("document.querySelector('.frontfilter-feed-controls').scrollIntoView({block: 'end'})")
-            return self.js(status) == "50 posts shown"
-
-        try:
-            self.wait_until(second_group_shown, "", 30)
-        except Exception:
-            self.fail(f"the second group did not load: status {self.js(status)!r}")
-        self.assertGreater(self.js(requests), 0, "no feed request went through Reddit's loader")
+        def second_group():
+            self.js(to_controls)
+            return self.js("""
+                return {
+                  status: document.querySelector(".frontfilter-feed-controls [role=status]")?.textContent ?? null,
+                  failed: !!document.querySelector(".frontfilter-feed-retry:not([hidden])"),
+                };
+            """)
+        found, group = self.poll(
+            second_group, lambda group: group["failed"] or group["status"] == "50 posts shown", 30,
+        )
+        if not found:
+            self.fail(f"the second group did not load: {group}")
+        if group["failed"]:
+            refused = self.refused_requests()
+            return f"{group['status']}" + (f"; Reddit refused {', '.join(refused)}" if refused else "")
+        requests = self.js(
+            "return performance.getEntriesByType('resource')"
+            ".filter((entry) => entry.name.includes('/svc/shreddit/feeds/')).length"
+        )
+        self.assertGreater(requests, 0, "no feed request went through Reddit's loader")
         # Reddit removes posts far above the viewport, so fewer may remain.
         self.assertLessEqual(self.js(shown), 50)
+        return None
 
 
 class SubredditTests(RedditTestCase):
@@ -476,27 +756,29 @@ class SubredditTests(RedditTestCase):
 
     @classmethod
     def page_ready(cls):
-        # Subreddit pages render a few posts and load the rest on scroll.
-        def loaded():
-            cls.js("window.scrollBy(0, innerHeight)")
-            return cls.js("return feedPosts().length") >= 8
-        cls.wait_until(loaded, "fewer than 8 posts loaded", PAGE_TIMEOUT)
-        cls.js("window.scrollTo(0, 0)")
+        cls.load_feed(8)
 
     def test_flair_rules_hide_posts_by_flair(self):
-        posts = self.js("""
+        # A flair as its filter can name it: a * in a filter is a wildcard,
+        # and filters hold up to 100 characters.
+        posts = self.read("""
             return feedPosts().filter(visible).map((post) => ({
               id: post.id,
               flair: post.querySelector("shreddit-post-flair")?.textContent.trim().replace(/\\s+/g, " ") || "",
             }));
-        """)
-        target = next((post for post in posts if post["flair"]), None)
-        self.assertIsNotNone(target, f"no post flair found in {len(posts)} posts: shreddit-post-flair may have changed")
-        self.configure(blockedFlairs=[target["flair"].replace("*", "")])
-        self.expect(
-            "return visible(document.getElementById(arguments[0]))", False,
-            f"the post with flair {target['flair']!r} stayed visible", target["id"],
+        """, lambda posts: len(posts) >= 5, "the feed shows fewer than 5 posts")
+        target = next(
+            (post for post in posts if post["flair"] and "*" not in post["flair"] and len(post["flair"]) <= 100),
+            None,
         )
+        self.assertIsNotNone(
+            target, f"no post flair found in {len(posts)} posts: shreddit-post-flair may have changed",
+        )
+        self.configure(blockedFlairs=[target["flair"]])
+        self.expect("""
+            return {target: visible(document.getElementById(arguments[0])), others: feedPosts().some(visible)};
+        """, {"target": False, "others": True},
+            f"the post with flair {target['flair']!r} stayed visible", target["id"])
 
     def test_header_block_button_sits_beside_create_post(self):
         self.configure(showBlockSubredditButton=True)
@@ -517,25 +799,45 @@ class SubredditTests(RedditTestCase):
         # The post's own author; crossposts also show the original author,
         # and post text can mention users. Subreddit feeds show the author's
         # avatar beside the name, which stays.
-        in_author_slots = """
-            return feedPosts().flatMap((post) => Array.from(post.querySelectorAll(
-              `[slot="authorName"] ${arguments[0]}`))).filter(visible).length;
+        authors = """
+            const shows = (post, selector) => Array.from(
+              post.querySelectorAll(`[slot="authorName"] ${selector}`)).some(visible);
+            return feedPosts().filter(visible).map((post) => ({
+              id: post.id, name: shows(post, '[data-testid="nameplate"]'), avatar: shows(post, "[avatar]"),
+            }));
         """
-        self.assertGreater(self.js(in_author_slots, '[data-testid="nameplate"]'), 0, "no author names in posts")
-        avatars = self.js(in_author_slots, "[avatar]")
+        before = self.read(
+            authors, lambda posts: any(post["name"] for post in posts) and any(post["avatar"] for post in posts),
+            "no author names or avatars in posts",
+        )
+        with_avatar = {post["id"] for post in before if post["avatar"]}
         self.configure(hideUsernames=True)
-        self.expect(in_author_slots, 0, "author names stayed visible", '[data-testid="nameplate"]')
-        # The feed may grow meanwhile, never lose avatars.
-        self.assertGreaterEqual(self.js(in_author_slots, "[avatar]"), avatars, "author avatars hid with the names")
+        # Reddit may add posts meanwhile, or remove some: those still there
+        # keep their avatars.
+        self.read(
+            authors,
+            lambda posts: not any(post["name"] for post in posts)
+            and all(post["avatar"] for post in posts if post["id"] in with_avatar),
+            "author names stayed visible, or avatars hid with them",
+        )
 
 
 class SpoilerTests(RedditTestCase):
-    # A large subreddit where spoilers are common, though not on every load.
-    path = "/r/OnePiece/"
+    # Large subreddits where spoilers are common, though not on every load:
+    # the first that shows one is used.
+    paths = ("/r/JuJutsuKaisen/", "/r/OnePiece/", "/r/Invincible/")
+    path = paths[0]
+
+    @classmethod
+    def open_page(cls):
+        for cls.path in cls.paths:
+            cls.load_ready(cls.path, cls.page_ready)
+            if cls.js("return feedPosts().some((post) => post.hasAttribute('spoiler'))"):
+                break
 
     @classmethod
     def page_ready(cls):
-        SubredditTests.page_ready()
+        cls.load_feed(8)
 
     def spoilers(self):
         return self.js("""
@@ -553,15 +855,18 @@ class SpoilerTests(RedditTestCase):
         # a post, is all that names spoilers.
         observed = self.js("return customElements.get('shreddit-post')?.observedAttributes || []")
         self.assertIn("spoiler", observed, "posts no longer take the spoiler tag")
-        posts = self.spoilers()
-        if not posts["tagged"]:
-            self.skipTest("no spoilers on this page load")
-        self.assertEqual(posts["untaggedWithTag"], [], f"posts that are no spoilers show its icon: {posts}")
-        self.assertTrue(all(post["shownTag"] for post in posts["tagged"]), f"spoilers show another icon: {posts}")
+        if not self.spoilers()["tagged"]:
+            self.skipTest(f"no spoilers on {', '.join(self.paths)}")
+        found, posts = self.poll(
+            self.spoilers,
+            lambda posts: not posts["untaggedWithTag"] and all(post["shownTag"] for post in posts["tagged"]),
+        )
+        if not found:
+            self.fail(f"spoilers show another icon, or posts that are no spoilers show theirs: {posts}")
 
     def test_spoilers_hide(self):
         if not self.spoilers()["tagged"]:
-            self.skipTest("no spoilers on this page load")
+            self.skipTest(f"no spoilers on {', '.join(self.paths)}")
         self.configure(hideSpoilers=True)
         self.expect("""
             const shown = (post) => visible(post) || visible(post.closest("article"));
@@ -579,7 +884,9 @@ class SearchTests(RedditTestCase):
 
     @classmethod
     def page_ready(cls):
-        cls.wait_until(lambda: cls.js("return searchResults().length") >= 5, "fewer than 5 search results")
+        cls.wait_until(
+            lambda: cls.js("return searchResults().length") >= 5, "fewer than 5 search results", FEED_TIMEOUT,
+        )
 
     def results(self):
         return self.js("return searchResults()")
@@ -587,29 +894,30 @@ class SearchTests(RedditTestCase):
     def test_search_markup_the_extension_relies_on(self):
         # Each result names, in its tracking data, whether the post is NSFW
         # and whether it is a spoiler, and a divider follows it.
-        results = self.results()
-        self.assertTrue(all(
+        found, results = self.poll(self.results, lambda results: len(results) >= 5 and all(
             isinstance(result["nsfw"], bool) and isinstance(result["spoiler"], bool) and result["divided"]
             for result in results
-        ), results)
-        self.assertTrue(any(result["spoiler"] for result in results), f"no spoilers among the results: {results}")
+        ))
+        if not found:
+            self.fail(f"search results lack their tags or dividers: {results}")
 
     def test_spoilers_and_nsfw_posts_hide_from_search_results(self):
         # Each setting adds its tag to those that hide results, with their
         # dividers. Reddit shows no NSFW result to logged-out visitors: the
         # others must stay.
+        if not any(result["spoiler"] for result in self.results()):
+            self.skipTest("no spoilers among the results")
         tags = []
         for setting, tag in [("hideNsfw", "nsfw"), ("hideSpoilers", "spoiler")]:
             tags.append(tag)
             with self.subTest(setting=setting):
                 self.configure(**{setting: True})
-                try:
-                    self.wait_until(lambda: all(
-                        result["shown"] == result["dividerShown"] != any(result[name] for name in tags)
-                        for result in self.results()
-                    ), "")
-                except Exception:
-                    self.fail(f"tagged results stayed visible, or others were hidden: {self.results()}")
+                found, results = self.poll(self.results, lambda results: results and all(
+                    result["shown"] == result["dividerShown"] != any(result[name] for name in tags)
+                    for result in results
+                ))
+                if not found:
+                    self.fail(f"tagged results stayed visible, or others were hidden: {results}")
 
 
 class CrosspostTests(RedditTestCase):
@@ -618,7 +926,7 @@ class CrosspostTests(RedditTestCase):
 
     @classmethod
     def page_ready(cls):
-        SubredditTests.page_ready()
+        cls.load_feed(8)
 
     def crossposts(self):
         return self.js("""
@@ -633,18 +941,22 @@ class CrosspostTests(RedditTestCase):
               }));
         """)
 
+    @staticmethod
+    def unexpected(post):
+        """Whether a crosspost is not marked up as the extension reads it."""
+        # The shared post's permalink: under the subreddit the card shows,
+        # or under a user profile, which is no subreddit.
+        source = re.fullmatch(r"/(r|user)/([^/]+)/comments/[a-z0-9]+/.*", post["source"], re.I)
+        return not source or not post["marked"] or post["nested"] or (
+            source[1] == "r" and post["shown"].lower().rstrip("/") != f"/r/{source[2]}".lower()
+        )
+
     def test_crosspost_markup_the_extension_relies_on(self):
-        posts = self.crossposts()
-        if not posts:
+        if not self.crossposts():
             self.skipTest("no crossposts on this page load")
-        for post in posts:
-            # The shared post's permalink: under the subreddit the card
-            # shows, or under a user profile, which is no subreddit.
-            source = re.fullmatch(r"/(r|user)/([^/]+)/comments/[a-z0-9]+/.*", post["source"], re.I)
-            self.assertIsNotNone(source, post)
-            self.assertTrue(post["marked"] and not post["nested"], post)
-            if source[1] == "r":
-                self.assertEqual(post["shown"].lower().rstrip("/"), f"/r/{source[2]}".lower(), post)
+        found, posts = self.poll(self.crossposts, lambda posts: not any(map(self.unexpected, posts)))
+        if not found:
+            self.fail(f"crossposts are marked up otherwise: {list(filter(self.unexpected, posts))}")
 
     def test_all_mode_rule_hides_crossposts_of_a_subreddits_posts(self):
         page = self.path.split("/")[2].lower()
@@ -663,26 +975,28 @@ class CrosspostTests(RedditTestCase):
 
 
 class CommentsTests(RedditTestCase):
+    # The feed whose posts lead to the thread the tests share.
+    path = "/r/popular/"
+
     @classmethod
-    def setUpClass(cls):
-        cls.reset_settings()
-        cls.load("/r/popular/")
-        FeedTests.page_ready()
+    def open_page(cls):
+        cls.load_ready(cls.path, FeedTests.page_ready)
         permalinks = cls.js("""
             return feedPosts().filter((post) => Number(post.getAttribute("comment-count")) >= 50)
-              .map((post) => post.getAttribute("permalink")).slice(0, 5);
+              .map((post) => post.getAttribute("permalink")).filter(Boolean).slice(0, 5);
         """)
-        assert permalinks, "no post with 50 comments on r/popular"
+        if not permalinks:
+            raise AssertionError("no post with 50 comments on r/popular")
         # Reddit serves some threads without their replies: try the next one.
         for permalink in permalinks:
-            cls.load(permalink)
             try:
+                cls.load(permalink)
                 cls.wait_until(lambda: cls.js("""
                     const comments = Array.from(document.querySelectorAll("shreddit-comment")).filter(visible);
                     return comments.length >= 5 && comments.some((comment) => comment.getAttribute("depth") !== "0");
-                """), "")
+                """), "no comments with visible replies")
                 break
-            except TimeoutException:
+            except NotReady:
                 pass
         else:
             raise AssertionError(f"no comments with visible replies in {len(permalinks)} threads from r/popular")
@@ -691,9 +1005,8 @@ class CommentsTests(RedditTestCase):
         def rendered():
             cls.js("window.scrollBy(0, innerHeight / 2)")
             return cls.js("return document.querySelectorAll('shreddit-comment-action-row').length") >= 5
-        cls.wait_until(rendered, "fewer than 5 comment action rows rendered", PAGE_TIMEOUT)
+        cls.wait_until(rendered, "fewer than 5 comment action rows rendered", PAGE_TIMEOUT, 0.5)
         cls.js("window.scrollTo(0, 0)")
-        cls.save_snapshot(cls.__name__)
 
     def comment_bodies(self):
         return self.js("""
@@ -707,7 +1020,9 @@ class CommentsTests(RedditTestCase):
         """)
 
     def test_comment_markup_the_extension_relies_on(self):
-        markup = self.js("""
+        # Reddit renders a comment's actions after the comment: the page is
+        # read until all it holds is as the extension reads it.
+        self.read("""
             const comments = Array.from(document.querySelectorAll("shreddit-comment"));
             const replies = comments.filter((comment) => comment.getAttribute("depth") !== "0");
             const rows = Array.from(document.querySelectorAll("shreddit-comment-action-row"));
@@ -723,14 +1038,13 @@ class CommentsTests(RedditTestCase):
               actionRows: rows.length,
               actionRowVotes: rows.filter((row) => row.shadowRoot?.querySelector(".rpl-vote-button-group button[upvote]")).length,
             };
-        """)
-        self.assertEqual(markup["withDepth"], markup["comments"], markup)
-        self.assertGreater(markup["replies"], 0, markup)
-        self.assertEqual(markup["nestedReplies"], markup["replies"], markup)
-        # Deleted and removed comments have no body of their own.
-        self.assertGreaterEqual(markup["ownBodies"], markup["comments"] / 2, markup)
-        self.assertGreater(markup["actionRows"], 0, markup)
-        self.assertEqual(markup["actionRowVotes"], markup["actionRows"], markup)
+        """, lambda markup: (
+            markup["withDepth"] == markup["comments"]
+            and 0 < markup["replies"] == markup["nestedReplies"]
+            # Deleted and removed comments have no body of their own.
+            and markup["ownBodies"] >= markup["comments"] / 2
+            and 0 < markup["actionRows"] == markup["actionRowVotes"]
+        ), "comments are marked up otherwise")
 
     def test_comment_limit_shows_the_first_top_level_comments(self):
         # The limit counts the comments outside every other comment, and
@@ -751,24 +1065,28 @@ class CommentsTests(RedditTestCase):
               controls: document.querySelector(".frontfilter-comment-controls")?.textContent || "",
             };
         """
-        before = self.js(state)
-        self.assertTrue(before["tree"], before)
-        self.assertGreaterEqual(before["comments"], 5, before)
-        self.assertEqual(before["topLevel"], before["comments"], before)
+        before = self.read(
+            state, lambda before: before["tree"] and before["comments"] >= 5
+            and before["topLevel"] == before["comments"],
+            "the comment tree holds fewer than 5 comments, or some that are not top-level",
+        )
         if before["loaders"] != 1:
             self.skipTest(f"no single loader of more top-level comments: {before}")
         self.configure(limitComments=True, commentLimit=3, commentLimitMode="fixed")
-        limited = {
-            **before, "shown": 3, "loadersShown": 0, "controls": "3 comments shown · Limit reached",
-        }
-        self.expect(state, limited, "the comment limit did not apply")
+        # Reddit may have loaded comments meanwhile: only what the limit
+        # shows is known.
+        limited = self.read(
+            state, lambda limited: (limited["shown"], limited["loadersShown"], limited["controls"])
+            == (3, 0, "3 comments shown · Limit reached"),
+            "the comment limit did not apply",
+        )
         # Reddit loads no more comments while the limit is reached, however
         # far the reader scrolls.
+        self.addCleanup(self.js, "window.scrollTo(0, 0)")
         for _ in range(3):
             self.js("window.scrollTo(0, document.documentElement.scrollHeight)")
-            self.driver.execute_async_script("setTimeout(arguments[0], 1000)")
+            time.sleep(1)
         self.assertEqual(self.js(state), limited, "Reddit loaded comments past the limit")
-        self.js("window.scrollTo(0, 0)")
 
     def test_all_comments_hide_with_the_posts_comment_button(self):
         state = """
@@ -779,7 +1097,8 @@ class CommentsTests(RedditTestCase):
               post: visible(document.querySelector("shreddit-post")),
             };
         """
-        self.assertEqual(self.js(state), {"comments": True, "button": True, "post": True})
+        self.expect(state, {"comments": True, "button": True, "post": True},
+                    "the page lacks comments, the post or its comment button")
         # The settings page saves the replies switch with it, checked.
         self.configure(hideComments=True, hideCommentReplies=True)
         self.expect(state, {"comments": False, "button": False, "post": True}, "comments stayed visible")
@@ -792,19 +1111,28 @@ class CommentsTests(RedditTestCase):
               replies: comments.filter((comment) => comment.getAttribute("depth") !== "0").length,
             };
         """
-        before = self.js(levels)
-        self.assertTrue(before["topLevel"] and before["replies"], before)
+        before = self.read(
+            levels, lambda before: before["topLevel"] > 0 and before["replies"] > 0,
+            "the page lacks top-level comments or replies",
+        )
         self.configure(hideCommentReplies=True)
-        self.expect(levels, {"topLevel": before["topLevel"], "replies": 0}, "replies stayed visible")
+        # Reddit may load more top-level comments meanwhile, never fewer.
+        self.read(
+            levels, lambda after: after["replies"] == 0 and after["topLevel"] >= before["topLevel"],
+            f"replies stayed visible, or top-level comments hid: before {before}, after",
+        )
 
     def test_keywords_hide_matching_comments(self):
-        bodies = self.comment_bodies()
-        target, word = next(
-            ((body, word) for body in bodies if body["depth"] == "0"
-             if (word := choose_word(body["text"], [other["text"] for other in bodies if other is not body]))),
-            (None, None),
-        )
-        self.assertIsNotNone(word, "no top-level comment with a distinctive word")
+        def distinctive():
+            bodies = self.comment_bodies()
+            return next(
+                ((body, word) for body in bodies if body["depth"] == "0"
+                 if (word := choose_word(body["text"], [other["text"] for other in bodies if other is not body]))),
+                None,
+            )
+        found, choice = self.poll(distinctive, bool)
+        self.assertTrue(found, "no top-level comment with a distinctive word")
+        target, word = choice
         self.configure(blockedTitleKeywords=[word])
         self.expect("""
             const comment = document.querySelector(`shreddit-comment[thingid="${arguments[0]}"]`);
@@ -812,12 +1140,12 @@ class CommentsTests(RedditTestCase):
         """, {"target": False, "others": True}, f"the comment containing {word!r} stayed visible", target["id"])
 
     def test_blocked_users_comments_hide(self):
-        authors = self.js("""
+        authors = self.read("""
             return Array.from(document.querySelectorAll('shreddit-comment[depth="0"]'))
               .filter(visible).map((comment) => comment.getAttribute("author") || "");
-        """)
-        author = next((name for name in authors if re.fullmatch(r"[\w-]{1,20}", name)), None)
-        self.assertIsNotNone(author, f"no top-level comment names its author: {authors}")
+        """, lambda authors: any(USER.fullmatch(name) for name in authors),
+            "no top-level comment names its author")
+        author = next(name for name in authors if USER.fullmatch(name))
         self.configure(blockedUsers=[author])
         self.expect("""
             const comments = Array.from(document.querySelectorAll('shreddit-comment[depth="0"]'));
@@ -827,11 +1155,15 @@ class CommentsTests(RedditTestCase):
 
     def test_votes_awards_avatars_and_usernames_hide(self):
         # Vote buttons live in shadow roots, which countVisible also searches.
+        # A comment's author links to their profile twice: from the avatar,
+        # beside the comment or in its metadata, as Reddit lays it out for
+        # each visitor, and from the name, in its metadata.
         signals = {
             "votes": "button[upvote], button[downvote]",
             "awards": "award-button",
-            "avatars": 'shreddit-comment [slot="commentAvatar"] a[href*="/user/"]',
-            "usernames": 'shreddit-comment [slot="commentMeta"] a[href*="/user/"]',
+            "avatars": 'shreddit-comment :is([slot="commentAvatar"], [slot="commentMeta"])'
+                       ' a[href*="/user/"]:has([avatar])',
+            "usernames": 'shreddit-comment [slot="commentMeta"] a[href*="/user/"]:not(:has([avatar]))',
         }
         # Comment text and times are not social signals and stay visible.
         kept = {
@@ -844,19 +1176,18 @@ class CommentsTests(RedditTestCase):
             ".map(([name, selector]) => [name, countVisible(selector) > 0]));"
             " return {...any(signals), ...any(kept)};"
         )
-        before = self.js(state, signals, kept)
-        self.assertTrue(all(before.values()), before)
+        self.expect(state, dict.fromkeys([*signals, *kept], True), "the page lacks a social signal", signals, kept)
         self.configure(hideVotes=True, hideAwards=True, hideAvatars=True, hideUsernames=True)
-        expected = {**dict.fromkeys(signals, False), **dict.fromkeys(kept, True)}
-        try:
-            self.wait_until(lambda: self.js(state, signals, kept) == expected, "")
-        except Exception:
-            self.fail(f"social signals did not hide as expected: {self.js(state, signals, kept)}")
+        self.expect(
+            state, {**dict.fromkeys(signals, False), **dict.fromkeys(kept, True)},
+            "social signals did not hide as expected", signals, kept,
+        )
 
     def test_nsfw_tags_on_post_pages(self):
         # The post sits in main, before its comments, and the right rail's
-        # posts name in their tracking data whether they are NSFW.
-        markup = self.js("""
+        # posts, which Reddit loads after the page, name in their tracking
+        # data whether they are NSFW.
+        markup = """
             const rail = Array.from(document.querySelectorAll("li > reddit-pdp-right-rail-post"));
             return {
               postInMain: !!document.querySelector("main > shreddit-post"),
@@ -864,8 +1195,9 @@ class CommentsTests(RedditTestCase):
               railPosts: rail.length > 0,
               railTagged: rail.every((post) => /"nsfw":(true|false)/.test(post.getAttribute("data-faceplate-tracking-context") || "")),
             };
-        """)
-        self.assertEqual(markup, dict.fromkeys(markup, True), markup)
+        """
+        self.expect(markup, dict.fromkeys(["postInMain", "commentsInMain", "railPosts", "railTagged"], True),
+                    "post pages are marked up otherwise")
         self.configure(hideNsfw=True)
         self.expect(
             "return [countVisible('main > shreddit-post'), countVisible('shreddit-comment') > 0]",
@@ -884,19 +1216,17 @@ class CommentsTests(RedditTestCase):
               railOthers: rail.filter((post) => !hasSpoilerTag(post)).map((post) => post.getAttribute("right-rail-post-id")),
             };
         """
+        before = self.read(state, lambda before: before["post"] == 1 and before["comments"],
+                           "the page lacks its post or its comments")
         spoiler = self.js("return !!document.querySelector('main > shreddit-post[spoiler]')")
-        before = self.js(state)
         self.configure(hideSpoilers=True)
         expected = {"post": 0 if spoiler else 1, "comments": not spoiler, "railSpoilers": 0}
-
-        def hidden_as_expected():
-            now = self.js(state)
-            return ({key: now[key] for key in expected} == expected
-                    and set(before["railOthers"]) <= set(now["railOthers"]))
-        try:
-            self.wait_until(hidden_as_expected, "")
-        except Exception:
-            self.fail(f"spoilers stayed visible, or other posts were hidden: before {before}, after {self.js(state)}")
+        self.read(
+            state,
+            lambda now: {key: now[key] for key in expected} == expected
+            and set(before["railOthers"]) <= set(now["railOthers"]),
+            f"spoilers stayed visible, or other posts were hidden: before {before}, after",
+        )
 
     def test_comment_page_ads_hide(self):
         ads = "shreddit-comments-page-ad, shreddit-comment-tree-ad, shreddit-sidebar-ad"
@@ -906,10 +1236,10 @@ class CommentsTests(RedditTestCase):
         self.expect("return countVisible(arguments[0])", 0, "ads stayed visible", ads)
 
     def test_right_rail_hides(self):
-        self.assertEqual(self.js("return countVisible('pdp-right-rail')"), 1)
+        rail = "return [countVisible('pdp-right-rail'), countVisible('shreddit-comment') > 0]"
+        self.expect(rail, [1, True], "the page lacks its right rail or its comments")
         self.configure(hideRelatedPosts=True)
-        self.expect("return [countVisible('pdp-right-rail'), countVisible('shreddit-comment') > 0]",
-                    [0, True], "the right rail stayed visible, or comments were hidden")
+        self.expect(rail, [0, True], "the right rail stayed visible, or comments were hidden")
 
 
 class RedirectTests(RedditTestCase):
@@ -924,12 +1254,11 @@ class RedirectTests(RedditTestCase):
         url = REDDIT + path
         self.driver.get(url)
         block_page = f"moz-extension://{harness.FIREFOX_UUID}/blocked/index.html"
-        try:
-            self.wait_until(lambda: self.driver.current_url.startswith(block_page), "")
-        except Exception:
-            self.fail(f"{url} was not redirected: {self.driver.current_url}")
-        self.assertIn(query, self.driver.current_url)
-        self.assertEqual(self.driver.current_url.split("#", 1)[1], url)
+        redirected, current = self.poll(lambda: self.driver.current_url, lambda current: current.startswith(block_page))
+        if not redirected:
+            self.fail(f"{url} was not redirected: {current}")
+        self.assertIn(query, current)
+        self.assertEqual(current.split("#", 1)[1], url)
 
     def test_blocked_main_pages_redirect(self):
         self.configure(blockPopular=True, blockExplore=True)
@@ -949,8 +1278,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--firefox", help="Path to the Firefox binary")
     parser.add_argument("--snapshots", help="Folder for redacted snapshots of the pages visited")
+    parser.add_argument("--visitor", help="Run as the visitor a failing run named, to meet the same markup")
     _, unittest_args = parser.parse_known_args(namespace=OPTIONS)
-    unittest.main(argv=[sys.argv[0], *unittest_args])
+    program = unittest.main(argv=[sys.argv[0], *unittest_args], exit=False)
+    # After the tests' own report, where it is read.
+    report = BROWSER.report() if BROWSER else ""
+    if report:
+        print(f"\n{report}", file=sys.stderr)
+    sys.exit(not program.result.wasSuccessful())
 
 
 if __name__ == "__main__":
