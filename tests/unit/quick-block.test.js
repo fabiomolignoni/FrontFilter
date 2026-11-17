@@ -17,12 +17,34 @@ const PAGE = `<html><body>
   </shreddit-feed>
 </body></html>`;
 
+// A feed of posts, each with the markup given for its subreddit.
+function feedPage(posts) {
+  return `<html><body><shreddit-feed>${Object.entries(posts).map(([name, markup]) =>
+    `<shreddit-post subreddit-prefixed-name="r/${name}">${markup}</shreddit-post>`).join("")}</shreddit-feed></body></html>`;
+}
+
+// The credit bar as Reddit lays it out for most visitors and for the others,
+// with what stands for Join in it: nothing, for a subreddit the reader joined.
+const MENU = '<shreddit-async-loader bundlename="shreddit_post_overflow_menu"></shreddit-async-loader>';
+const JOIN = "<shreddit-join-button></shreddit-join-button>";
+const usualBar = (join = JOIN) => `<span slot="credit-bar">
+  <span id="feed-post-credit-bar-t3_abc"><a>subreddit</a></span>
+  <span class="actions">${join}<span class="menu">${MENU}</span></span>
+</span>`;
+const otherBar = (join = JOIN) => `<span slot="credit-bar" id="feed-post-credit-bar-t3_abc">
+  <span><span>
+    <faceplate-loader></faceplate-loader>
+    <div><span class="icon"></span><ul></ul><div class="actions">${join}${MENU}</div></div>
+  </span></span>
+</span>`;
+
 function loadQuickBlock({
   blockedSubreddits = [],
   url = "https://www.reddit.com/r/popular/",
   setError = null,
+  html = PAGE,
 } = {}) {
-  const page = createDocument(PAGE);
+  const page = createDocument(html);
   const writes = [];
   let stored = { blockedSubreddits };
   const settings = { showBlockSubredditButton: true };
@@ -64,6 +86,7 @@ function loadQuickBlock({
     settings,
     location,
     writes,
+    document: page.document,
     buttons: () => page.document.querySelectorAll(".frontfilter-block-subreddit"),
     button: (name) => page.document.querySelectorAll(".frontfilter-block-subreddit")
       .find((button) => button.dataset.subreddit === name),
@@ -90,6 +113,58 @@ test("adds Block buttons to subreddit posts and headers, only while enabled", ()
   page.settings.showBlockSubredditButton = false;
   page.quickBlock.update();
   assert.equal(page.buttons().length, 0);
+});
+
+test("puts the Block button before Join in each of Reddit's credit bars", () => {
+  const page = loadQuickBlock({
+    html: feedPage({
+      usual: usualBar(),
+      other: otherBar(),
+      // A slim card, such as a link post, holds its bar inside its grid.
+      slim: `<a slot="full-post-link"></a><div><div>${otherBar()}</div></div>`,
+      // A recommended post has a bar for the reason it is shown.
+      recommended: `<span slot="credit-bar"><span>Because you visited</span></span>${usualBar()}`,
+      // A bar in a nested card is that card's, not this one's.
+      outer: `<div><shreddit-post subreddit-prefixed-name="r/inner">${usualBar()}</shreddit-post></div>`,
+    }),
+  });
+  assert.deepEqual(
+    page.buttons().map((button) => button.dataset.subreddit),
+    ["usual", "other", "slim", "recommended", "inner"],
+  );
+  for (const button of page.buttons()) {
+    assert.equal(button.nextElementSibling.localName, "shreddit-join-button", button.dataset.subreddit);
+    assert.equal(button.parentElement.className, "actions", button.dataset.subreddit);
+  }
+});
+
+test("puts the Block button beside the overflow menu of a bar without Join", () => {
+  const page = loadQuickBlock({ html: feedPage({ usual: usualBar(""), other: otherBar("") }) });
+  assert.equal(page.button("usual").nextElementSibling.className, "menu");
+  assert.equal(page.button("other").nextElementSibling.localName, "shreddit-async-loader");
+  for (const button of page.buttons()) assert.equal(button.parentElement.className, "actions");
+});
+
+test("moves the Block button before Join once a bar that was still arriving holds it", () => {
+  // Reddit's pages stream in: a bar can be read before all of it is there.
+  const page = loadQuickBlock({
+    html: feedPage({ late: '<span slot="credit-bar"><span id="feed-post-credit-bar-t3_abc"></span></span>' }),
+  });
+  const button = page.button("late");
+  const creditBar = button.parentElement;
+  assert.equal(creditBar.getAttribute("slot"), "credit-bar");
+
+  const actions = page.document.createElement("span");
+  const join = page.document.createElement("shreddit-join-button");
+  actions.append(join);
+  creditBar.append(actions);
+  page.quickBlock.update();
+  assert.deepEqual(page.buttons(), [button]);
+  assert.equal(button.nextElementSibling, join);
+
+  // Once there, it stays.
+  page.quickBlock.update();
+  assert.deepEqual(actions.children, [button, join]);
 });
 
 test("leaves out the subreddit whose page is open", () => {

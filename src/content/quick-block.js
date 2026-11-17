@@ -47,24 +47,48 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
     return button;
   }
 
+  // A card's own credit bars, wherever its layout holds them: a bar in a
+  // card nested in this one is that card's. A recommended post has a
+  // second one, for the reason it is shown.
+  function findCreditBars(post) {
+    return Array.from(post.querySelectorAll(FEED.creditBar))
+      .filter((bar) => bar.closest(post.localName) === post);
+  }
+
+  // Puts a card's button next to Join and the overflow menu, which Reddit
+  // keeps above the card's full-size post link: before Join, wherever the
+  // bar's layout holds it. A button put elsewhere moves there, as when the
+  // bar was still arriving. Without Join, as for a joined subreddit, the
+  // button leads the bar's last group, or comes before the overflow menu.
+  function place(button, creditBars) {
+    const join = creditBars.map((bar) => bar.querySelector(FEED.joinButton)).find(Boolean);
+    if (join) {
+      if (button.nextElementSibling !== join) join.before(button);
+      return;
+    }
+    if (button.parentElement) return;
+    const [creditBar] = creditBars;
+    const menu = creditBar.querySelector(FEED.overflowMenu);
+    if (creditBar.children.length > 1) creditBar.lastElementChild.prepend(button);
+    else if (menu) menu.before(button);
+    else creditBar.prepend(button);
+  }
+
   function update() {
     const enabled = getSettings().showBlockSubredditButton;
     if (!enabled && !buttonsShown) return;
     const pageSubreddit = FrontFilter.getSubredditPath(window.location.pathname)?.name || "";
     for (const post of document.querySelectorAll(FEED.posts)) {
-      const creditBar = post.querySelector(FEED.creditBar);
-      const existing = creditBar?.querySelector(`.${BUTTON_CLASS}`);
+      const creditBars = findCreditBars(post);
+      const existing = creditBars.map((bar) => bar.querySelector(`.${BUTTON_CLASS}`)).find(Boolean);
       const name = getPostSubreddit(post);
-      if (!enabled || !creditBar || !isBlockable(name, pageSubreddit)) {
+      if (!enabled || creditBars.length === 0 || !isBlockable(name, pageSubreddit)) {
         existing?.remove();
         continue;
       }
-      if (existing?.dataset.subreddit === name) continue;
-      existing?.remove();
-      // Next to Join and the overflow menu, which Reddit keeps above the
-      // card's full-size post link.
-      const actions = creditBar.children.length > 1 ? creditBar.lastElementChild : creditBar;
-      actions.prepend(createButton(name));
+      const current = existing?.dataset.subreddit === name;
+      if (!current) existing?.remove();
+      place(current ? existing : createButton(name), creditBars);
     }
     updateHeaders(enabled);
     buttonsShown = enabled;

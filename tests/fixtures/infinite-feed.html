@@ -400,22 +400,48 @@ article { padding: 10px; }
       // Reddit adds ad cards straight to the feed, as unwrapped rows do.
       if (row.adPost) card.setAttribute("promoted", "");
       // The credit bar as Reddit renders it: subreddit and time on the left,
-      // Join and the overflow menu on the right.
+      // Join and the overflow menu on the right. Most visitors get one
+      // layout and the rest another ("other"), whose bar holds a single
+      // row; a slim card, such as a link post, holds its bar in its grid.
       if (row.credit) {
         const creditBar = document.createElement("span");
         creditBar.slot = "credit-bar";
         const source = document.createElement("span");
-        source.id = `feed-post-credit-bar-t3_${row.id}`;
         source.textContent = `r/${row.subreddit}`;
-        const actions = document.createElement("span");
         const join = document.createElement("shreddit-join-button");
         join.setAttribute("name", row.subreddit);
+        join.setAttribute("data-testid", "credit-bar-join-button");
         join.textContent = "Join";
-        const overflow = document.createElement("span");
-        overflow.textContent = "…";
-        actions.append(join, overflow);
-        creditBar.append(source, actions);
-        card.append(creditBar);
+        const menu = document.createElement("shreddit-async-loader");
+        menu.setAttribute("bundlename", "shreddit_post_overflow_menu");
+        menu.textContent = "…";
+        if (row.credit === "other") {
+          creditBar.id = `feed-post-credit-bar-t3_${row.id}`;
+          const line = document.createElement("span");
+          const content = document.createElement("div");
+          const actions = document.createElement("div");
+          actions.append(join, menu);
+          content.append(source, actions);
+          line.append(document.createElement("faceplate-loader"), content);
+          creditBar.append(document.createElement("span"));
+          creditBar.firstElementChild.append(line);
+        } else {
+          source.id = `feed-post-credit-bar-t3_${row.id}`;
+          const actions = document.createElement("span");
+          const overflow = document.createElement("span");
+          overflow.append(menu);
+          actions.append(join, overflow);
+          creditBar.append(source, actions);
+        }
+        if (row.slim) {
+          card.setAttribute("is-slim-card", "");
+          const grid = document.createElement("div");
+          grid.append(document.createElement("div"));
+          grid.firstElementChild.append(creditBar);
+          card.append(grid);
+        } else {
+          card.append(creditBar);
+        }
       }
       if (row.flair) {
         const flair = document.createElement("shreddit-post-flair");

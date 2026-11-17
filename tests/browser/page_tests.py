@@ -1305,6 +1305,46 @@ class PageTests:
             ".then((stored) => arguments[0](stored.blockedSubreddits))"
         ), [{"name": "alpha", "mode": "home"}])
 
+    def test_block_buttons_sit_before_join_in_every_credit_bar(self):
+        # Reddit lays the credit bar out in one way for most visitors and in
+        # another for the rest, and slim cards, such as link posts, hold it
+        # inside their grid.
+        self.configure(showBlockSubredditButton=True)
+        self.js(
+            "resetFeed([post('one', 'alpha', {credit: true}), post('two', 'beta', {credit: 'other'}),"
+            " post('three', 'gamma', {credit: true, slim: true}),"
+            " post('four', 'delta', {credit: 'other', slim: true})])"
+        )
+        buttons = """
+            return Array.from(document.querySelectorAll("shreddit-feed shreddit-post"), (post) => {
+              const button = post.querySelector(".frontfilter-block-subreddit");
+              return [
+                button?.dataset.subreddit, button?.nextElementSibling?.localName,
+                button?.getClientRects().length > 0,
+              ];
+            });
+        """
+        expected = [[name, "shreddit-join-button", True] for name in ("alpha", "beta", "gamma", "delta")]
+        try:
+            self.wait_until(lambda: self.js(buttons) == expected)
+        except Exception:
+            self.fail(f"expected {expected}, got {self.js(buttons)}")
+        # A bar that Reddit fills in later gets its button moved before Join.
+        self.js("""
+            const bar = document.querySelector("#t3_one [slot='credit-bar']");
+            bar.querySelector(".frontfilter-block-subreddit").remove();
+            window.lateActions = bar.lastElementChild;
+            window.lateActions.remove();
+        """)
+        self.wait_until(lambda: self.js(
+            "return document.querySelector('#t3_one .frontfilter-block-subreddit')?.parentElement.slot"
+        ) == "credit-bar")
+        self.js("document.querySelector(\"#t3_one [slot='credit-bar']\").append(window.lateActions)")
+        try:
+            self.wait_until(lambda: self.js(buttons) == expected)
+        except Exception:
+            self.fail(f"expected {expected}, got {self.js(buttons)}")
+
     def test_subreddit_header_block_button_and_one_time_undo(self):
         # On a subreddit's own page the button sits beside Create Post; the
         # block sends the page to the block page, which offers the undo.

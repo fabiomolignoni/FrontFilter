@@ -486,7 +486,14 @@ FrontFilter.SELECTORS = (() => {
       loader: 'faceplate-partial[slot="load-after"]',
       cards: 'shreddit-post, shreddit-ad-post, [data-testid="ad-container"]',
       posts: "shreddit-feed shreddit-post",
-      creditBar: ':scope > [slot="credit-bar"]',
+      // A card's credit bar names its subreddit, then holds Join and the
+      // overflow menu. Reddit lays it out in more than one way, gives some
+      // visitors one layout and others another, and puts it inside the
+      // grid of slim cards, such as link posts: only its slot and these
+      // two components are the same everywhere.
+      creditBar: '[slot="credit-bar"]',
+      joinButton: "shreddit-join-button",
+      overflowMenu: 'shreddit-async-loader[bundlename="shreddit_post_overflow_menu"]',
       // Join, notifications and the overflow menu, after Create Post; it
       // names the subreddit. The navbar's own Create button has no such
       // sibling.
