@@ -17,7 +17,6 @@
   --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 16px;
   --radius-xl: 22px;
   --radius-full: 999px;
   --sp-1: 4px;
@@ -26,7 +25,6 @@
   --sp-4: 16px;
   --sp-5: 20px;
   --sp-6: 24px;
-  --sp-8: 32px;
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --duration: 150ms;
 
@@ -46,7 +44,6 @@
   --bg-track: #1f1f23;
   --bg-elevated: #303036;
   --bg-hover: rgba(255, 255, 255, 0.05);
-  --bg-active: rgba(255, 255, 255, 0.09);
 
   /* Text */
   --text-primary: #ededf0;
@@ -73,7 +70,6 @@
   --toast-danger: #c62828;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
 }
 
@@ -101,7 +97,6 @@
   --bg-track: #e6e6eb;
   --bg-elevated: #ffffff;
   --bg-hover: rgba(24, 24, 27, 0.045);
-  --bg-active: rgba(24, 24, 27, 0.08);
   --text-primary: #18181b;
   --text-secondary: #52525b;
   --text-muted: #6b6b75;
@@ -119,7 +114,6 @@
   --toast-success: #4ade80;
   --toast-danger: #ff8a8a;
   --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.08);
-  --shadow-md: 0 4px 16px rgba(24, 24, 27, 0.12);
   --shadow-lg: 0 16px 48px rgba(24, 24, 27, 0.16);
 }
 
@@ -142,7 +136,6 @@
     --bg-track: #e6e6eb;
     --bg-elevated: #ffffff;
     --bg-hover: rgba(24, 24, 27, 0.045);
-    --bg-active: rgba(24, 24, 27, 0.08);
     --text-primary: #18181b;
     --text-secondary: #52525b;
     --text-muted: #6b6b75;
@@ -160,7 +153,6 @@
     --toast-success: #4ade80;
     --toast-danger: #ff8a8a;
     --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.08);
-    --shadow-md: 0 4px 16px rgba(24, 24, 27, 0.12);
     --shadow-lg: 0 16px 48px rgba(24, 24, 27, 0.16);
   }
 }

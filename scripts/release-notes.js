@@ -65,4 +65,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { releaseNotes, tagVersion, verifyNote };
+module.exports = { REPOSITORY, releaseNotes, tagVersion, verifyNote };

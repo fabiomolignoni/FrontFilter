@@ -5,10 +5,7 @@
  * before an update, and keeps the settings lock.
  */
 
-// These settings belonged to features removed in previous releases. Removing
-// them on update prevents stale data from surviving indefinitely.
-const OBSOLETE_STORAGE_KEYS = ["blockNsfw", "blockAll", "blockNew", "blockTop"];
-let ruleSyncQueue = Promise.resolve();
+const ruleSyncQueue = FrontFilter.createQueue();
 
 // Chrome compiles each rule's regular expression within a small memory
 // budget, which a long HOME rule or a pattern with several wildcards can
@@ -54,10 +51,7 @@ async function replaceNavigationRules() {
 // Synchronizations run one at a time, so the last one reflects the latest
 // settings even when an earlier one failed.
 function syncNavigationRules() {
-  ruleSyncQueue = ruleSyncQueue
-    .catch(() => undefined)
-    .then(replaceNavigationRules);
-  return ruleSyncQueue;
+  return ruleSyncQueue.run(replaceNavigationRules);
 }
 
 function syncNavigationRulesInBackground() {
@@ -66,15 +60,14 @@ function syncNavigationRulesInBackground() {
   });
 }
 
-// Settings saved by an earlier version, which has no settings version or an
-// older one, keep their meaning once upgraded. A new installation has none.
-async function upgradeStoredSettings(reason) {
+// Stored settings carry the version of their format, as exports do, so
+// that a later version can tell how to read them. A new installation's are
+// this version's.
+async function markSettingsVersion() {
   const versionKey = FrontFilter.SETTINGS_VERSION_KEY;
-  const stored = await chrome.storage.local.get([versionKey, "blockedTitleKeywords"]);
+  const stored = await chrome.storage.local.get(versionKey);
   if (stored[versionKey] >= FrontFilter.SETTINGS_VERSION) return;
-  await chrome.storage.local.set(reason === "install"
-    ? { [versionKey]: FrontFilter.SETTINGS_VERSION }
-    : FrontFilter.upgradeSettings(stored));
+  await chrome.storage.local.set({ [versionKey]: FrontFilter.SETTINGS_VERSION });
 }
 
 // Chrome gives no content script to the Reddit pages already open when
@@ -117,11 +110,13 @@ async function addStatsRecorders() {
 }
 
 chrome.runtime.onInstalled.addListener(({ reason } = {}) => {
-  void chrome.storage.local
-    .remove(OBSOLETE_STORAGE_KEYS)
-    .then(() => upgradeStoredSettings(reason))
-    .then(syncNavigationRules)
-    .catch((error) => console.error("Could not migrate FrontFilter settings:", error));
+  if (reason === "install") {
+    void markSettingsVersion().catch((error) => {
+      console.error("Could not store the version of FrontFilter's settings:", error);
+    });
+  }
+  // The rules are this version's, whatever an earlier one left.
+  syncNavigationRulesInBackground();
   if (reason === "install" || reason === "update") {
     void addStatsRecorders().catch((error) => {
       console.error("Could not count the time on open Reddit pages:", error);
@@ -140,26 +135,22 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 // Statistics have one writer, which adds pages' records one at a time:
 // writes from several tabs at once would otherwise drop each other's.
-let statsQueue = Promise.resolve();
-
-function updateStats(operation) {
-  statsQueue = statsQueue.catch(() => undefined).then(operation);
-  return statsQueue;
-}
+const STATS = FrontFilter.stats;
+const statsQueue = FrontFilter.createQueue();
 
 // Nothing is counted while statistics are paused.
 function recordStats(record) {
-  if (FrontFilter.stats.isEmptyRecord(record)) return Promise.resolve();
-  return updateStats(async () => {
-    const key = FrontFilter.stats.STORAGE_KEY;
+  if (STATS.isEmptyRecord(record)) return Promise.resolve();
+  return statsQueue.run(async () => {
+    const key = STATS.STORAGE_KEY;
     const { [key]: stored, pauseStatistics } = await chrome.storage.local.get([key, "pauseStatistics"]);
     if (pauseStatistics === true) return;
-    await chrome.storage.local.set({ [key]: FrontFilter.stats.addRecord(stored, record, Date.now()) });
+    await chrome.storage.local.set({ [key]: STATS.addRecord(stored, record, Date.now()) });
   });
 }
 
 function resetStats() {
-  return updateStats(() => chrome.storage.local.remove([FrontFilter.stats.STORAGE_KEY]));
+  return statsQueue.run(() => chrome.storage.local.remove([STATS.STORAGE_KEY]));
 }
 
 // The settings lock has one writer too: while it is on, the settings page
@@ -168,12 +159,12 @@ function resetStats() {
 // applies what waits once it is due, and ends the lock.
 const LOCK = FrontFilter.settingsLock;
 const LOCK_ALARM = "settingsLock";
-let lockQueue = Promise.resolve();
+const lockQueue = FrontFilter.createQueue();
 
 // Runs a lock operation on the stored settings and lock, stores what it
 // returns, and answers its result.
 function updateLock(operation, message = {}) {
-  lockQueue = lockQueue.catch(() => undefined).then(async () => {
+  return lockQueue.run(async () => {
     const stored = await chrome.storage.local.get([...FrontFilter.STORAGE_KEYS, LOCK.STORAGE_KEY]);
     const { set, remove, lock, result } = operation(stored, message, Date.now());
     if (Object.keys(set).length > 0) await chrome.storage.local.set(set);
@@ -183,7 +174,6 @@ function updateLock(operation, message = {}) {
     else await chrome.alarms.clear(LOCK_ALARM);
     return result;
   });
-  return lockQueue;
 }
 
 function updateLockInBackground() {
@@ -196,17 +186,25 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm?.name === LOCK_ALARM) updateLockInBackground();
 });
 
-// Answers a message with whether the operation succeeded, and with what
-// it answered when asked to.
-function respond(operation, sendResponse, { withResult = false } = {}) {
-  operation.then(
-    (result) => sendResponse(withResult ? { success: true, result } : { success: true }),
-    (error) => sendResponse({ success: false, error: error?.message ?? String(error) }),
-  );
-  return true;
+function openSettings({ currentSubreddit, importing }) {
+  const url = chrome.runtime.getURL(FrontFilter.settingsPagePath(
+    currentSubreddit, { importing: importing === true },
+  ));
+  return chrome.tabs.create({ url });
 }
 
-const LOCK_OPERATIONS = Object.freeze({
+// What pages ask for, by the action their message names. Each answers
+// whether it succeeded (FrontFilter.askBackground).
+const ACTIONS = Object.freeze({
+  openSettings,
+  // Extension pages wait for the rules before revisiting an unblocked page.
+  syncNavigationRules,
+  recordStats: ({ record }) => recordStats(record),
+  resetStats,
+});
+
+// The lock's operations also answer their result: what waits, and the lock.
+const LOCK_ACTIONS = Object.freeze({
   startLock: LOCK.start,
   saveSettings: LOCK.save,
   cancelLockedChange: LOCK.cancel,
@@ -214,26 +212,24 @@ const LOCK_OPERATIONS = Object.freeze({
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.action === "openSettings") {
-    const url = chrome.runtime.getURL(FrontFilter.settingsPagePath(
-      message.currentSubreddit, { importing: message.importing === true },
-    ));
-    return respond(chrome.tabs.create({ url }), sendResponse);
+  const action = message?.action;
+  let answer;
+  if (Object.hasOwn(ACTIONS, action)) {
+    answer = async () => {
+      await ACTIONS[action](message);
+      return { success: true };
+    };
+  } else if (Object.hasOwn(LOCK_ACTIONS, action)) {
+    answer = async () => ({ success: true, result: await updateLock(LOCK_ACTIONS[action], message) });
+  } else {
+    // Not a message for the background.
+    return false;
   }
-  // Extension pages wait for the rules before revisiting an unblocked page.
-  if (message?.action === "syncNavigationRules") {
-    return respond(syncNavigationRules(), sendResponse);
-  }
-  if (message?.action === "recordStats") {
-    return respond(recordStats(message.record), sendResponse);
-  }
-  if (message?.action === "resetStats") {
-    return respond(resetStats(), sendResponse);
-  }
-  if (Object.hasOwn(LOCK_OPERATIONS, message?.action)) {
-    return respond(updateLock(LOCK_OPERATIONS[message.action], message), sendResponse, { withResult: true });
-  }
-  return false;
+  answer().then(sendResponse, (error) => {
+    sendResponse({ success: false, error: error?.message ?? String(error) });
+  });
+  // The answer comes later.
+  return true;
 });
 
 syncNavigationRulesInBackground();

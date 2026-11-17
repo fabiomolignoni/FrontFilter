@@ -1,10 +1,16 @@
 /**
  * Modern Reddit feed adapter. Uses the page's own continuation component so
  * sorting, credentials and personalized feed cursors stay owned by Reddit.
+ *
+ * Reddit changes its pages without notice, so the limit falls back rather
+ * than leave a feed empty: posts Reddit no longer identifies count as the
+ * page shows them, and without the page's bridge (feed-bridge.js) Reddit
+ * loads the next page by itself, while the limit wants more posts.
  */
 FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   const SELECTORS = FrontFilter.SELECTORS;
   const POSTS = FrontFilter.posts;
+  const VIEW = FrontFilter.limitView;
   const FEED = SELECTORS.feed.feed;
   const MAIN_FEED = SELECTORS.feed.mainFeed;
   const LOADER = SELECTORS.feed.loader;
@@ -37,8 +43,6 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   };
   const STRUCTURE_CHANGES = { childList: true, subtree: true };
   const GATE_ATTRIBUTE = "data-frontfilter-feed-gate";
-  const VISIBLE_ATTRIBUTE = "data-frontfilter-limit-visible";
-  const HIDDEN_ATTRIBUTE = "data-frontfilter-limit-hidden";
   const PAUSE_ATTRIBUTE = "data-frontfilter-feed-paused";
   // Reddit loads the next page whenever its loader is within two screens of
   // the viewport. When filters hide whole pages the loader never moves, so
@@ -50,35 +54,50 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   // How long an empty feed may take to render its first cards.
   const SETTLE_DELAY = 500;
   const RETRY_DELAY = 100;
+  // The next page loads once the end of the posts shown is this near the
+  // bottom of the window, in pixels.
+  const LOAD_MARGIN = 200;
   let ready = false;
   let loadsHeld = false;
   let session = null;
   let guard = null;
   let bridgeReady = false;
+  // Whether the bridge was waited for in vain: Reddit then loads by itself.
+  let bridgeMissing = false;
   let navigation = null;
   let requestSequence = 0;
+  // Whether Reddit's cards went without an identity for too long, and the
+  // names the limit then gives those that have none.
+  let lenient = false;
+  const unnamedCards = new WeakMap();
+  let unnamedSequence = 0;
+  // Only changes in the feed being limited or guarded matter, until it is
+  // gone or the page has moved on.
+  const observer = new MutationObserver((mutations) => {
+    const changes = mutations.filter((mutation) => !POSTS.isUnreadTextChange(mutation));
+    if (session) changes.forEach(({ target }) => forgetCard(session.cards, target));
+    const watched = session || guard;
+    if (watched && watched.key === key() && watched.feed.isConnected
+      && !changes.some(({ target }) => watched.feed.contains(target))) return;
+    update();
+  });
 
   function enabled() {
     return FrontFilter.isFeedPath(window.location.pathname)
-      && (!ready || getSettings().limitInfiniteScroll);
-  }
-
-  function setAttribute(element, name, active) {
-    if (active) {
-      if (!element.hasAttribute(name)) element.setAttribute(name, "");
-    } else if (element.hasAttribute(name)) element.removeAttribute(name);
+      && (!ready || Boolean(getSettings().limitInfiniteScroll));
   }
 
   function updateGate() {
     const gated = enabled();
-    if (document.documentElement) setAttribute(document.documentElement, GATE_ATTRIBUTE, gated);
+    document.documentElement?.toggleAttribute(GATE_ATTRIBUTE, gated);
     // Loads the gate held back go ahead once, as it opens.
     if (loadsHeld && !gated) document.dispatchEvent(new Event(RELEASE_EVENT));
     loadsHeld = gated;
   }
 
   function detectBridge() {
-    bridgeReady = !!document.documentElement?.hasAttribute(BRIDGE_ATTRIBUTE);
+    bridgeReady = Boolean(document.documentElement?.hasAttribute(BRIDGE_ATTRIBUTE));
+    if (bridgeReady) bridgeMissing = false;
   }
 
   function key() {
@@ -89,6 +108,22 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       if (url.searchParams.has(name)) params.set(name, url.searchParams.get(name));
     }
     return `${url.origin}${url.pathname.replace(/\/$/, "")}?${params}`;
+  }
+
+  // A session limits a feed with the settings it started with.
+  function signature(config) {
+    return `${config.scrollLimit}:${config.scrollMode}`;
+  }
+
+  function findFeed() {
+    return document.querySelector(MAIN_FEED) || document.querySelector(FEED);
+  }
+
+  // The loader of the feed's next page, which Reddit replaces with that
+  // page and the loader of the one after.
+  function lastLoader(feed) {
+    return Array.from(feed.querySelectorAll(LOADER))
+      .filter((element) => element.closest(FEED) === feed).at(-1) || null;
   }
 
   // A card's identity: its post ID and subreddit, and whether it is an ad.
@@ -135,28 +170,27 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     return rows;
   }
 
+  // Whether Reddit has not said yet which post a card shows.
+  function isUnidentified(card) {
+    return !card.ad && (!card.id || !card.subreddit);
+  }
+
+  // Names the cards Reddit gave no ID, each as a post of its own, once the
+  // limit has stopped waiting for their identity. A name stays with its
+  // card, so a card named late is not counted twice.
+  function nameUnidentified(rows) {
+    for (const row of rows) {
+      if (row.ad) continue;
+      if (!row.id && !unnamedCards.has(row.post)) {
+        unnamedCards.set(row.post, `unnamed_${++unnamedSequence}`);
+      }
+      row.id = unnamedCards.get(row.post) || row.id;
+    }
+  }
+
   // Forgets the cards a change happened in, so they are read again.
   function forgetCard(cards, target) {
-    const element = target.closest ? target : target.parentElement;
-    let card = element?.closest(CARD);
-    while (card) {
-      cards.delete(card);
-      card = card.parentElement?.closest(CARD);
-    }
-  }
-
-  function setVisible(element, value) {
-    setAttribute(element, VISIBLE_ATTRIBUTE, value);
-    setAttribute(element, HIDDEN_ATTRIBUTE, !value);
-  }
-
-  // Removes the markers from a feed's elements, except those to keep.
-  function clearMarkers(feed, keep = new Set()) {
-    for (const element of feed.querySelectorAll(`[${VISIBLE_ATTRIBUTE}], [${HIDDEN_ATTRIBUTE}]`)) {
-      if (keep.has(element)) continue;
-      element.removeAttribute(VISIBLE_ATTRIBUTE);
-      element.removeAttribute(HIDDEN_ATTRIBUTE);
-    }
+    for (const card of POSTS.enclosing(target, CARD)) cards.delete(card);
   }
 
   function render(current, rows) {
@@ -172,16 +206,16 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       const show = row.ad ? index < lastVisible
         : state.allowed.has(row.id) && !seen.has(row.id);
       if (!row.ad && row.id) seen.add(row.id);
-      setVisible(row.post, show);
-      setVisible(row.element, show);
+      VIEW.setVisible(row.post, show);
+      VIEW.setVisible(row.element, show);
       const divider = row.element.nextElementSibling;
-      if (divider?.matches("hr")) setVisible(divider, show);
+      if (divider?.matches("hr")) VIEW.setVisible(divider, show);
     });
     // Clearing stale markers must not reveal newly inserted, unclassified
     // cards: the gate's CSS keeps those hidden.
-    clearMarkers(current.feed, new Set(
-      rows.flatMap(({ element, post }) => [element, post, element.nextElementSibling]),
-    ));
+    const marked = new Set(rows.flatMap(({ element, post }) => [element, post, element.nextElementSibling]));
+    if (bridgeMissing) marked.add(lastLoader(current.feed));
+    VIEW.clearMarkers(current.feed, marked);
   }
 
   function renderControls(current) {
@@ -222,37 +256,29 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     session.cancelLoading?.();
     session.intersection.disconnect();
     session.controls.remove();
-    clearMarkers(session.feed);
+    VIEW.clearMarkers(session.feed);
     session = null;
     observer.observe(document, STRUCTURE_CHANGES);
   }
 
   function startSession(feed) {
     const config = getSettings();
-    const controls = document.createElement("div");
-    controls.className = "frontfilter-feed-controls";
-    const status = document.createElement("div");
-    status.setAttribute("role", "status");
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "frontfilter-feed-next";
-    button.hidden = true;
-    const retry = document.createElement("button");
-    retry.type = "button";
-    retry.className = "frontfilter-feed-retry";
-    retry.textContent = "Retry";
-    retry.hidden = true;
-    controls.append(status);
+    const { controls, status } = VIEW.createControls();
+    const button = VIEW.createButton({ className: "frontfilter-feed-next", hidden: true });
+    const retry = VIEW.createButton({ className: "frontfilter-feed-retry", text: "Retry", hidden: true });
     // Fixed mode has no expansion control, regardless of the host page's CSS.
     if (config.scrollMode === "button") controls.append(button);
     controls.append(retry);
     const current = {
       feed, controls, status, button, retry, key: key(),
-      signature: `${config.scrollLimit}:${config.scrollMode}`,
+      signature: signature(config),
       window: FrontFilter.createFeedWindow(config.scrollLimit, config.scrollMode),
       timer: null, loading: null, cancelLoading: null,
       error: "", pages: 0, consumed: new Set(),
       waitingSince: Date.now(), cards: new WeakMap(),
+      // Without the bridge: the loader Reddit may load by itself, and the
+      // address of the last page it was let to.
+      nativeLoader: null, nativeCursor: "",
     };
     observer.observe(document, SESSION_CHANGES);
     button.addEventListener("click", () => {
@@ -266,13 +292,13 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       current.error = "";
       current.pages = 0;
       current.waitingSince = Date.now();
-      const loader = Array.from(current.feed.querySelectorAll(LOADER)).at(-1);
+      const loader = lastLoader(current.feed);
       if (loader) current.consumed.delete(loader.getAttribute("src"));
       update();
     });
     current.intersection = new IntersectionObserver(() => {
       if (active(current)) update();
-    }, { rootMargin: "0px 0px 200px 0px" });
+    }, { rootMargin: `0px 0px ${LOAD_MARGIN}px 0px` });
     current.intersection.observe(controls);
     return current;
   }
@@ -282,23 +308,33 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     current.timer = setTimeout(() => { if (active(current)) update(); }, delay);
   }
 
+  // Checks again shortly, or gives up once the wait has lasted too long.
+  function waitOrFail(current, error) {
+    if (Date.now() - current.waitingSince > LOAD_TIMEOUT) current.error = error;
+    else later(current);
+  }
+
+  // Loads the feed's next page while the limit wants more posts and the
+  // reader is near the end of those shown.
   function continueFeed(current, rows) {
     if (current.loading || current.error || !current.window.snapshot().pending) return;
     // Only fetch when the reader approaches the currently visible results.
     // Re-evaluate geometry after rendering every response, not just when the
     // observer changes state: filtered-only pages may leave the boundary still.
     const bounds = current.controls.getBoundingClientRect();
-    if (document.visibilityState === "hidden" || bounds.top > window.innerHeight + 200
+    if (document.visibilityState === "hidden" || bounds.top > window.innerHeight + LOAD_MARGIN
       || bounds.bottom < 0) return;
-    if (rows.some((row) => !row.ad && (!row.id || !row.subreddit))) {
+    if (!lenient && rows.some(isUnidentified)) {
+      // Cards may get their identity late. Should Reddit give none, as
+      // after a change of its markup, the limit counts them as they are.
       if (Date.now() - current.waitingSince > LOAD_TIMEOUT) {
-        current.error = "Some posts could not be identified. Retry loading.";
-      } else later(current);
+        lenient = true;
+        console.warn("FrontFilter could not identify Reddit's posts: its scroll limit counts them as shown.");
+      }
+      later(current);
       return;
     }
-    const loaders = Array.from(current.feed.querySelectorAll(LOADER))
-      .filter((element) => element.closest(FEED) === current.feed);
-    const loader = loaders.at(-1);
+    const loader = lastLoader(current.feed);
     if (!loader) {
       // Wait for the initial render / final continuation to settle.
       if (document.readyState === "loading" || Date.now() - current.waitingSince < SETTLE_DELAY) {
@@ -311,10 +347,21 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       return;
     }
     const cursor = loader.getAttribute("src");
-    if (!bridgeReady || !cursor) {
-      if (Date.now() - current.waitingSince > LOAD_TIMEOUT) {
-        current.error = "This feed could not load more posts. Retry loading.";
-      } else later(current);
+    if (!cursor) {
+      waitOrFail(current, "This feed could not load more posts. Retry loading.");
+      return;
+    }
+    if (!bridgeReady) {
+      // The bridge installs once Reddit defines its loader.
+      if (!bridgeMissing && Date.now() - current.waitingSince <= LOAD_TIMEOUT) {
+        later(current);
+        return;
+      }
+      if (!bridgeMissing) {
+        bridgeMissing = true;
+        console.warn("FrontFilter could not reach Reddit's feed loader: Reddit loads the feed by itself.");
+      }
+      loadNatively(current, loader, cursor);
       return;
     }
     if (current.consumed.has(cursor)) {
@@ -325,54 +372,84 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       current.error = "No matching posts found in the last pages. Retry to continue.";
       return;
     }
+    requestPage(current, loader, cursor);
+  }
+
+  // Without the bridge, the limit cannot ask for the next page: Reddit
+  // loads it by itself while its loader shows near the window. The loader
+  // then shows only while the limit wants more posts, and each loader shown
+  // counts as a page.
+  function loadNatively(current, loader, cursor) {
+    if (current.nativeCursor !== cursor) {
+      if (current.pages >= EMPTY_PAGE_LIMIT) {
+        current.error = "No matching posts found in the last pages. Retry to continue.";
+        return;
+      }
+      current.nativeCursor = cursor;
+      current.pages += 1;
+    }
+    current.nativeLoader = loader;
+  }
+
+  // Shows Reddit's loader while the limit lets Reddit load by itself, and
+  // hides it otherwise.
+  function showNativeLoader(current) {
+    if (!bridgeMissing) return;
+    const loader = lastLoader(current.feed);
+    if (loader) VIEW.setVisible(loader, loader === current.nativeLoader);
+  }
+
+  // Has the page load the feed's next page (feed-bridge.js), and updates
+  // the feed once Reddit has moved its loader on, or could not.
+  function requestPage(current, loader, cursor) {
     current.pages += 1;
     current.loading = loader;
     current.waitingSince = Date.now();
     const requestToken = `${Date.now()}-${++requestSequence}`;
     let settled = false;
-    const finish = (error, cancelled = false) => {
+
+    // The outcome is "loaded", "failed" or "cancelled".
+    function finish(outcome) {
       if (settled) return;
       settled = true;
       clearTimeout(current.timer);
       loader.removeEventListener(ERROR_EVENT, onLoadError);
-      if (loader.getAttribute(REQUEST_ATTRIBUTE) === requestToken) {
-        loader.removeAttribute(REQUEST_ATTRIBUTE);
-      }
-      if (loader.getAttribute(ERROR_ATTRIBUTE) === requestToken) {
-        loader.removeAttribute(ERROR_ATTRIBUTE);
+      for (const attribute of [REQUEST_ATTRIBUTE, ERROR_ATTRIBUTE]) {
+        if (loader.getAttribute(attribute) === requestToken) loader.removeAttribute(attribute);
       }
       current.loading = null;
       current.cancelLoading = null;
-      if (cancelled || !active(current)) return;
-      if (error) current.error = "Could not load the next group. Retry loading.";
+      if (outcome === "cancelled" || !active(current)) return;
+      if (outcome === "failed") current.error = "Could not load the next group. Retry loading.";
       else current.consumed.add(cursor);
       current.waitingSince = Date.now();
       update();
-    };
-    const onLoadError = () => {
-      if (loader.getAttribute(ERROR_ATTRIBUTE) === requestToken) {
-        finish(new Error("native loader rejected"));
-      }
-    };
-    const waitForDOM = () => {
+    }
+
+    function onLoadError() {
+      if (loader.getAttribute(ERROR_ATTRIBUTE) === requestToken) finish("failed");
+    }
+
+    // Native implementations may return void. DOM/cursor progress is required
+    // even when the page-world promise resolves without delivering results.
+    function waitForDOM() {
       if (settled) return;
       if (!active(current)) {
-        finish(null, true);
+        finish("cancelled");
         return;
       }
       const changed = !loader.isConnected
         || loader.getAttribute("src") !== cursor
-        || Array.from(current.feed.querySelectorAll(LOADER)).at(-1) !== loader;
-      if (changed) finish();
-      else if (Date.now() - current.waitingSince > LOAD_TIMEOUT) finish(new Error("timeout"));
+        || lastLoader(current.feed) !== loader;
+      if (changed) finish("loaded");
+      else if (Date.now() - current.waitingSince > LOAD_TIMEOUT) finish("failed");
       else current.timer = setTimeout(waitForDOM, RETRY_DELAY);
-    };
-    current.cancelLoading = () => finish(null, true);
+    }
+
+    current.cancelLoading = () => finish("cancelled");
     loader.addEventListener(ERROR_EVENT, onLoadError);
     loader.setAttribute(REQUEST_ATTRIBUTE, requestToken);
     loader.dispatchEvent(new Event(REQUEST_EVENT, { bubbles: true, composed: true }));
-    // Native implementations may return void. DOM/cursor progress is required
-    // even when the page-world promise resolves without delivering results.
     waitForDOM();
   }
 
@@ -407,18 +484,13 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     current.paused = true;
     current.feed.setAttribute(PAUSE_ATTRIBUTE, "");
     if (!current.controls) {
-      const controls = document.createElement("div");
-      controls.className = "frontfilter-feed-controls frontfilter-feed-paused";
-      const status = document.createElement("div");
-      status.setAttribute("role", "status");
+      const { controls, status } = VIEW.createControls("frontfilter-feed-paused");
       status.textContent = `The last ${EMPTY_PAGE_LIMIT} pages had no posts left after filtering.`;
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = "Load more";
+      const button = VIEW.createButton({ text: "Load more" });
       button.addEventListener("click", () => {
         if (guard === current) resumeGuard(current);
       });
-      controls.append(status, button);
+      controls.append(button);
       current.controls = controls;
     }
     current.feed.after(current.controls);
@@ -444,9 +516,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   }
 
   function guardNativeFeed() {
-    const feed = FrontFilter.isFeedPath(window.location.pathname)
-      ? document.querySelector(MAIN_FEED) || document.querySelector(FEED)
-      : null;
+    const feed = FrontFilter.isFeedPath(window.location.pathname) ? findFeed() : null;
     if (guard && (guard.feed !== feed || guard.key !== key())) stopGuard();
     if (!feed) return;
     if (!guard) {
@@ -456,8 +526,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       };
     }
     const current = guard;
-    const loader = Array.from(feed.querySelectorAll(LOADER))
-      .filter((element) => element.closest(FEED) === feed).at(-1) || null;
+    const loader = lastLoader(feed);
     // Each new loader marks a completed page. While paused, re-check on any
     // update so settings changes can resume loading.
     if (loader === current.loader && !current.paused) return;
@@ -465,6 +534,42 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     clearTimeout(current.timer);
     // Page filters classify new cards on the next frame; measure afterwards.
     current.timer = setTimeout(() => evaluateGuard(current), RETRY_DELAY);
+  }
+
+  // Whether the feed still shows the cards of the page before this one.
+  // The URL can change before Reddit replaces or repopulates the old feed,
+  // whose cards must not seed the results of the new page.
+  function awaitsNavigation(feed) {
+    if (session && session.key !== key() && session.feed === feed) {
+      navigation = { feed, rows: collect(feed, { read: identifyCard }) };
+      stopSession();
+    }
+    if (!navigation) return false;
+    const rows = feed ? collect(feed, { read: identifyCard }) : [];
+    const unchanged = feed === navigation.feed && rows.length === navigation.rows.length
+      && rows.every((row, index) => row.post === navigation.rows[index].post
+        && row.id === navigation.rows[index].id);
+    if (!unchanged) navigation = null;
+    return unchanged;
+  }
+
+  // Gives the session's window the cards identified so far, in feed order.
+  function admit(current, rows) {
+    const records = new Map();
+    for (const { post, element, ...record } of rows) {
+      // A partially hydrated card may precede complete cards. Wait for its
+      // identity before admitting later results, preserving feed order.
+      if (!lenient && isUnidentified(record)) break;
+      // A promoted copy must not override the organic card with the same ID.
+      if (record.id && (!records.has(record.id) || !record.ad)) records.set(record.id, record);
+    }
+    const visibleBefore = current.window.snapshot().allowed.size;
+    const state = current.window.update(
+      records.values(),
+      (record) => !record.ad && (lenient || Boolean(record.subreddit)) && !isBlocked(record),
+    );
+    if (state.allowed.size > visibleBefore) current.pages = 0;
+    if (!state.pending) current.error = "";
   }
 
   function update() {
@@ -478,70 +583,29 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       return;
     }
     stopGuard();
-    const feed = document.querySelector(MAIN_FEED) || document.querySelector(FEED);
-    const config = getSettings();
-    if (session && session.key !== key() && session.feed === feed) {
-      // The URL can change before React replaces/repopulates the old feed.
-      // Do not seed a new result ledger with cards from the previous route.
-      navigation = { feed, rows: collect(feed, { read: identifyCard }) };
-      stopSession();
-    }
-    if (navigation) {
-      const rows = feed ? collect(feed, { read: identifyCard }) : [];
-      if (feed === navigation.feed && rows.length === navigation.rows.length
-        && rows.every((row, index) => row.post === navigation.rows[index].post
-          && row.id === navigation.rows[index].id)) return;
-      navigation = null;
-    }
+    const feed = findFeed();
+    if (awaitsNavigation(feed)) return;
     if (session && (session.feed !== feed || session.key !== key()
-      || session.signature !== `${config.scrollLimit}:${config.scrollMode}`)) stopSession();
+      || session.signature !== signature(getSettings()))) stopSession();
     if (!feed) return;
-    if (!session) session = startSession(feed);
+    session ??= startSession(feed);
     const current = session;
     const rows = collect(feed, { cards: current.cards });
-    const records = new Map();
-    for (const {
-      id, subreddit, crosspostedFrom, title, bodyTexts, ad, recommended, nsfw, spoiler, flair, author,
-    } of rows) {
-      // A partially hydrated card may precede complete cards. Wait for its
-      // identity before admitting later results, preserving feed order.
-      if (!ad && (!id || !subreddit)) break;
-      // A promoted copy must not override the organic card with the same ID.
-      if (id && (!records.has(id) || !ad)) {
-        records.set(id, {
-          id, subreddit, crosspostedFrom, title, bodyTexts, ad, recommended, nsfw, spoiler, flair,
-          author,
-        });
-      }
-    }
-    const visibleBefore = current.window.snapshot().allowed.size;
-    const state = current.window.update(records.values(), (record) => !record.ad && !!record.subreddit && !isBlocked(record));
-    if (state.allowed.size > visibleBefore) current.pages = 0;
-    if (!state.pending) current.error = "";
+    if (lenient) nameUnidentified(rows);
+    admit(current, rows);
     render(current, rows);
     // The controls mark the end of the visible posts, where continueFeed
     // measures how close the reader is; loading then changes what they say.
     renderControls(current);
+    current.nativeLoader = null;
     continueFeed(current, rows);
+    showNativeLoader(current);
     renderControls(current);
   }
 
   updateGate();
   detectBridge();
-  document.addEventListener(READY_EVENT, () => {
-    bridgeReady = true;
-    update();
-  });
-  // Only changes in the feed being limited or guarded matter, until it is
-  // gone or the page has moved on.
-  const observer = new MutationObserver((mutations) => {
-    const changes = mutations.filter((mutation) => !POSTS.isUnreadTextChange(mutation));
-    if (session) changes.forEach(({ target }) => forgetCard(session.cards, target));
-    const watched = session || guard;
-    if (watched && watched.key === key() && watched.feed.isConnected
-      && !changes.some(({ target }) => watched.feed.contains(target))) return;
-    update();
-  });
+  document.addEventListener(READY_EVENT, update);
   observer.observe(document, STRUCTURE_CHANGES);
   document.addEventListener("visibilitychange", update);
   // Settings apply once loaded: until then, the gate keeps feeds hidden.

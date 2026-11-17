@@ -17,13 +17,12 @@
 const { execFileSync } = require("node:child_process");
 const { readFileSync, writeFileSync } = require("node:fs");
 const { join } = require("node:path");
-const { releaseNotes } = require("./release-notes");
+const { REPOSITORY, releaseNotes } = require("./release-notes");
 
 const ROOT = join(__dirname, "..");
 const MANIFEST = join(ROOT, "src", "manifest.json");
 const CHANGELOG = join(ROOT, "CHANGELOG.md");
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-const REPOSITORY = "fabiomolignoni/FrontFilter";
 
 /** Negative, zero or positive as version a is lower than, equal to or higher than version b. */
 function compare(a, b) {

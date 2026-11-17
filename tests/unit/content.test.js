@@ -1137,6 +1137,39 @@ test("filters comments by keyword, reading each comment's text only once", async
   assert.equal("frontfilterCommentHidden" in allowed.dataset, false);
 });
 
+test("keeps filtering comments when Reddit's markup makes another step fail", async (t) => {
+  const errors = t.mock.method(console, "error", () => {});
+  const comment = createComment("Trump again");
+  const content = await loadContent({
+    querySelectorAll: (selector) => {
+      if (isPostCollectionSelector(selector)) throw new Error("unexpected markup");
+      return ({ "shreddit-comment": [comment] })[selector] || [];
+    },
+    settings: { blockedTitleKeywords: ["Trump"] },
+    startUrl: "https://www.reddit.com/r/test/comments/abc/post/",
+  });
+
+  assert.equal(comment.dataset.frontfilterCommentHidden, "true");
+  // The failure is reported once, however often the page changes.
+  content.processFilteredContent();
+  content.processFilteredContent();
+  assert.equal(errors.mock.callCount(), 1);
+  assert.match(errors.mock.calls[0].arguments[0], /could not filter posts/);
+});
+
+test("answers the settings page even when the page cannot be counted", async () => {
+  const content = await loadContent({
+    querySelectorAll: (selector) => {
+      if (selector.includes(".thing")) throw new Error("unexpected markup");
+      return [];
+    },
+    settings: {},
+    startUrl: "https://www.reddit.com/r/test/",
+  });
+
+  assert.equal(await content.ask({ action: "countHidden" }), null);
+});
+
 test("reads a comment again once its text changes", async () => {
   // Reddit can insert a comment before all of its text has arrived.
   const comment = createComment("Breaking");

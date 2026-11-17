@@ -49,6 +49,9 @@ pull request. Run the browser tests yourself when you change page behavior.
   keep working, and so must the minimum browser versions in the README.
 - **Match Reddit by structure, never by text.** Find elements by tag,
   attribute, slot, or `data-testid`: Reddit's visible text is translated.
+- **Fail soft.** Reddit changes its pages without notice. A feature that
+  does not find what it needs must stand aside or fall back, never hide what
+  it cannot judge, break the page, or stop the other features.
 - **Mind performance.** Prefer CSS for hiding elements, and keep the work done
   on each page change small, since Reddit pages change constantly.
 - **No dependencies or remote code.** Everything the extension runs must be in

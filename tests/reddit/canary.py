@@ -258,7 +258,11 @@ class FeedTests(RedditTestCase):
               titled: count((post) => post.querySelector('[slot="title"]')),
               voteGroups: count((post) => post.shadowRoot?.querySelector(".rpl-vote-button-group button[upvote]")),
               commentButtons: count((post) => post.shadowRoot?.querySelector('[data-action-bar-action="comments"]')),
-              loader: !!document.querySelector('main shreddit-feed faceplate-partial[slot="load-after"]'),
+              loader: document.querySelector('main shreddit-feed faceplate-partial[slot="load-after"]')
+                ?.getAttribute("loading"),
+              // Reddit's feed and posts start the next page with load(); the
+              // page bridge guards it, and loads with loadContent().
+              load: typeof customElements.get("faceplate-partial")?.prototype.load,
               loadContent: typeof customElements.get("faceplate-partial")?.prototype.loadContent,
               bridge: document.documentElement.hasAttribute("data-frontfilter-feed-bridge"),
             };
@@ -269,8 +273,8 @@ class FeedTests(RedditTestCase):
             {key: markup[key] for key in every_post}, dict.fromkeys(every_post, markup["posts"]), markup,
         )
         self.assertEqual(
-            {key: markup[key] for key in ["loader", "loadContent", "bridge"]},
-            {"loader": True, "loadContent": "function", "bridge": True},
+            {key: markup[key] for key in ["loader", "load", "loadContent", "bridge"]},
+            {"loader": "programmatic", "load": "function", "loadContent": "function", "bridge": True},
             "the scroll limit cannot drive Reddit's feed loader",
         )
 

@@ -225,8 +225,7 @@ FrontFilter.createStatsTab = function ({ showToast }) {
   async function resetStats() {
     reset.confirm.hidden = true;
     try {
-      const response = await chrome.runtime.sendMessage({ action: "resetStats" });
-      if (!response?.success) throw new Error(response?.error || "no answer");
+      await FrontFilter.askBackground({ action: "resetStats" });
       showToast("Statistics deleted", "success");
     } catch (error) {
       showToast(`Could not delete statistics: ${error.message}`, "error");

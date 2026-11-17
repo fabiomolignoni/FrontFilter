@@ -360,7 +360,6 @@ test("splits pasted lists at lines and commas, keeping regular expressions whole
 
 test("reads a + before a rule as an exception, and the rule after it", () => {
   const parse = (text) => JSON.parse(JSON.stringify(FrontFilter.parseException(text)));
-  assert.equal(FrontFilter.EXCEPTION_PREFIX, "+");
   assert.deepEqual(parse(" +WorldNews "), { rule: "WorldNews", exception: true });
   assert.deepEqual(parse("+  climate   change"), { rule: "climate change", exception: true });
   assert.deepEqual(parse("news*"), { rule: "news*", exception: false });

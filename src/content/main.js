@@ -77,7 +77,7 @@ const quickBlock = FrontFilter.createQuickBlock({
 
 const stats = FrontFilter.createStatsRecorder({ isEnabled: statsEnabled });
 // Each post and comment hidden counts once, for the first reason that
-// hides it (see FrontFilter.stats.POST_REASONS). Posts found visible are
+// hides it, in the order of shared/stats.js. Posts found visible are
 // checked again once the settings or the post change.
 const countedHidden = new WeakSet();
 const visibleAtVersion = new WeakMap();
@@ -201,12 +201,10 @@ function areSuggestedPostsHidden() {
 // Page rules for suggested posts apply under this marker: other feeds, such
 // as Popular, consist of recommendations by design.
 function syncHomeFeedMarker() {
-  const root = document.documentElement;
-  if (!root) return;
-  const isHomeFeed = FrontFilter.isHomeFeedPath(window.location.pathname);
-  if (isHomeFeed !== root.hasAttribute(PAGE_STYLE.HOME_FEED_ATTRIBUTE)) {
-    root.toggleAttribute(PAGE_STYLE.HOME_FEED_ATTRIBUTE, isHomeFeed);
-  }
+  document.documentElement?.toggleAttribute(
+    PAGE_STYLE.HOME_FEED_ATTRIBUTE,
+    FrontFilter.isHomeFeedPath(window.location.pathname),
+  );
 }
 
 // Matching
@@ -244,6 +242,14 @@ function isFlairBlocked(flair) {
 
 // Posts
 
+// The subreddit a link leads to, with the rest of its path and the link's
+// whole path, or null for a link to anything else.
+function getLinkedSubreddit(link) {
+  const url = FrontFilter.getRedditUrl(link.getAttribute("href"), window.location.origin);
+  const subreddit = url && FrontFilter.getSubredditPath(url.pathname);
+  return subreddit ? { ...subreddit, pathname: url.pathname } : null;
+}
+
 // Subreddits named by a post's attributes or, failing those, by its links,
 // and for a crosspost the subreddit of the post it shares.
 function getPostSubredditNames(postElement) {
@@ -252,8 +258,7 @@ function getPostSubredditNames(postElement) {
     for (const link of postElement.querySelectorAll(SELECTORS.subredditLink)) {
       const nestedPost = link.closest(SELECTORS.post.roots);
       if (nestedPost && nestedPost !== postElement) continue;
-      const url = FrontFilter.getRedditUrl(link.getAttribute("href"), window.location.origin);
-      const subreddit = url && FrontFilter.getSubredditPath(url.pathname);
+      const subreddit = getLinkedSubreddit(link);
       if (subreddit) names.add(subreddit.name);
     }
   }
@@ -272,13 +277,10 @@ function isPostBlocked(subredditNames, postElement) {
 }
 
 function getPostPermalink(link) {
-  const url = FrontFilter.getRedditUrl(link.getAttribute("href"), window.location.origin);
-  if (!url) return null;
-
-  const subreddit = FrontFilter.getSubredditPath(url.pathname);
+  const subreddit = getLinkedSubreddit(link);
   if (!subreddit || !/^comments\/[^/]+(?:\/|$)/i.test(subreddit.rest)) return null;
 
-  return { subreddit: subreddit.name, pathname: url.pathname.toLowerCase() };
+  return { subreddit: subreddit.name, pathname: subreddit.pathname.toLowerCase() };
 }
 
 // For layouts without a known post element: the largest ancestor of a
@@ -382,11 +384,9 @@ function processComments() {
 
 // Community panels
 
+// The subreddit whose front page a link leads to.
 function getCommunitySubreddit(link) {
-  const url = FrontFilter.getRedditUrl(link.getAttribute("href"), window.location.origin);
-  if (!url) return null;
-
-  const subreddit = FrontFilter.getSubredditPath(url.pathname);
+  const subreddit = getLinkedSubreddit(link);
   return subreddit && subreddit.rest === "" ? subreddit : null;
 }
 
@@ -547,9 +547,10 @@ function countHiddenOnPage() {
   return { posts, comments };
 }
 
+// The settings page waits for the answer: it comes, whatever the count meets.
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.action !== "countHidden") return false;
-  loadConfig().then(() => sendResponse(countHiddenOnPage()), () => sendResponse(null));
+  loadConfig().then(countHiddenOnPage).then(sendResponse, () => sendResponse(null));
   return true;
 });
 
@@ -762,12 +763,9 @@ function affectsFilters(mutation) {
 
 // Forgets the verdicts of the posts a change happened in.
 function forgetChangedPost({ target }) {
-  const element = target.closest ? target : target.parentElement;
-  let post = element?.closest(SELECTORS.post.any);
-  while (post) {
+  for (const post of POSTS.enclosing(target, SELECTORS.post.any)) {
     postVerdicts.delete(post);
     visibleAtVersion.delete(post);
-    post = post.parentElement?.closest(SELECTORS.post.any);
   }
 }
 
@@ -775,14 +773,12 @@ function forgetChangedPost({ target }) {
 // have been arriving still when it was read, or it may have been edited.
 // A comment reads only its own text, so its replies keep theirs.
 function forgetChangedComment({ target }) {
-  const element = target.closest ? target : target.parentElement;
-  const comment = element?.closest(SELECTORS.comment.filtered);
+  const comment = POSTS.elementOf(target)?.closest(SELECTORS.comment.filtered);
   if (comment) commentFilterResults.delete(comment);
 }
 
 function isOutsideComments({ target }) {
-  const element = target.closest ? target : target.parentElement;
-  return !element?.closest(SELECTORS.comment.regions);
+  return !POSTS.elementOf(target)?.closest(SELECTORS.comment.regions);
 }
 
 function scheduleContentProcessing() {
@@ -795,6 +791,20 @@ function scheduleContentProcessing() {
     pageChangedOutsideComments = false;
     processFilteredContent({ outsideComments });
   });
+}
+
+// Reddit changes its pages without notice. A step that fails on one must
+// not stop the steps after it: it says so once, and is tried again with
+// the page's next change.
+const failedSteps = new Set();
+
+function attempt(step, run) {
+  try {
+    run();
+  } catch (error) {
+    if (!failedSteps.has(step)) console.error(`FrontFilter could not ${step}:`, error);
+    failedSteps.add(step);
+  }
 }
 
 // Settings changes and first runs process everything; mutation-driven runs
@@ -811,33 +821,49 @@ function processFilteredContent({ outsideComments = true } = {}) {
   };
   const isOrWas = (feature) => features[feature] || appliedFeatures[feature];
 
-  if (features.posts) {
-    if (outsideComments) processPostElements();
-  } else if (appliedFeatures.posts) {
-    clearStaleBlockedElements("post");
-  }
-
-  if (features.communities) {
-    if (outsideComments) processCommunityPanels();
-  } else if (appliedFeatures.communities) {
-    clearStaleBlockedElements("community");
-  }
-
-  if (features.comments) {
-    processComments();
-  } else if (appliedFeatures.comments) {
-    clearStaleBlockedElements("comment");
-  }
-
-  if (outsideComments) quickBlock.update();
+  attempt("filter posts", () => {
+    if (features.posts) {
+      if (outsideComments) processPostElements();
+    } else if (appliedFeatures.posts) {
+      clearStaleBlockedElements("post");
+    }
+  });
+  attempt("filter community panels", () => {
+    if (features.communities) {
+      if (outsideComments) processCommunityPanels();
+    } else if (appliedFeatures.communities) {
+      clearStaleBlockedElements("community");
+    }
+  });
+  attempt("filter comments", () => {
+    if (features.comments) {
+      processComments();
+    } else if (appliedFeatures.comments) {
+      clearStaleBlockedElements("comment");
+    }
+  });
+  attempt("add Block buttons", () => {
+    if (outsideComments) quickBlock.update();
+  });
   // After the filters, which mark what they hide.
-  if (outsideComments && countsHiddenPosts()) countHiddenPosts();
-  if (countsHiddenComments()) countHiddenComments();
-
-  if (isOrWas("commentActions")) syncShadowCommentActions();
-  if (isOrWas("autoplay")) syncVideoAutoplay();
-  if (isOrWas("mainPageLinks")) syncShadowMainPageLinks();
-  if (isOrWas("shadowSignals")) syncShadowSocialSignals();
+  attempt("count hidden posts", () => {
+    if (outsideComments && countsHiddenPosts()) countHiddenPosts();
+  });
+  attempt("count hidden comments", () => {
+    if (countsHiddenComments()) countHiddenComments();
+  });
+  attempt("hide comment buttons", () => {
+    if (isOrWas("commentActions")) syncShadowCommentActions();
+  });
+  attempt("stop autoplay", () => {
+    if (isOrWas("autoplay")) syncVideoAutoplay();
+  });
+  attempt("hide links to blocked pages", () => {
+    if (isOrWas("mainPageLinks")) syncShadowMainPageLinks();
+  });
+  attempt("hide votes and awards", () => {
+    if (isOrWas("shadowSignals")) syncShadowSocialSignals();
+  });
 
   appliedFeatures = features;
 }

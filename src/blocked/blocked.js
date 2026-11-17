@@ -11,6 +11,12 @@ const PAGE_MESSAGES = {
   news: "News page is blocked",
   subhome: "Subreddit front pages are blocked",
 };
+// Whether the settings button's setting changed since the page opened: a
+// change received while it was being read is newer than that read.
+let settingsButtonChanged = false;
+// Counts the checks of whether the page is unblocked: only the last one may
+// return to it.
+let restoreCheckId = 0;
 
 document.addEventListener("DOMContentLoaded", () => {
   void loadTheme();
@@ -80,16 +86,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("go-to-settings").addEventListener("click", async () => {
     try {
-      const response = await chrome.runtime.sendMessage({
-        action: "openSettings",
-        currentSubreddit: returnSubreddit,
-      });
-      if (response?.success) return;
+      await FrontFilter.askBackground({ action: "openSettings", currentSubreddit: returnSubreddit });
     } catch {
-      // Fall through to opening the settings page in this tab.
+      // Without the background, the settings open in this tab.
+      window.location.href = getSettingsPageUrl(returnSubreddit);
     }
-
-    window.location.href = getSettingsPageUrl(returnSubreddit);
   });
 
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -114,8 +115,7 @@ function recordBlockedVisit(target) {
   const [navigation] = globalThis.performance?.getEntriesByType?.("navigation") ?? [];
   if (navigation && navigation.type !== "navigate") return;
   // Whatever happens to the count, the page's buttons work.
-  Promise.resolve()
-    .then(() => chrome.runtime.sendMessage({ action: "recordStats", record: { blocked: { [target]: 1 } } }))
+  FrontFilter.askBackground({ action: "recordStats", record: { blocked: { [target]: 1 } } })
     .catch((error) => console.error("Could not count the blocked visit:", error));
 }
 
@@ -172,9 +172,7 @@ async function loadTheme() {
 
 // The settings button starts hidden, so it never shows on a page whose
 // settings hide it, and shows once they are read, or cannot be, as by
-// default. A change received meanwhile is newer than that read.
-let settingsButtonChanged = false;
-
+// default.
 async function loadSettingsButton() {
   let stored = {};
   try {
@@ -194,8 +192,6 @@ function getSafeReturnUrl(value) {
   return FrontFilter.getRedditUrl(value)?.href || "";
 }
 
-let restoreCheckId = 0;
-
 async function restoreIfUnblocked(returnUrl) {
   if (!returnUrl) return;
   const checkId = ++restoreCheckId;
@@ -206,10 +202,7 @@ async function restoreIfUnblocked(returnUrl) {
     if (route || checkId !== restoreCheckId) return;
 
     // Navigation rules must be updated before the page is loaded again.
-    const response = await chrome.runtime.sendMessage({ action: "syncNavigationRules" });
-    if (!response?.success) {
-      throw new Error(response?.error || "Navigation rule synchronization failed");
-    }
+    await FrontFilter.askBackground({ action: "syncNavigationRules" });
     if (checkId !== restoreCheckId) return;
 
     window.location.replace(returnUrl);
