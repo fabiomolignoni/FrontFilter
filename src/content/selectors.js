@@ -163,6 +163,29 @@ FrontFilter.SELECTORS = (() => {
     ]);
   }
 
+  // Home's feeds, For You and Following, are tabs above its feed. Each tab
+  // names its feed by a token, and the tab selected has an attribute of its
+  // own; the tabs name the feed they switch, which Reddit reloads in place,
+  // at the same address. The loader of a feed's next page names the feed
+  // its posts are from, in its address.
+  const FEED_TABS = "shreddit-feed-tabs";
+  const FEED_TOKEN = "data-feed-token";
+  const SELECTED_TAB = "faceplate-tab-selected";
+  const feedTab = (token) => `${FEED_TABS} [${FEED_TOKEN}="${token}"]`;
+  const loaderOfFeed = (token) => `faceplate-partial[slot="load-after"]:is(${
+    ["?", "&"].flatMap((start) => [
+      `[src*="${start}feed=${token}&"]`,
+      `[src$="${start}feed=${token}"]`,
+    ]).join(", ")
+  })`;
+  // The feed while it shows For You: from the start, as Reddit's page has
+  // the tabs before the posts, and until Reddit has replaced its posts,
+  // which it does after selecting the other tab.
+  const FOR_YOU_FEEDS = [
+    `main:has(${feedTab("for-you")}[${SELECTED_TAB}]) shreddit-feed`,
+    `shreddit-feed:has(> ${loaderOfFeed("for-you")})`,
+  ];
+
   // Links to a main page, by path or full URL, with optional sorts and query.
   function linksTo(path) {
     return ["", "https://www.reddit.com"].flatMap((origin) => [
@@ -451,6 +474,28 @@ FrontFilter.SELECTORS = (() => {
       blockExplore: Object.freeze(linksTo("/explore")),
       blockNews: Object.freeze(linksTo("/news")),
     }),
+
+    feedTabs: Object.freeze({
+      tabs: FEED_TABS,
+      tokenAttribute: FEED_TOKEN,
+      selectedAttribute: SELECTED_TAB,
+      selected: `[${FEED_TOKEN}][${SELECTED_TAB}]`,
+      tab: (token) => `[${FEED_TOKEN}="${token}"]`,
+      // The tabs' attribute that names, as a selector, the feed they switch.
+      feedAttribute: "feed",
+      forYou: "for-you",
+      following: "following",
+      // The tabs, the group that selects a tab on a click, and the feed:
+      // a tab switches the feed once the three are defined.
+      components: Object.freeze([FEED_TABS, "faceplate-tabgroup", "shreddit-feed"]),
+    }),
+    // What hides while For You is blocked: its tab, and its posts while
+    // they show, with the loader of their next page, but not the
+    // placeholder Reddit shows while it reloads the feed.
+    forYou: Object.freeze([
+      feedTab("for-you"),
+      ...FOR_YOU_FEEDS.map((feed) => `${feed} > :not([slot="loader"])`),
+    ]),
 
     rightSidebar: join([
       "#right-sidebar-container",

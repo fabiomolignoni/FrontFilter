@@ -500,10 +500,12 @@ article { padding: 10px; }
       feed.append(article, document.createElement("hr"));
     }
   };
-  window.addLoader = (feed, cursor = "1") => {
+  // Home's loaders also name the feed whose next page they load.
+  window.addLoader = (feed, cursor = "1", token = "") => {
     const loader = document.createElement("faceplate-partial");
     loader.setAttribute("slot", "load-after");
-    loader.setAttribute("src", `/svc/shreddit/feeds/test?cursor=${cursor}`);
+    loader.setAttribute("src", `/svc/shreddit/feeds/test?cursor=${cursor}${
+      token ? `&feed=${token}&referer=www.reddit.com` : ""}`);
     loader.setAttribute("loading", "programmatic");
     feed.append(loader);
     return loader;
@@ -621,6 +623,130 @@ article { padding: 10px; }
     if (more) addLoader(feed);
     document.querySelector("shreddit-feed").replaceWith(feed);
   };
+  // Home's feeds as Reddit shows them to signed-in visitors since October
+  // 2026: tabs above the feed, For You and Following, each naming its feed
+  // by a token. A click on a tab selects it in its group, which marks it
+  // as selected; the tabs then tell the feed they name, 100 ms later, and
+  // the feed reloads its posts in place, at the same address, keeping the
+  // placeholder it shows while loading. Reddit defines these components
+  // once its scripts run: with define false, a test defines them later.
+  window.homeFeeds = { "for-you": [], following: [] };
+  window.feedReloads = [];
+  window.defineHomeFeeds = () => {
+    if (customElements.get("shreddit-feed-tabs")) return;
+    customElements.define("faceplate-tabgroup", class extends HTMLElement {
+      constructor() {
+        super();
+        const shadow = this.attachShadow({ mode: "open" });
+        for (let index = 1; index <= Number(this.getAttribute("pages")); index += 1) {
+          const wrapper = document.createElement("span");
+          wrapper.dataset.i = String(index);
+          wrapper.append(createSlot(`page-${index}`));
+          shadow.append(wrapper);
+        }
+        // The tab clicked is known by the wrapper of its slot.
+        this.addEventListener("click", (event) => {
+          const wrapper = event.composedPath()
+            .find((node) => node instanceof HTMLSpanElement && node.dataset.i);
+          if (!wrapper) return;
+          this.setAttribute("pageindex", wrapper.dataset.i);
+          for (const tab of this.querySelectorAll(":scope > [slot]")) {
+            tab.toggleAttribute("faceplate-tab-selected", tab.slot === `page-${wrapper.dataset.i}`);
+          }
+        });
+      }
+    });
+    customElements.define("shreddit-feed-tabs", class extends HTMLElement {
+      connectedCallback() {
+        this.current ??= this.getAttribute("current-feed");
+        this.observer ??= new MutationObserver(() => {
+          const token = this.querySelector("[faceplate-tab-selected][data-feed-token]")
+            ?.getAttribute("data-feed-token");
+          if (!token || token === this.current) return;
+          this.current = token;
+          clearTimeout(this.timer);
+          this.timer = setTimeout(() => document.querySelector(this.getAttribute("feed"))
+            ?.dispatchEvent(new CustomEvent("feed-tab-select", { detail: { token } })), 100);
+        });
+        this.observer.observe(this, {
+          attributes: true, attributeFilter: ["faceplate-tab-selected"], subtree: true,
+        });
+      }
+    });
+    customElements.define("shreddit-feed", class extends HTMLElement {
+      connectedCallback() {
+        if (this.listening) return;
+        this.listening = true;
+        this.addEventListener("feed-tab-select", ({ detail: { token } }) => {
+          feedReloads.push(token);
+          setTimeout(() => {
+            const placeholder = this.querySelector(':scope > [slot="loader"]');
+            this.replaceChildren();
+            appendRows(this, homeFeeds[token]);
+            addLoader(this, "1", token);
+            if (placeholder) this.append(placeholder);
+          }, 300);
+        });
+      }
+    });
+  };
+  window.resetHomeFeeds = ({ forYou = [], following = [], define = true } = {}) => {
+    homeFeeds["for-you"] = forYou;
+    homeFeeds.following = following;
+    feedReloads = [];
+    document.querySelector("#feed-header")?.remove();
+    const header = document.createElement("div");
+    header.id = "feed-header";
+    const tabs = document.createElement("shreddit-feed-tabs");
+    tabs.setAttribute("feed", "main shreddit-feed");
+    tabs.setAttribute("current-feed", "for-you");
+    const group = document.createElement("faceplate-tabgroup");
+    group.setAttribute("pages", "2");
+    group.setAttribute("pageindex", "1");
+    [["for-you", "For You"], ["following", "Following"]].forEach(([token, label], index) => {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.id = `feed-tab-${token}`;
+      tab.slot = `page-${index + 1}`;
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("data-feed-token", token);
+      tab.toggleAttribute("faceplate-tab-selected", index === 0);
+      tab.textContent = label;
+      group.append(tab);
+    });
+    tabs.append(group);
+    header.append(tabs);
+    const feed = document.createElement("shreddit-feed");
+    appendRows(feed, forYou);
+    addLoader(feed, "1", "for-you");
+    const placeholder = document.createElement("div");
+    placeholder.slot = "loader";
+    placeholder.id = "feed-placeholder";
+    placeholder.textContent = "Loading";
+    feed.append(placeholder);
+    document.querySelector("main shreddit-feed").replaceWith(feed);
+    feed.before(header);
+    if (define) defineHomeFeeds();
+  };
+  // Home's tabs as they show, the one selected, the feeds reloaded, and
+  // every post of the feeds given that showed since watchPosts was called.
+  window.watchPosts = (ids) => {
+    window.postsSeen = new Set();
+    const watch = () => {
+      for (const id of shown()) if (ids.includes(id.slice(3))) postsSeen.add(id.slice(3));
+      requestAnimationFrame(watch);
+    };
+    watch();
+  };
+  window.homeFeedsState = () => ({
+    tabs: Array.from(document.querySelectorAll("#feed-header [data-feed-token]"))
+      .filter((tab) => tab.getClientRects().length && getComputedStyle(tab).display !== "none")
+      .map((tab) => tab.getAttribute("data-feed-token")),
+    selected: document.querySelector("#feed-header [faceplate-tab-selected]")
+      ?.getAttribute("data-feed-token") ?? null,
+    reloads: feedReloads,
+    seen: Array.from(window.postsSeen || []).sort(),
+  });
   // Current Reddit nests each comment in <details>: meta in the summary, then
   // the body and #comment-children, whose replies each take a slot named
   // after their parent. Older markup made them direct slot children, with

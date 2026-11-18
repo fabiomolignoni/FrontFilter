@@ -36,10 +36,12 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     ...SELECTORS.spoilers.postAttributes,
   ];
   // While a session limits a feed, it reads each card once and again after
-  // the card's attributes or text change. Otherwise only added and removed
-  // elements matter: feeds, loaders and cards.
+  // the card's attributes or text change, and sees Home's tabs switch the
+  // feed. Otherwise only added and removed elements matter: feeds, loaders
+  // and cards.
   const SESSION_CHANGES = {
-    childList: true, subtree: true, attributes: true, characterData: true, attributeFilter: ATTRIBUTES,
+    childList: true, subtree: true, attributes: true, characterData: true,
+    attributeFilter: [...ATTRIBUTES, SELECTORS.feedTabs.selectedAttribute],
   };
   const STRUCTURE_CHANGES = { childList: true, subtree: true };
   const GATE_ATTRIBUTE = "data-frontfilter-feed-gate";
@@ -107,7 +109,9 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     for (const name of ["sort", "t", "f", "feed", "q"]) {
       if (url.searchParams.has(name)) params.set(name, url.searchParams.get(name));
     }
-    return `${url.origin}${url.pathname.replace(/\/$/, "")}?${params}`;
+    // Home's tabs switch its feed at the same address (feed-tabs.js).
+    const tab = FrontFilter.feedTabs.selected();
+    return `${url.origin}${url.pathname.replace(/\/$/, "")}?${params}${tab ? `#${tab}` : ""}`;
   }
 
   // A session limits a feed with the settings it started with.
@@ -536,17 +540,24 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     current.timer = setTimeout(() => evaluateGuard(current), RETRY_DELAY);
   }
 
+  // The feed's cards, as they show the feed of a key.
+  function recordFeed(feed, from) {
+    navigation = { feed, from, rows: collect(feed, { read: identifyCard }) };
+  }
+
   // Whether the feed still shows the cards of the page before this one.
   // The URL can change before Reddit replaces or repopulates the old feed,
-  // whose cards must not seed the results of the new page.
+  // whose cards must not seed the results of the new page; so can Home's
+  // tabs.
   function awaitsNavigation(feed) {
     if (session && session.key !== key() && session.feed === feed) {
-      navigation = { feed, rows: collect(feed, { read: identifyCard }) };
+      recordFeed(feed, session.key);
       stopSession();
     }
     if (!navigation) return false;
     const rows = feed ? collect(feed, { read: identifyCard }) : [];
-    const unchanged = feed === navigation.feed && rows.length === navigation.rows.length
+    const unchanged = key() !== navigation.from
+      && feed === navigation.feed && rows.length === navigation.rows.length
       && rows.every((row, index) => row.post === navigation.rows[index].post
         && row.id === navigation.rows[index].id);
     if (!unchanged) navigation = null;
@@ -585,6 +596,13 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     stopGuard();
     const feed = findFeed();
     if (awaitsNavigation(feed)) return;
+    // Following is about to replace For You, whose posts stay until Reddit
+    // has replaced them: they must not seed the limit's results either.
+    if (feed && FrontFilter.feedTabs.opensFollowing(getSettings())) {
+      stopSession();
+      recordFeed(feed, key());
+      return;
+    }
     if (session && (session.feed !== feed || session.key !== key()
       || session.signature !== signature(getSettings()))) stopSession();
     if (!feed) return;

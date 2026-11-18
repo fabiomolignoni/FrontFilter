@@ -88,6 +88,8 @@ FrontFilter.pageStyle = (() => {
       ] : []),
       ...settingRules(settings, navbar.sections),
       ...(settings.blockHomepage ? [hide(navbar.logo)] : []),
+      // Home then opens on Following (feed-tabs.js).
+      ...(settings.blockForYou ? SELECTORS.forYou.map(hide) : []),
       ...(settings.hideLeftSidebar ? [hide(SELECTORS.leftSidebar.root)] : []),
       ...settingRules(settings, SELECTORS.leftSidebar.sections),
       ...mainPageLinkRule(settings, SELECTORS.leftSidebar.topSectionInPage),

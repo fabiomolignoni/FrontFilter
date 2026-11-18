@@ -4,6 +4,11 @@ Notable changes to FrontFilter, newest first.
 
 ## Unreleased
 
+### Added
+
+- **For You**, in **Block pages**, blocks Home's For You feed: Home opens on
+  Following, and no longer shows the For You tab or its posts.
+
 ### Changed
 
 - With the scroll limit on, Reddit loads a page of posts only once the limit
@@ -40,6 +45,9 @@ Notable changes to FrontFilter, newest first.
   visitors get, the button stood on a line of its own; link posts and polls
   got none; and a post whose line was still arriving could get it at the
   wrong end.
+- With the scroll limit on, switching Home between For You and Following
+  left the new feed's posts hidden: the limit still counted those of the
+  feed left.
 
 ## 3.0.1 - 2026-11-12
 
