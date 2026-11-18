@@ -2,7 +2,8 @@
  * FrontFilter content script. Page rules hide whole features with CSS
  * (page-style.js); post, comment and community filters mark the elements
  * that match; navigation to a blocked page goes to the block page, or to
- * the website chosen in the settings. Statistics count the time spent here
+ * the website chosen in the settings, and Home opens on Following while
+ * For You is blocked (feed-tabs.js). Statistics count the time spent here
  * and what the filters hid (stats-recorder.js); the settings page asks what
  * they hide on this page, to show it on its card.
  */
@@ -190,8 +191,17 @@ function redirectToBlock(route, returnUrl) {
 }
 
 function setupUrlChangeMonitor() {
-  setInterval(() => void checkCurrentPage(), 1000);
+  setInterval(() => {
+    void checkCurrentPage();
+    // Reddit's tabs may take a click only after the page's last change.
+    if (configLoaded && config.blockForYou) attempt("open Following", openFollowing);
+  }, 1000);
   window.addEventListener("popstate", () => void checkCurrentPage());
+}
+
+// While For You is blocked, Home opens on Following (feed-tabs.js).
+function openFollowing() {
+  FrontFilter.feedTabs.openFollowing();
 }
 
 function areSuggestedPostsHidden() {
@@ -676,6 +686,9 @@ function setupCustomElementMonitors() {
       syncShadowSocialSignals,
     );
   }
+  for (const component of SELECTORS.feedTabs.components) {
+    monitorCustomElement(component, () => config.blockForYou, openFollowing);
+  }
 }
 
 // Processing
@@ -718,6 +731,7 @@ function needsDynamicContentProcessing() {
     || config.hideComments
     || config.disableAutoplay
     || config.showBlockSubredditButton
+    || config.blockForYou
     || PAGE_STYLE.hasShadowSignals(config)
     || PAGE_STYLE.blocksMainPageLinks(config)
     || countsHiddenPosts()
@@ -844,6 +858,9 @@ function processFilteredContent({ outsideComments = true } = {}) {
   });
   attempt("add Block buttons", () => {
     if (outsideComments) quickBlock.update();
+  });
+  attempt("open Following", () => {
+    if (outsideComments && config.blockForYou) openFollowing();
   });
   // After the filters, which mark what they hide.
   attempt("count hidden posts", () => {

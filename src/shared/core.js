@@ -18,6 +18,8 @@ var FrontFilter = (() => {
     // Flairs that keep a post that flair filters would hide.
     allowedFlairs: Object.freeze([]),
     blockHomepage: false,
+    // Home's For You feed: Home then opens on Following.
+    blockForYou: false,
     blockPopular: false,
     blockExplore: false,
     blockNews: false,

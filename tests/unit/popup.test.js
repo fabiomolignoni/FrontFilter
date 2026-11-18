@@ -1443,6 +1443,7 @@ test("makes hiding the left sidebar imply its indented section toggles", async (
 test("maps every checkbox to the matching storage setting", async () => {
   const settingByElementId = {
     "block-homepage": "blockHomepage",
+    "block-for-you": "blockForYou",
     "block-popular": "blockPopular",
     "block-explore": "blockExplore",
     "block-news": "blockNews",
@@ -3005,6 +3006,23 @@ test("names switches by their group, and those that block pages by their page", 
   const texts = elements["lock-pending-list"].querySelectorAll(".lock-pending-change")
     .map((element) => element.textContent);
   assert.deepEqual(texts, ["Turn off “Block Popular”", "Turn off “Hide navbar”"]);
+});
+
+test("names Home's For You feed as a page it blocks, without its description", async () => {
+  const popup = await loadPopup({
+    autoResolveWrites: true,
+    storedSettings: { blockForYou: true, settingsLock: storedLock() },
+    sendMessage: lockBackground(),
+  });
+  const { elements } = popup;
+  assert.equal(elements["block-for-you"].checked, true);
+  elements["block-for-you"].checked = false;
+  elements["block-for-you"].dispatch("change");
+  await settleAll();
+  // Turning it off loosens the settings: it waits.
+  assert.equal(popup.stored().blockForYou, true);
+  assert.equal(elements["block-for-you"].checked, true);
+  assert.match(elements.toast.textContent, /^Turn off “Block For You”/);
 });
 
 test("saves a rule once typed while locked, not at each step of typing it", async (t) => {

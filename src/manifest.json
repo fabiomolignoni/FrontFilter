@@ -52,6 +52,7 @@
         "content/posts.js",
         "content/page-style.js",
         "content/autoplay.js",
+        "content/feed-tabs.js",
         "content/feed-window.js",
         "content/limit-view.js",
         "content/feed-limit.js",

@@ -5,7 +5,7 @@ const { STATS_RECORDER_SCRIPTS, deferred, runScripts, settle } = require("./help
 
 const CONTENT_SCRIPTS = [
   "shared/core.js", "shared/stats.js", "content/selectors.js", "content/posts.js",
-  "content/page-style.js", "content/autoplay.js", "content/quick-block.js",
+  "content/page-style.js", "content/autoplay.js", "content/feed-tabs.js", "content/quick-block.js",
   "content/stats-recorder.js", "content/main.js",
 ];
 
@@ -673,6 +673,106 @@ test("hides global feed-sort links and the navbar logo when the homepage is bloc
   }, "local");
   await settle();
   assert.doesNotMatch(style.textContent, /#reddit-logo/);
+});
+
+// Home's tabs as Reddit renders them, For You and Following, which name
+// the feed they switch; the tab clicked becomes the one selected. Reddit
+// may not have defined the tabs or the feed yet.
+function createFeedTabs({ selected = "for-you", defined = true, feedDefined = true } = {}) {
+  const state = { selected, defined, feedDefined, clicks: [] };
+  const tab = (token) => ({
+    getAttribute: (name) => (name === "data-feed-token" ? token : null),
+    closest: (selector) => (selector === ":not(:defined)" && !state.defined ? {} : null),
+    click() {
+      state.clicks.push(token);
+      state.selected = token;
+    },
+  });
+  const tabs = { "for-you": tab("for-you"), following: tab("following") };
+  const feedSelector = "#interest-home-feed-main shreddit-feed";
+  const feed = { matches: (selector) => selector === ":defined" && state.feedDefined };
+  const element = {
+    getAttribute: (name) => (name === "feed" ? feedSelector : null),
+    querySelector(selector) {
+      if (selector === '[data-feed-token="for-you"][faceplate-tab-selected]') {
+        return state.selected === "for-you" ? tabs["for-you"] : null;
+      }
+      return selector === '[data-feed-token="following"]' ? tabs.following : null;
+    },
+  };
+  state.querySelectorAll = (selector) => {
+    if (selector === "shreddit-feed-tabs") return [element];
+    if (selector === feedSelector) return [feed];
+    if (selector === "shreddit-feed-tabs [data-feed-token][faceplate-tab-selected]") {
+      return [tabs[state.selected]];
+    }
+    return [];
+  };
+  return state;
+}
+
+test("opens Following in Home's tabs while For You is blocked, and hides For You", async () => {
+  const home = createFeedTabs();
+  const content = await loadContent({
+    querySelectorAll: home.querySelectorAll,
+    settings: { blockForYou: true },
+    startUrl: "https://www.reddit.com/",
+  });
+  assert.deepEqual(home.clicks, ["following"]);
+  const style = content.injectedStyles[0].textContent;
+  for (const selector of [
+    'shreddit-feed-tabs [data-feed-token="for-you"]',
+    'main:has(shreddit-feed-tabs [data-feed-token="for-you"][faceplate-tab-selected]) shreddit-feed > :not([slot="loader"])',
+    'shreddit-feed:has(> faceplate-partial[slot="load-after"]:is([src*="?feed=for-you&"], [src$="?feed=for-you"], [src*="&feed=for-you&"], [src$="&feed=for-you"])) > :not([slot="loader"])',
+  ]) {
+    assert.ok(style.includes(`${selector} { display: none !important; }`), selector);
+  }
+  // Following stays selected.
+  content.processFilteredContent();
+  await content.poll();
+  assert.deepEqual(home.clicks, ["following"]);
+  // So does it once For You is no longer blocked, whose tab shows again.
+  content.storageListeners[0]({ blockForYou: { oldValue: true, newValue: false } }, "local");
+  await settle();
+  assert.doesNotMatch(content.injectedStyles[0].textContent, /for-you/);
+  assert.equal(home.selected, "following");
+});
+
+test("opens Following only once Reddit has defined its tabs and its feed", async () => {
+  const home = createFeedTabs({ defined: false, feedDefined: false });
+  const content = await loadContent({
+    querySelectorAll: home.querySelectorAll,
+    settings: { blockForYou: true },
+    startUrl: "https://www.reddit.com/",
+  });
+  await content.poll();
+  assert.deepEqual(home.clicks, []);
+  home.defined = true;
+  await content.poll();
+  assert.deepEqual(home.clicks, []);
+  // Reddit's components may change nothing on the page once defined: the
+  // next check opens Following all the same.
+  home.feedDefined = true;
+  await content.poll();
+  assert.deepEqual(home.clicks, ["following"]);
+});
+
+test("leaves Home's tabs alone unless For You is blocked", async () => {
+  const home = createFeedTabs();
+  const content = await loadContent({
+    querySelectorAll: home.querySelectorAll,
+    settings: {},
+    startUrl: "https://www.reddit.com/",
+  });
+  content.processFilteredContent();
+  await content.poll();
+  assert.deepEqual(home.clicks, []);
+  assert.deepEqual(content.queriedSelectors, []);
+  assert.doesNotMatch(content.injectedStyles[0].textContent, /for-you/);
+
+  content.storageListeners[0]({ blockForYou: { oldValue: false, newValue: true } }, "local");
+  await settle();
+  assert.deepEqual(home.clicks, ["following"]);
 });
 
 function createShadowHost() {

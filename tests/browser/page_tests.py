@@ -47,7 +47,7 @@ SIGNALS_SHOWN = {
     "post-score": True, "post-award": True, "post-upvote": True, "post-downvote": True,
     "comment-score": True, "comment-upvote": True, "post-comments": True,
 }
-# Settings that only add CSS rules to the page and to shadow roots.
+# Settings that add CSS rules to the page and to shadow roots.
 PAGE_RULE_SETTINGS = [
     "hideNavbar", "hideNavbarMenu", "hideNavbarSearch", "hideNavbarChat",
     "hideNavbarNotifications", "hideNavbarProfile", "hideNavbarOthers",
@@ -55,7 +55,7 @@ PAGE_RULE_SETTINGS = [
     "hideLeftSidebarRecent", "hideLeftSidebarCommunities", "hideLeftSidebarResources",
     "hideRelatedPosts", "hideSuggestedCommunities", "hideSuggestedPosts", "hideAds", "hideNsfw",
     "hideSpoilers", "hideComments", "hideCommentReplies", "hideSocialSignals", *SIGNAL_KEYS,
-    "blockHomepage", "blockPopular", "blockExplore", "blockNews",
+    "blockHomepage", "blockForYou", "blockPopular", "blockExplore", "blockNews",
 ]
 AD_PLACEMENTS = [
     "comments-page-ad", "comment-tree-ad", "sidebar-ad", "tracked-promoted",
@@ -753,6 +753,83 @@ class PageTests:
         self.wait_until(lambda: self.js(
             "return document.querySelector('.frontfilter-feed-controls').textContent.includes('End of feed')"
         ))
+
+    # Home's feeds, For You and Following
+
+    def open_home_feeds(self, define=True, **settings):
+        """Opens Home with its tabs, on For You, and watches which posts show.
+
+        For You has posts a, b and c, and Following d, e and f.
+        """
+        self.open_fixture("/")
+        if settings:
+            self.configure(**settings)
+        self.js("watchPosts(['a', 'b', 'c', 'd', 'e', 'f'])")
+        self.js(
+            "resetHomeFeeds({forYou: [post('a'), post('b'), post('c')],"
+            " following: [post('d'), post('e'), post('f')], define: arguments[0]})",
+            define,
+        )
+
+    def test_home_opens_following_while_for_you_is_blocked(self):
+        self.open_home_feeds(blockForYou=True)
+        # For You's posts hide from the start, but not the placeholder the
+        # feed shows while Reddit reloads it.
+        self.assertEqual(self.js("return shown()"), [])
+        self.assertTrue(self.js("return !!document.querySelector('#feed-placeholder').getClientRects().length"))
+        self.expect("def")
+        self.assertEqual(self.js("return homeFeedsState()"), {
+            "tabs": ["following"], "selected": "following", "reloads": ["following"],
+            "seen": ["d", "e", "f"],
+        })
+
+    def test_home_opens_following_once_reddit_defines_its_tabs(self):
+        self.open_home_feeds(define=False, blockForYou=True)
+        self.pause(300)
+        self.assertEqual(self.js("return homeFeedsState()"), {
+            "tabs": ["following"], "selected": "for-you", "reloads": [], "seen": [],
+        })
+        # Defining them changes nothing on the page that FrontFilter would see.
+        self.js("defineHomeFeeds()")
+        self.expect("def")
+        self.assertEqual(self.js("return homeFeedsState().seen"), ["d", "e", "f"])
+
+    def test_blocking_for_you_applies_to_home_at_once(self):
+        self.open_home_feeds()
+        self.expect("abc")
+        self.assertEqual(self.js("return homeFeedsState().tabs"), ["for-you", "following"])
+        self.configure(blockForYou=True)
+        self.expect("def")
+        # Home stays on Following, and offers For You again.
+        self.configure(blockForYou=False)
+        self.wait_until(lambda: self.js("return homeFeedsState().tabs") == ["for-you", "following"])
+        self.expect("def")
+        self.js("document.querySelector('#feed-tab-for-you').click()")
+        self.expect("abc")
+
+    def test_scroll_limit_counts_the_posts_of_the_feed_homes_tabs_open(self):
+        self.open_home_feeds(limitInfiniteScroll=True, scrollLimit=2, scrollMode="fixed")
+        self.expect("ab")
+        # The posts of the feed left must not count toward the limit.
+        self.js("document.querySelector('#feed-tab-following').click()")
+        self.expect("de")
+        self.js("document.querySelector('#feed-tab-for-you').click()")
+        self.expect("ab")
+        self.configure(blockForYou=True)
+        self.expect("de")
+        self.assertEqual(
+            self.js("return document.querySelector('.frontfilter-feed-controls [role=status]').textContent"),
+            "2 posts shown · Limit reached",
+        )
+
+    def test_scroll_limit_starts_on_following_while_for_you_is_blocked(self):
+        self.open_home_feeds(blockForYou=True, limitInfiniteScroll=True, scrollLimit=2, scrollMode="fixed")
+        self.expect("de")
+        self.assertEqual(self.js("return homeFeedsState().seen"), ["d", "e"])
+        self.assertEqual(
+            self.js("return document.querySelector('.frontfilter-feed-controls [role=status]').textContent"),
+            "2 posts shown · Limit reached",
+        )
 
     def test_spa_navigation_resets_the_quota(self):
         self.configure(limitInfiniteScroll=True, scrollLimit=3, scrollMode="button")

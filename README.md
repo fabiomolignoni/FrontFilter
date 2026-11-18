@@ -23,7 +23,8 @@ To run it from source, see [Development](#development). The
 
 - **Block pages.** Home, Popular, Explore, News, every subreddit's front
   page, or subreddits of your choice, on their front page or everywhere. A
-  blocked page shows a block page, or leads to a website you choose.
+  blocked page shows a block page, or leads to a website you choose. Block
+  Home's For You feed alone, and Home opens on Following.
 - **Filter posts and comments** by keyword, flair or user, and hide ads,
   suggested posts and communities, NSFW posts and spoilers.
 - **Simplify Reddit.** Hide comments or their replies, the navbar, the

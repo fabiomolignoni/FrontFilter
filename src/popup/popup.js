@@ -84,7 +84,9 @@ document.addEventListener("DOMContentLoaded", () => {
       .find((element) => element.getAttribute("data-group") === parent),
   }));
 
-  const PAGE_SWITCHES = new Set([...FrontFilter.PAGE_ROUTES.map(({ key }) => key), "blockSubHome"]);
+  const PAGE_SWITCHES = new Set([
+    ...FrontFilter.PAGE_ROUTES.map(({ key }) => key), "blockForYou", "blockSubHome",
+  ]);
 
   // A setting's name as the page says it: a switch's label, after its
   // group's or its section's where the page joins them; a limit's option
