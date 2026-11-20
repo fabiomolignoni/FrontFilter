@@ -1,6 +1,6 @@
 # FrontFilter Privacy Policy
 
-**Last updated: November 12, 2026**
+**Last updated: November 21, 2026**
 
 FrontFilter is a browser extension that helps you use Reddit with fewer
 distractions. This policy explains what data the extension handles and what it
