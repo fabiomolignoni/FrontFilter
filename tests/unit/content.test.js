@@ -1,10 +1,10 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const vm = require("node:vm");
-const { STATS_RECORDER_SCRIPTS, deferred, runScripts, settle } = require("./helpers");
+const { STATS_RECORDER_SCRIPTS, deferred, fakeI18n, runScripts, settle } = require("./helpers");
 
 const CONTENT_SCRIPTS = [
-  "shared/core.js", "shared/stats.js", "content/selectors.js", "content/posts.js",
+  "shared/core.js", "shared/i18n.js", "shared/stats.js", "content/selectors.js", "content/posts.js",
   "content/page-style.js", "content/autoplay.js", "content/feed-tabs.js", "content/quick-block.js",
   "content/stats-recorder.js", "content/main.js",
 ];
@@ -70,6 +70,7 @@ async function loadContent({
   const observerOptions = [];
   const storageListeners = [];
   const chrome = {
+    i18n: fakeI18n(),
     storage: {
       local: { get: async () => settings },
       onChanged: { addListener: (listener) => storageListeners.push(listener) },
@@ -2093,4 +2094,25 @@ test("counts a page it leaves for the chosen website as blocked, before leaving"
   });
   assert.equal(toBlockPage.redirects.length, 1);
   assert.deepEqual(sentRecords(toBlockPage), []);
+});
+
+test("speaks a language chosen in the settings, with the messages the background gives", async () => {
+  const messages = { languageTag: { message: "it" }, quickBlockButton: { message: "Blocca" } };
+  const content = await loadContent({
+    settings: { language: "it" },
+    startUrl: "https://www.reddit.com/",
+    sendMessage: async (message) => (message.action === "getMessages"
+      ? { success: true, result: messages }
+      : { success: true }),
+  });
+  await settle();
+  assert.deepEqual(content.sentMessages.filter(({ action }) => action === "getMessages"),
+    [{ action: "getMessages", language: "it" }]);
+  assert.equal(content.run("FrontFilter.i18n.t('quickBlockButton')"), "Blocca");
+  // The limits show their text again, in it.
+  const updates = content.getFeedLimiterUpdateCount();
+  content.storageListeners.forEach((listener) => listener({ language: { oldValue: "it", newValue: "system" } }, "local"));
+  await settle();
+  assert.equal(content.run("FrontFilter.i18n.t('quickBlockButton')"), "Block");
+  assert.ok(content.getFeedLimiterUpdateCount() > updates);
 });

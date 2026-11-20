@@ -3,7 +3,14 @@
  * its own. Every change is saved as it is made.
  */
 
-document.addEventListener("DOMContentLoaded", () => {
+// The page speaks the language cached for it, once its messages load.
+const languageReady = FrontFilter.i18n.startPage(document);
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await languageReady;
+  // The page's text, before anything reads it.
+  FrontFilter.i18n.localizePage(document);
+  const { t, plural, formatNumber } = FrontFilter.i18n;
   const pageParams = new URLSearchParams(globalThis.location?.search);
   const standalone = pageParams.get("standalone") === "true";
   // In a tab of its own, the card shows the subreddit this page was opened
@@ -22,6 +29,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Keep panels mounted: switching sections must preserve edits and scroll position.
   const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+  // Labels too long to sit beside their icons in their tabs, as some
+  // languages' are, show alone, each taking the room it needs (popup.css).
+  // The page checks again as its width changes, as a tab's does.
+  const tabList = document.querySelector('[role="tablist"]');
+  function fitTabs() {
+    tabList.removeAttribute("data-compact");
+    const tooLong = tabs.some((tab) => {
+      const label = tab.querySelector("span");
+      const icon = tab.querySelector(".icon");
+      const gap = Number.parseFloat(globalThis.getComputedStyle?.(tab).columnGap) || 0;
+      return label.scrollWidth + (icon?.getBoundingClientRect?.().width ?? 0) + gap > tab.clientWidth;
+    });
+    if (tooLong) tabList.setAttribute("data-compact", "");
+  }
+  fitTabs();
+  if (globalThis.ResizeObserver) new ResizeObserver(fitTabs).observe(tabList);
   function selectTab(selectedTab) {
     for (const tab of tabs) {
       const selected = tab === selectedTab;
@@ -49,6 +72,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const saveIndicator = document.getElementById("save-indicator");
   const toast = document.getElementById("toast");
   const colorTheme = document.getElementById("color-theme");
+  const languageSelect = document.getElementById("language");
+  for (const { tag, name } of FrontFilter.i18n.languageNames()) {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = name;
+    option.setAttribute("lang", tag);
+    languageSelect.append(option);
+  }
   const redirectUrl = document.getElementById("redirect-url");
   const redirectUrlOption = document.getElementById("redirect-url-option");
 
@@ -62,11 +93,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const limits = [
     {
       switchKey: "limitInfiniteScroll", countKey: "scrollLimit", modeKey: "scrollMode",
-      countId: "scroll-limit", modeId: "scroll-mode", noun: "posts",
+      countId: "scroll-limit", modeId: "scroll-mode", invalid: t("scrollLimitInvalid"),
     },
     {
       switchKey: "limitComments", countKey: "commentLimit", modeKey: "commentLimitMode",
-      countId: "comment-limit", modeId: "comment-limit-mode", noun: "comments",
+      countId: "comment-limit", modeId: "comment-limit-mode", invalid: t("commentLimitInvalid"),
     },
   ].map(({ countId, modeId, ...limit }) => ({
     ...limit,
@@ -99,10 +130,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const row = textOf(input.parentElement?.querySelector(".row-label"));
     if (limit) return row;
     const ids = (input.getAttribute("aria-labelledby") || "").split(/\s+/).filter(Boolean);
-    if (ids.length > 1) return ids.map((id) => textOf(document.getElementById(id))).join(": ");
+    if (ids.length > 1) {
+      const [group, ...names] = ids.map((id) => textOf(document.getElementById(id)));
+      return t("settingInGroup", group, names.join(" "));
+    }
     const label = ids.length === 1 ? textOf(document.getElementById(ids[0])) : row;
     // The switches that block pages are named by the page alone.
-    return PAGE_SWITCHES.has(key) ? `Block ${label}` : label;
+    return PAGE_SWITCHES.has(key) ? t("blockPageSetting", label) : label;
   }
 
   // While settings are locked, the background saves them: what loosens
@@ -178,8 +212,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const hidden = sections.filter((section) => section.checked).length;
       parent.indeterminate = !parent.checked && hidden > 0;
       if (summary) {
-        const partial = summary.getAttribute("data-partial") || `${hidden} of ${sections.length} hidden`;
-        summary.textContent = parent.indeterminate ? partial : "";
+        // A group may name its message of its own (data-i18n-partial), as
+        // Hide comments does, whose one section would read "1 of 1 hidden".
+        const partial = summary.getAttribute("data-i18n-partial");
+        let text = "";
+        if (parent.indeterminate) {
+          text = partial ? t(partial) : plural("groupSummaryHidden", hidden, formatNumber(sections.length));
+        }
+        summary.textContent = text;
       }
     }
   }
@@ -200,7 +240,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function showSaving() {
     clearTimeout(indicatorTimer);
-    saveIndicator.textContent = "Saving…";
+    saveIndicator.textContent = t("saveSaving");
     saveIndicator.setAttribute("data-state", "saving");
     saveIndicator.classList.add("visible");
   }
@@ -209,7 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (saveId !== latestSaveId) return;
 
     clearTimeout(indicatorTimer);
-    saveIndicator.textContent = "Saved";
+    saveIndicator.textContent = t("saveSaved");
     saveIndicator.setAttribute("data-state", "saved");
     indicatorTimer = setTimeout(() => saveIndicator.classList.remove("visible"), 1200);
   }
@@ -218,7 +258,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (saveId !== latestSaveId) return;
 
     clearTimeout(indicatorTimer);
-    saveIndicator.textContent = "Save failed";
+    saveIndicator.textContent = t("saveFailed");
     saveIndicator.setAttribute("data-state", "failed");
     saveIndicator.classList.add("visible");
   }
@@ -233,6 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
         [countKey, lastCount], [modeKey, mode.value],
       ])),
       theme: colorTheme.value,
+      language: languageSelect.value,
       redirectUrl: lastRedirectUrl,
     };
   }
@@ -280,7 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
       (error) => {
         saved();
         showSaveFailed(saveId);
-        showToast(`Save failed: ${error.message}`, "error");
+        showToast(t("saveFailedBecause", error.message), "error");
         if (throughLock) reloadSettings();
       },
     );
@@ -390,12 +431,14 @@ document.addEventListener("DOMContentLoaded", () => {
     showToast,
   });
 
+  // Each list says its counts in words of its own, which agree with what
+  // it counts.
   const subredditList = createEntryList({
     key: "blockedSubreddits",
     allowKey: "allowedSubreddits",
-    title: "Subreddits",
+    title: t("subredditsTitle"),
     listId: "subreddit-list",
-    searchLabel: "Search subreddits",
+    searchLabel: t("subredditsSearch"),
     countId: "subreddit-count",
     addId: "add-subreddit",
     itemClass: "subreddit-item",
@@ -403,75 +446,87 @@ document.addEventListener("DOMContentLoaded", () => {
     normalizeAllowList: FrontFilter.normalizeAllowedSubreddits,
     // Rules block a front page (HOME) or everything (ALL). The stored names
     // are kept; these read better beside Reddit's own Home feed and r/all.
-    blockModes: [["home", "Front page"], ["all", "Everywhere"]],
+    blockModes: [["home", t("subredditsModeFrontPage")], ["all", t("subredditsModeEverywhere")]],
     storesModes: true,
     // New rows block everywhere, as the Block buttons on Reddit do.
     defaultMode: "all",
-    modeLabel: "Block or allow",
-    placeholder: "Subreddit, wildcard, or Reddit URL",
-    label: "Subreddit, wildcard, or Reddit URL",
-    removeLabel: "Remove subreddit rule",
-    emptyMessage: "No subreddits blocked or allowed yet",
-    invalidMessage: "Enter a subreddit name, a pattern with *, or a Reddit URL",
-    countNouns: ["rule", "rules"],
+    modeLabel: t("subredditsModeLabel"),
+    placeholder: t("subredditsPlaceholder"),
+    label: t("subredditsPlaceholder"),
+    removeLabel: t("subredditsRemove"),
+    emptyMessage: t("subredditsEmpty"),
+    invalidMessage: t("subredditsInvalid"),
+    countText: (count) => plural("subredditsCount", count),
+    addedText: (count) => plural("subredditsAdded", count),
+    noneNewText: t("subredditsNoneNew"),
+    noMatchText: (query) => t("subredditsNoMatch", query),
   });
   const entryLists = [
     subredditList,
     createEntryList({
       key: "blockedTitleKeywords",
       allowKey: "allowedKeywords",
-      title: "Keywords",
+      title: t("keywordsTitle"),
       listId: "keyword-list",
-      searchLabel: "Search keywords",
+      searchLabel: t("keywordsSearch"),
       countId: "keyword-count",
       addId: "add-keyword",
       itemClass: "keyword-item",
       normalizeList: FrontFilter.normalizeTitleKeywords,
       getRuleKey: FrontFilter.getKeywordKey,
       splitList: (text) => FrontFilter.splitList(text, { keywords: true }),
-      blockModes: [["block", "Hidden"]],
-      modeLabel: "Hide or allow",
-      placeholder: "Keyword, phrase, or /regex/",
-      label: "Keyword, phrase, or regular expression",
-      removeLabel: "Remove keyword",
-      emptyMessage: "No keywords filtered yet",
-      invalidMessage: "Enter a keyword, or a valid regular expression between slashes",
-      countNouns: ["keyword", "keywords"],
+      blockModes: [["block", t("listModeHidden")]],
+      modeLabel: t("listModeHideLabel"),
+      placeholder: t("keywordsPlaceholder"),
+      label: t("keywordsLabel"),
+      removeLabel: t("keywordsRemove"),
+      emptyMessage: t("keywordsEmpty"),
+      invalidMessage: t("keywordsInvalid"),
+      countText: (count) => plural("keywordsCount", count),
+      addedText: (count) => plural("keywordsAdded", count),
+      noneNewText: t("keywordsNoneNew"),
+      noMatchText: (query) => t("keywordsNoMatch", query),
     }),
     createEntryList({
       key: "blockedFlairs",
       allowKey: "allowedFlairs",
-      title: "Post flairs",
+      title: t("flairsTitle"),
       listId: "flair-list",
-      searchLabel: "Search flairs",
+      searchLabel: t("flairsSearch"),
       countId: "flair-count",
       addId: "add-flair",
       itemClass: "flair-item",
       normalizeList: FrontFilter.normalizeBlockedFlairs,
-      blockModes: [["block", "Hidden"]],
-      modeLabel: "Hide or allow",
-      placeholder: "Flair, e.g. Meme or *politic*",
-      label: "Post flair",
-      removeLabel: "Remove flair",
-      emptyMessage: "No flairs filtered yet",
-      invalidMessage: "Flairs can be at most 100 characters long",
-      countNouns: ["flair", "flairs"],
+      blockModes: [["block", t("listModeHidden")]],
+      modeLabel: t("listModeHideLabel"),
+      placeholder: t("flairsPlaceholder"),
+      label: t("flairsLabel"),
+      removeLabel: t("flairsRemove"),
+      emptyMessage: t("flairsEmpty"),
+      invalidMessage: t("flairsInvalid"),
+      countText: (count) => plural("flairsCount", count),
+      addedText: (count) => plural("flairsAdded", count),
+      noneNewText: t("flairsNoneNew"),
+      noMatchText: (query) => t("flairsNoMatch", query),
     }),
     createEntryList({
       key: "blockedUsers",
-      title: "Users",
+      title: t("usersTitle"),
       listId: "blocked-user-list",
-      searchLabel: "Search users",
+      searchLabel: t("usersSearch"),
       countId: "blocked-user-count",
       addId: "add-blocked-user",
       itemClass: "user-item",
       normalizeList: FrontFilter.normalizeBlockedUsers,
-      placeholder: "Username, u/name, or profile URL",
-      label: "Username, u/name, or profile URL",
-      removeLabel: "Remove user",
-      emptyMessage: "No users filtered yet",
-      invalidMessage: "Enter a username, such as u/name, or a profile URL",
-      countNouns: ["user", "users"],
+      placeholder: t("usersPlaceholder"),
+      label: t("usersPlaceholder"),
+      removeLabel: t("usersRemove"),
+      emptyMessage: t("usersEmpty"),
+      invalidMessage: t("usersInvalid"),
+      countText: (count) => plural("usersCount", count),
+      addedText: (count) => plural("usersAdded", count),
+      noneNewText: t("usersNoneNew"),
+      noMatchText: (query) => t("usersNoMatch", query),
     }),
   ];
 
@@ -524,6 +579,12 @@ document.addEventListener("DOMContentLoaded", () => {
       showSetting(limit.modeKey, (mode) => { limit.mode.value = mode; });
     }
     showSetting("theme", (theme) => { colorTheme.value = applyTheme(theme); });
+    // A language chosen elsewhere, such as in another settings page, shows
+    // once the page loads again in it.
+    showSetting("language", (language) => {
+      languageSelect.value = language;
+      if (FrontFilter.i18n.pageNeedsReload(language)) reloadPage();
+    });
     showSetting("redirectUrl", (url) => {
       // So does an address still being typed, unless the stored one changed.
       if (url !== lastRedirectUrl) redirectUrl.value = url;
@@ -560,7 +621,7 @@ document.addEventListener("DOMContentLoaded", () => {
     limit.count.addEventListener("change", () => {
       const value = typedCount(limit);
       if (value === null) {
-        showToast(`Enter a positive whole number of ${limit.noun}`, "error");
+        showToast(limit.invalid, "error");
         limit.count.value = String(limit.lastCount);
         return;
       }
@@ -573,7 +634,7 @@ document.addEventListener("DOMContentLoaded", () => {
   redirectUrl.addEventListener("change", () => {
     const url = FrontFilter.normalizeRedirectUrl(redirectUrl.value);
     if (redirectUrl.value.trim() && !url) {
-      showToast("Enter a website address, such as example.com", "error");
+      showToast(t("blockPageAddressInvalid"), "error");
       redirectUrl.value = lastRedirectUrl;
       return;
     }
@@ -585,6 +646,22 @@ document.addEventListener("DOMContentLoaded", () => {
     colorTheme.value = applyTheme(colorTheme.value);
     scheduleAutoSave(["theme"], true);
   });
+  // The page speaks a language once it loads in it: once the language is
+  // saved, it loads again.
+  languageSelect.addEventListener("change", async () => {
+    pendingSaveKeys.add("language");
+    try {
+      await flushPendingSave();
+    } catch {
+      // The save says it failed.
+      return;
+    }
+    if (FrontFilter.i18n.pageNeedsReload(languageSelect.value)) reloadPage();
+  });
+
+  function reloadPage() {
+    globalThis.location?.reload?.();
+  }
 
   // Saves what is being typed, opens the page in a tab, for the same
   // subreddit, and closes the popup.
@@ -625,9 +702,9 @@ document.addEventListener("DOMContentLoaded", () => {
       setControlsDisabled(false);
       if (!openedToImport) return;
       configuration.focusImport();
-      showToast("Click Import to choose the file");
+      showToast(t("importChooseFile"));
     })
     .catch((error) => {
-      showToast(`Could not load settings: ${error.message}`, "error");
+      showToast(t("loadFailed", error.message), "error");
     });
 });

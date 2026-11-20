@@ -78,6 +78,11 @@
   visibility: hidden;
 }
 
+/* Used only while a page loads the messages of a language chosen in the settings. */
+:root[data-i18n-pending] {
+  visibility: hidden;
+}
+
 :root[data-theme="system"] {
   color-scheme: light dark;
 }

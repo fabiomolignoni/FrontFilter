@@ -4,12 +4,13 @@
  * returns to the blocked page as soon as a settings change unblocks it.
  */
 
+const { t } = FrontFilter.i18n;
 const PAGE_MESSAGES = {
-  homepage: "Reddit Homepage is blocked",
-  popular: "Popular page is blocked",
-  explore: "Explore page is blocked",
-  news: "News page is blocked",
-  subhome: "Subreddit front pages are blocked",
+  homepage: () => t("blockedHomepage"),
+  popular: () => t("blockedPopular"),
+  explore: () => t("blockedExplore"),
+  news: () => t("blockedNews"),
+  subhome: () => t("blockedSubredditFronts"),
 };
 // Whether the settings button's setting changed since the page opened: a
 // change received while it was being read is newer than that read.
@@ -18,8 +19,15 @@ let settingsButtonChanged = false;
 // return to it.
 let restoreCheckId = 0;
 
-document.addEventListener("DOMContentLoaded", () => {
+// The page speaks the language cached for it, once its messages load.
+const languageReady = FrontFilter.i18n.startPage(document);
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await languageReady;
+  // The page's text, before anything reads it.
+  FrontFilter.i18n.localizePage(document);
   void loadTheme();
+  void loadLanguage();
   void loadSettingsButton();
 
   const params = new URLSearchParams(window.location.search);
@@ -35,9 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
     ? FrontFilter.normalizeUserName(params.get("user")) || FrontFilter.getProfileUser(returnPath)
     : "";
 
-  let message = PAGE_MESSAGES[params.get("page")] ?? "This content is blocked";
-  if (sub) message = `r/${sub} is blocked`;
-  else if (user) message = `u/${user} is blocked`;
+  const page = params.get("page");
+  let message = Object.hasOwn(PAGE_MESSAGES, page) ? PAGE_MESSAGES[page]() : t("blockedContent");
+  if (sub) message = t("blockedSubreddit", sub);
+  else if (user) message = t("blockedUser", user);
   document.getElementById("block-message").textContent = message;
 
   // The rule is worth naming when it is a pattern rather than the name.
@@ -46,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const reason = document.getElementById("block-reason");
     const value = document.createElement("strong");
     value.textContent = filter;
-    reason.append("Blocked by the rule ", value);
+    reason.append(...FrontFilter.i18n.parts("blockedByRule", value));
     reason.hidden = false;
   }
 
@@ -96,6 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (Object.hasOwn(changes, "theme")) applyTheme(changes.theme.newValue);
+    if (Object.hasOwn(changes, "language")) showLanguage(changes.language.newValue);
     if (Object.hasOwn(changes, "hideBlockPageSettingsButton")) {
       settingsButtonChanged = true;
       showSettingsButton(changes.hideBlockPageSettingsButton.newValue);
@@ -168,6 +178,21 @@ async function loadTheme() {
   } catch (error) {
     console.error("Could not load FrontFilter theme:", error);
   }
+}
+
+// The language cached for the page catches up with the setting, as the
+// theme does: a page in another language loads again in it.
+async function loadLanguage() {
+  try {
+    const { language } = await chrome.storage.local.get("language");
+    showLanguage(language);
+  } catch (error) {
+    console.error("Could not load FrontFilter's language:", error);
+  }
+}
+
+function showLanguage(language) {
+  if (FrontFilter.i18n.pageNeedsReload(language)) window.location.reload?.();
 }
 
 // The settings button starts hidden, so it never shows on a page whose

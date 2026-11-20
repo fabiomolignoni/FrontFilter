@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const vm = require("node:vm");
-const { deferred, loadPage, runScripts, settle } = require("./helpers");
+const { deferred, fakeFetch, fakeI18n, loadLocalizedPage, loadPage, runScripts, settle } = require("./helpers");
 
 async function loadPopup({
   storedSettings = {},
@@ -10,6 +10,8 @@ async function loadPopup({
   locationSearch = "",
   tabs = [],
   cachedTheme = "system",
+  // The language cached for extension pages, if any.
+  cachedLanguage = null,
   // What the background answers to a message.
   sendMessage = async () => ({ success: true }),
   // What the current tab's page answers; by default, no page listens.
@@ -19,7 +21,12 @@ async function loadPopup({
 } = {}) {
   const page = loadPage("popup/index.html");
   const writes = [];
-  const themeCache = new Map([["frontfilter-theme", cachedTheme]]);
+  // Local storage, where extension pages cache their theme and language.
+  const themeCache = new Map([
+    ["frontfilter-theme", cachedTheme],
+    ...(cachedLanguage ? [["frontfilter-language", cachedLanguage]] : []),
+  ]);
+  let reloads = 0;
   const storageListeners = [];
   let currentSettings = storedSettings;
   // Stores and removes values and, like browsers, reports them to every
@@ -34,6 +41,7 @@ async function loadPopup({
     setImmediate(() => storageListeners.forEach((listener) => listener(changes, "local")));
   }
   const chrome = {
+    i18n: fakeI18n(),
     storage: {
       local: {
         // The Stats tab reads the statistics, and their switch, apart
@@ -87,7 +95,8 @@ async function loadPopup({
       getItem: (key) => themeCache.get(key) ?? null,
       setItem: (key, value) => themeCache.set(key, String(value)),
     },
-    location: { search: locationSearch },
+    location: { search: locationSearch, reload: () => { reloads += 1; } },
+    fetch: fakeFetch(),
     close: () => { closed = true; },
     addEventListener: (type, listener) => (windowListeners[type] ??= []).push(listener),
     setTimeout,
@@ -100,6 +109,8 @@ async function loadPopup({
 
   return {
     get closed() { return closed; },
+    // How many times the page loaded again.
+    get reloads() { return reloads; },
     createdTabs: created,
     reloadedTabs: reloaded,
     sentMessages: sent,
@@ -1888,7 +1899,7 @@ test("loads and saves the comment limit apart from the scroll limit", async () =
 // "Block pages" chooses the pages to block; the block page's options say
 // what happens on them, under a title that does not read the same.
 test("names the block page's options apart from the pages to block", () => {
-  const { elements } = loadPage("popup/index.html");
+  const { elements } = loadLocalizedPage("popup/index.html");
   const nameOf = (id) => elements[id].getAttribute("aria-labelledby").split(" ")
     .map((part) => elements[part].textContent.replace(/\s+/g, " ").trim())
     .join(" ");
@@ -2592,8 +2603,8 @@ test("never shows a read older than this page's own save", async () => {
 
 // Statistics as the background stores them, from records made now.
 function buildStats(records) {
-  const context = vm.createContext({ URL, URLSearchParams });
-  runScripts(context, ["shared/core.js", "shared/stats.js"]);
+  const context = vm.createContext({ URL, URLSearchParams, chrome: { i18n: fakeI18n() } });
+  runScripts(context, ["shared/core.js", "shared/i18n.js", "shared/stats.js"]);
   const now = Date.now();
   return JSON.parse(JSON.stringify(records.reduce(
     (stats, record) => context.FrontFilter.stats.addRecord(stats, record, now),
@@ -2650,8 +2661,8 @@ test("shows today's statistics, the last 7 days, and what they blocked and hid",
 });
 
 test("groups the digits of large figures, hours included", async () => {
-  const context = vm.createContext({ URL, URLSearchParams });
-  runScripts(context, ["shared/core.js", "shared/stats.js"]);
+  const context = vm.createContext({ URL, URLSearchParams, chrome: { i18n: fakeI18n() } });
+  runScripts(context, ["shared/core.js", "shared/i18n.js", "shared/stats.js"]);
   const { dayKey, shiftDay } = context.FrontFilter.stats;
   const HOUR = 60 * MINUTE;
   const today = dayKey(Date.now());
@@ -2792,8 +2803,8 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
 // A background that keeps the settings lock as FrontFilter's does
 // (background/main.js), on the page's storage.
 function lockBackground() {
-  const context = vm.createContext({ URL, URLSearchParams });
-  runScripts(context, ["shared/core.js", "shared/settings-lock.js"]);
+  const context = vm.createContext({ URL, URLSearchParams, chrome: { i18n: fakeI18n() } });
+  runScripts(context, ["shared/core.js", "shared/i18n.js", "shared/settings-lock.js"]);
   const LOCK = context.FrontFilter.settingsLock;
   const operations = {
     startLock: LOCK.start,
@@ -3008,7 +3019,7 @@ test("names switches by their group, and those that block pages by their page", 
   assert.deepEqual(texts, ["Turn off “Block Popular”", "Turn off “Hide navbar”"]);
 });
 
-test("names Home's For You feed as a page it blocks, without its description", async () => {
+test("names Home's For You feed as a page it blocks", async () => {
   const popup = await loadPopup({
     autoResolveWrites: true,
     storedSettings: { blockForYou: true, settingsLock: storedLock() },
@@ -3242,4 +3253,39 @@ test("asks the background, once, to apply what came due", async () => {
   assert.deepEqual(plain(popup.sentMessages), [{ action: "updateLock" }]);
   assert.equal(popup.elements["lock-pending-list"].querySelector(".lock-pending-when").textContent,
     "Applies now");
+});
+
+test("offers the system's language and each one it speaks, and loads again in the one chosen", async () => {
+  const popup = await loadPopup({ autoResolveWrites: true });
+  const { elements } = popup;
+  const select = elements.language;
+  assert.deepEqual(select.children.map((option) => [option.value, option.textContent]),
+    [["system", "System"], ["de", "Deutsch"], ["en", "English"], ["es", "Español"], ["fr", "Français"], ["it", "Italiano"],
+      ["pt-BR", "Português (Brasil)"], ["pt-PT", "Português (Portugal)"]]);
+  assert.equal(select.value, "system");
+  select.value = "it";
+  await select.dispatch("change");
+  assert.equal(popup.stored().language, "it");
+  assert.equal(popup.themeCache.get("frontfilter-language"), "it");
+  assert.equal(popup.reloads, 1);
+});
+
+test("speaks the language cached for it, and loads again in one chosen elsewhere", async () => {
+  const popup = await loadPopup({ storedSettings: { language: "it" }, cachedLanguage: "it" });
+  const { documentElement, elements } = popup;
+  assert.equal(documentElement.getAttribute("lang"), "it");
+  assert.equal(documentElement.hasAttribute("data-i18n-pending"), false);
+  assert.equal(elements["tab-block"].textContent.trim(), "Blocca");
+  assert.equal(elements["subreddit-count"].textContent, "0 regole");
+  assert.equal(elements.language.value, "it");
+  assert.equal(popup.reloads, 0);
+  await popup.storeElsewhere({ language: "system" });
+  assert.equal(popup.themeCache.get("frontfilter-language"), "system");
+  assert.equal(popup.reloads, 1);
+});
+
+test("loads again in the stored language when its cache has none", async () => {
+  const popup = await loadPopup({ storedSettings: { language: "it" } });
+  assert.equal(popup.themeCache.get("frontfilter-language"), "it");
+  assert.equal(popup.reloads, 1);
 });

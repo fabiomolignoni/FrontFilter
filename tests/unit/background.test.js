@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const vm = require("node:vm");
-const { STATS_RECORDER_SCRIPTS, readSource, runScripts, settle } = require("./helpers");
+const { STATS_RECORDER_SCRIPTS, fakeFetch, fakeI18n, readSource, runScripts, settle } = require("./helpers");
 
 const manifest = JSON.parse(readSource("manifest.json"));
 
@@ -22,6 +22,7 @@ async function loadBackground({
   let rules = dynamicRules.map((rule) => ({ ...rule }));
 
   const chrome = {
+    i18n: fakeI18n(),
     declarativeNetRequest: {
       async getDynamicRules() {
         return rules;
@@ -80,10 +81,11 @@ async function loadBackground({
     chrome,
     createdTabs,
     console: backgroundConsole,
+    fetch: fakeFetch(),
   });
 
   runScripts(context, [
-    "shared/core.js", "shared/stats.js", "shared/settings-lock.js",
+    "shared/core.js", "shared/i18n.js", "shared/stats.js", "shared/settings-lock.js",
     "background/navigation-rules.js", "background/main.js",
   ]);
   await settle();
@@ -515,4 +517,23 @@ test("writes nothing for the lock when there is none", async () => {
   await settle();
   assert.deepEqual(background.storedValues, []);
   assert.deepEqual(background.removedKeys, []);
+});
+
+test("gives content scripts the messages of a language, which they cannot read", async () => {
+  const background = await loadBackground();
+  const ask = (message) => sendMessage(background.listeners.message, message);
+  const { success, result } = plain(await ask({ action: "getMessages", language: "it" }));
+  assert.equal(success, true);
+  // Only what showing them takes.
+  assert.deepEqual(result.tabBlock, { message: "Blocca" });
+  assert.deepEqual(result.blockedByRule, { message: "Bloccato dalla regola $RULE$", placeholders: { rule: "$1" } });
+  assert.deepEqual(plain(await ask({ action: "getMessages", language: "../../manifest" })),
+    { success: false, error: "no such language: ../../manifest" });
+});
+
+test("answers the lock's errors in the language the settings choose", async () => {
+  const background = await loadBackground({ settings: { language: "it" } });
+  const ask = (message) => sendMessage(background.listeners.message, message);
+  assert.deepEqual(plain(await ask({ action: "startLock", until: 0, delay: DAY })),
+    { success: false, error: "Scegli un momento nel futuro" });
 });

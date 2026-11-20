@@ -26,22 +26,26 @@ FrontFilter.stats = (() => {
     "subreddits", "users", "keywords", "flairs", "nsfw", "spoilers", "suggested", "ads",
   ]);
   const COMMENT_REASONS = Object.freeze(["users", "keywords"]);
+  // Names as the Stats tab shows them, in the interface's language, which
+  // only pages that show them load (shared/i18n.js).
+  const t = (...args) => FrontFilter.i18n.t(...args);
+  const formatNumber = (number) => FrontFilter.i18n.formatNumber(number);
   const REASON_LABELS = Object.freeze({
-    subreddits: "Subreddits",
-    users: "Users",
-    keywords: "Keywords",
-    flairs: "Flairs",
-    nsfw: "NSFW",
-    spoilers: "Spoilers",
-    suggested: "Suggested posts",
-    ads: "Ads",
+    subreddits: () => t("statsReasonSubreddits"),
+    users: () => t("statsReasonUsers"),
+    keywords: () => t("statsReasonKeywords"),
+    flairs: () => t("statsReasonFlairs"),
+    nsfw: () => t("statsReasonNsfw"),
+    spoilers: () => t("statsReasonSpoilers"),
+    suggested: () => t("statsReasonSuggested"),
+    ads: () => t("statsReasonAds"),
   });
   const PAGE_LABELS = Object.freeze({
-    homepage: "Homepage",
-    popular: "Popular",
-    explore: "Explore",
-    news: "News",
-    subhome: "Subreddit front pages",
+    homepage: () => t("pageHomepage"),
+    popular: () => t("pagePopular"),
+    explore: () => t("pageExplore"),
+    news: () => t("pageNews"),
+    subhome: () => t("statsPageSubredditFronts"),
   });
   const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
   const TARGET_PATTERN = new RegExp(`^(?:page:(?:${Object.keys(PAGE_LABELS).join("|")})`
@@ -201,10 +205,10 @@ FrontFilter.stats = (() => {
 
   function describeTarget(target) {
     const [type, name] = target.split(/:(.*)/s);
-    if (type === "page") return PAGE_LABELS[name] || "Other pages";
+    if (type === "page" && Object.hasOwn(PAGE_LABELS, name)) return PAGE_LABELS[name]();
     if (type === "subreddit") return `r/${name}`;
     if (type === "user") return `u/${name}`;
-    return "Other pages";
+    return t("statsOtherPages");
   }
 
   function dayTotals(day = normalizeDay()) {
@@ -220,7 +224,7 @@ FrontFilter.stats = (() => {
     };
   }
 
-  const byCount = (a, b) => b.count - a.count || a.label.localeCompare(b.label);
+  const byCount = (a, b) => b.count - a.count || a.label.localeCompare(b.label, FrontFilter.i18n.locale);
 
   // What the Stats tab shows: today, each of the last 7 days, and what they
   // blocked and hid. The daily average leaves out today, which is not over,
@@ -270,7 +274,7 @@ FrontFilter.stats = (() => {
       hidden: POST_REASONS
         .map((reason) => ({
           reason,
-          label: REASON_LABELS[reason],
+          label: REASON_LABELS[reason](),
           posts: posts[reason] || 0,
           comments: comments[reason] || 0,
           count: (posts[reason] || 0) + (comments[reason] || 0),
@@ -285,15 +289,31 @@ FrontFilter.stats = (() => {
   // and in whole hours from 10 hours, grouped as the tab's counts are:
   // 1,234 h. Compact, for the chart: 38m, 1h 5m.
   function formatDuration(ms, { compact = false } = {}) {
-    const minutes = Math.floor(count(ms) / 60000);
-    const [h, m] = compact ? ["h", "m"] : [" h", " min"];
-    if (ms > 0 && minutes === 0) return compact ? `<1${m}` : `< 1${m}`;
-    if (minutes < 60) return `${minutes}${m}`;
-    const hours = Math.floor(minutes / 60);
-    const rest = minutes % 60;
-    return hours >= 10 || rest === 0
-      ? `${hours.toLocaleString()}${h}`
-      : `${hours}${h} ${rest}${m}`;
+    if (compact) return durationParts(ms).join(" ");
+    const { hours, minutes, under } = durationOf(ms);
+    if (under) return t("durationUnderMinute");
+    if (hours === 0) return t("durationMinutes", formatNumber(minutes));
+    if (minutes === 0) return t("durationHours", formatNumber(hours));
+    return t("durationHoursMinutes", formatNumber(hours), formatNumber(minutes));
+  }
+
+  // A compact duration in its parts, hours then minutes, which the chart
+  // may show apart: 38m, or 1h and 5m.
+  function durationParts(ms) {
+    const { hours, minutes, under } = durationOf(ms);
+    if (under) return [t("durationUnderMinuteCompact")];
+    const minutesPart = () => t("durationMinutesCompact", formatNumber(minutes));
+    if (hours === 0) return [minutesPart()];
+    const hoursPart = t("durationHoursCompact", formatNumber(hours));
+    return minutes === 0 ? [hoursPart] : [hoursPart, minutesPart()];
+  }
+
+  // Whole hours and minutes, with minutes left out from 10 hours, and
+  // whether the time is under a minute but some.
+  function durationOf(ms) {
+    const total = Math.floor(count(ms) / 60000);
+    const hours = total < 60 ? 0 : Math.floor(total / 60);
+    return { hours, minutes: hours >= 10 ? 0 : total % 60, under: ms > 0 && total === 0 };
   }
 
   return Object.freeze({
@@ -307,5 +327,6 @@ FrontFilter.stats = (() => {
     describeTarget,
     summarize,
     formatDuration,
+    durationParts,
   });
 })();

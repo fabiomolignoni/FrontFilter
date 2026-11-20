@@ -11,6 +11,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   const SELECTORS = FrontFilter.SELECTORS;
   const POSTS = FrontFilter.posts;
   const VIEW = FrontFilter.limitView;
+  const { t, plural, formatNumber } = FrontFilter.i18n;
   const FEED = SELECTORS.feed.feed;
   const MAIN_FEED = SELECTORS.feed.mainFeed;
   const LOADER = SELECTORS.feed.loader;
@@ -226,21 +227,26 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     const state = current.window.snapshot();
     const { status, button, retry } = current;
     let message;
-    let label = `Show next ${getSettings().scrollLimit}`;
+    let label = plural("feedLimitShowNext", getSettings().scrollLimit);
     if (current.error) {
-      message = current.error;
+      message = current.error();
     } else if (state.pending) {
-      message = `${state.allowed.size} / ${state.target} posts`;
-      if (current.loading) message += " · Loading…";
+      const shown = formatNumber(state.allowed.size);
+      message = current.loading
+        ? plural("feedLimitLoading", state.target, shown)
+        : plural("feedLimitProgress", state.target, shown);
     } else if (state.ended && state.available <= state.allowed.size) {
-      message = `End of feed · ${state.allowed.size} posts shown`;
+      message = plural("feedLimitEnd", state.allowed.size);
     } else {
-      message = `${state.allowed.size} posts shown`;
-      if (getSettings().scrollMode === "fixed") message += " · Limit reached";
-      if (state.ended) label = `Show remaining ${state.available - state.allowed.size}`;
+      message = getSettings().scrollMode === "fixed"
+        ? plural("feedLimitReached", state.allowed.size)
+        : plural("feedLimitShown", state.allowed.size);
+      if (state.ended) label = plural("feedLimitShowRemaining", state.available - state.allowed.size);
     }
     if (status.textContent !== message) status.textContent = message;
     if (button.textContent !== label) button.textContent = label;
+    const retryLabel = t("feedLimitRetry");
+    if (retry.textContent !== retryLabel) retry.textContent = retryLabel;
     button.hidden = !state.canAdvance || !!current.error;
     button.disabled = !state.canAdvance;
     retry.hidden = !current.error;
@@ -269,7 +275,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     const config = getSettings();
     const { controls, status } = VIEW.createControls();
     const button = VIEW.createButton({ className: "frontfilter-feed-next", hidden: true });
-    const retry = VIEW.createButton({ className: "frontfilter-feed-retry", text: "Retry", hidden: true });
+    const retry = VIEW.createButton({ className: "frontfilter-feed-retry", hidden: true });
     // Fixed mode has no expansion control, regardless of the host page's CSS.
     if (config.scrollMode === "button") controls.append(button);
     controls.append(retry);
@@ -278,7 +284,9 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       signature: signature(config),
       window: FrontFilter.createFeedWindow(config.scrollLimit, config.scrollMode),
       timer: null, loading: null, cancelLoading: null,
-      error: "", pages: 0, consumed: new Set(),
+      // What went wrong, as a function that says it in the language in
+      // use when the controls show it, or null.
+      error: null, pages: 0, consumed: new Set(),
       waitingSince: Date.now(), cards: new WeakMap(),
       // Without the bridge: the loader Reddit may load by itself, and the
       // address of the last page it was let to.
@@ -293,7 +301,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     });
     retry.addEventListener("click", () => {
       if (!active(current) || !current.error) return;
-      current.error = "";
+      current.error = null;
       current.pages = 0;
       current.waitingSince = Date.now();
       const loader = lastLoader(current.feed);
@@ -346,13 +354,13 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       } else if (rows.length) {
         current.window.end();
       } else {
-        current.error = "No feed results are available. Retry loading.";
+        current.error = () => t("feedLimitNoResults");
       }
       return;
     }
     const cursor = loader.getAttribute("src");
     if (!cursor) {
-      waitOrFail(current, "This feed could not load more posts. Retry loading.");
+      waitOrFail(current, () => t("feedLimitCannotLoad"));
       return;
     }
     if (!bridgeReady) {
@@ -369,11 +377,11 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       return;
     }
     if (current.consumed.has(cursor)) {
-      current.error = "Reddit did not advance the feed. Retry loading.";
+      current.error = () => t("feedLimitStuck");
       return;
     }
     if (current.pages >= EMPTY_PAGE_LIMIT) {
-      current.error = "No matching posts found in the last pages. Retry to continue.";
+      current.error = () => t("feedLimitNoMatches");
       return;
     }
     requestPage(current, loader, cursor);
@@ -386,7 +394,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
   function loadNatively(current, loader, cursor) {
     if (current.nativeCursor !== cursor) {
       if (current.pages >= EMPTY_PAGE_LIMIT) {
-        current.error = "No matching posts found in the last pages. Retry to continue.";
+        current.error = () => t("feedLimitNoMatches");
         return;
       }
       current.nativeCursor = cursor;
@@ -424,7 +432,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       current.loading = null;
       current.cancelLoading = null;
       if (outcome === "cancelled" || !active(current)) return;
-      if (outcome === "failed") current.error = "Could not load the next group. Retry loading.";
+      if (outcome === "failed") current.error = () => t("feedLimitLoadFailed");
       else current.consumed.add(cursor);
       current.waitingSince = Date.now();
       update();
@@ -489,15 +497,26 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     current.feed.setAttribute(PAUSE_ATTRIBUTE, "");
     if (!current.controls) {
       const { controls, status } = VIEW.createControls("frontfilter-feed-paused");
-      status.textContent = `The last ${EMPTY_PAGE_LIMIT} pages had no posts left after filtering.`;
-      const button = VIEW.createButton({ text: "Load more" });
+      const button = VIEW.createButton();
       button.addEventListener("click", () => {
         if (guard === current) resumeGuard(current);
       });
       controls.append(button);
       current.controls = controls;
+      current.labels = { status, button };
     }
+    labelGuard(current);
     current.feed.after(current.controls);
+  }
+
+  // The paused feed's message and button, in the language in use, which
+  // may come or change after they show.
+  function labelGuard(current) {
+    const { status, button } = current.labels;
+    const message = plural("feedLimitEmptyPages", EMPTY_PAGE_LIMIT);
+    const label = t("feedLimitLoadMore");
+    if (status.textContent !== message) status.textContent = message;
+    if (button.textContent !== label) button.textContent = label;
   }
 
   function resumeGuard(current) {
@@ -526,10 +545,11 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
     if (!guard) {
       guard = {
         feed, key: key(), loader: undefined, seen: new Set(),
-        emptyPages: 0, paused: false, timer: null, controls: null,
+        emptyPages: 0, paused: false, timer: null, controls: null, labels: null,
       };
     }
     const current = guard;
+    if (current.paused) labelGuard(current);
     const loader = lastLoader(feed);
     // Each new loader marks a completed page. While paused, re-check on any
     // update so settings changes can resume loading.
@@ -580,7 +600,7 @@ FrontFilter.createFeedLimiter = function ({ getSettings, isBlocked }) {
       (record) => !record.ad && (lenient || Boolean(record.subreddit)) && !isBlocked(record),
     );
     if (state.allowed.size > visibleBefore) current.pages = 0;
-    if (!state.pending) current.error = "";
+    if (!state.pending) current.error = null;
   }
 
   function update() {

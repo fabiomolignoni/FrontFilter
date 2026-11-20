@@ -4,11 +4,11 @@
  * exceptions, and asks the page to save them.
  */
 FrontFilter.entryList = (() => {
+  const { t, plural } = FrontFilter.i18n;
   // A list that takes exceptions shows them among its rules: each row is
   // either, as its badge says, and a + typed or pasted before a rule makes
   // it an exception. Exceptions are stored in a setting of their own.
   const ALLOW = "allow";
-  const ALLOW_LABEL = "Allowed";
   // Rows for the same rule merge into the one that does most: an exception,
   // which overrides every rule, then a rule that blocks everywhere.
   const MODE_PRECEDENCE = { block: 0, home: 0, all: 1, [ALLOW]: 2 };
@@ -43,19 +43,22 @@ FrontFilter.entryList = (() => {
   //
   // The page saves the list's settings when asked to, at once or once
   // typing pauses, tells whether its controls are disabled, and shows the
-  // list's messages.
+  // list's messages. The list's own texts name what it holds: its count,
+  // what a pasted list added, and what a search found, take the number or
+  // the search.
   function create({
     key, allowKey = null, title, listId, countId, addId, itemClass,
     normalizeList, normalizeAllowList = normalizeList,
     blockModes = [["block", ""]], storesModes = false, defaultMode = blockModes[0][0], modeLabel,
     getRuleKey = (value) => value.toLowerCase(), splitList = FrontFilter.splitList,
-    placeholder, label, removeLabel, emptyMessage, invalidMessage, countNouns, searchLabel,
+    placeholder, label, removeLabel, emptyMessage, invalidMessage, searchLabel,
+    countText, addedText, noneNewText, noMatchText,
   }, { saveSettings, isDisabled, showToast }) {
     const listEl = document.getElementById(listId);
     const countEl = document.getElementById(countId);
     const keys = allowKey ? [key, allowKey] : [key];
     // What a row's badge offers; a list with one choice has no badge.
-    const modes = allowKey ? [...blockModes, [ALLOW, ALLOW_LABEL]] : blockModes;
+    const modes = allowKey ? [...blockModes, [ALLOW, t("listModeAllowed")]] : blockModes;
     const blockMode = blockModes[0][0];
     let entries = [];
     let shown = false;
@@ -136,14 +139,10 @@ FrontFilter.entryList = (() => {
       ];
     }
 
-    function formatCount(count) {
-      return `${count} ${count === 1 ? countNouns[0] : countNouns[1]}`;
-    }
-
     // The count shows once there are rules; an empty list says so itself.
     function updateCount() {
       const count = ruleCount();
-      countEl.textContent = formatCount(count);
+      countEl.textContent = countText(count);
       countEl.hidden = count === 0;
     }
 
@@ -211,10 +210,10 @@ FrontFilter.entryList = (() => {
       }
       tools.hidden = !long;
       more.hidden = !long || Boolean(needle);
-      more.textContent = expanded ? "Show fewer" : `Show all ${count}`;
+      more.textContent = expanded ? t("listShowFewer") : plural("listShowAll", count);
       more.setAttribute("aria-expanded", String(expanded));
       noMatch.hidden = !needle || matched > 0;
-      noMatch.textContent = noMatch.hidden ? "" : `No ${countNouns[1]} match “${query.trim()}”`;
+      noMatch.textContent = noMatch.hidden ? "" : noMatchText(query.trim());
       footer.hidden = more.hidden && noMatch.hidden;
     }
 
@@ -324,7 +323,7 @@ FrontFilter.entryList = (() => {
       const removeButton = document.createElement("button");
       removeButton.type = "button";
       removeButton.className = "remove-btn";
-      removeButton.title = "Remove";
+      removeButton.title = t("listRemove");
       removeButton.setAttribute("aria-label", removeLabel);
       removeButton.textContent = "×";
       removeButton.disabled = isDisabled();
@@ -346,12 +345,12 @@ FrontFilter.entryList = (() => {
       row.className = "entry-undo";
       const message = document.createElement("span");
       message.className = "entry-undo-text";
-      message.textContent = `Removed “${entry.value}”`;
+      message.textContent = t("listRemoved", entry.value);
       const button = document.createElement("button");
       button.type = "button";
       button.className = "entry-undo-button";
-      button.textContent = "Undo";
-      button.setAttribute("aria-label", `Undo removing “${entry.value}”`);
+      button.textContent = t("commonUndo");
+      button.setAttribute("aria-label", t("listUndoRemove", entry.value));
       button.disabled = isDisabled();
       button.addEventListener("click", () => {
         if (removed !== entry) return;
@@ -370,7 +369,7 @@ FrontFilter.entryList = (() => {
     // New drafts come first, then rules and exceptions in alphabetical order.
     function byRule(a, b) {
       if (!a.value || !b.value) return Number(Boolean(a.value)) - Number(Boolean(b.value));
-      return a.value.localeCompare(b.value, undefined, { sensitivity: "base" });
+      return a.value.localeCompare(b.value, FrontFilter.i18n.locale, { sensitivity: "base" });
     }
 
     function render() {
@@ -447,11 +446,11 @@ FrontFilter.entryList = (() => {
 
       const newCount = pastedEntries.filter((entry) => !previous.has(getRuleKey(entry.value))).length;
       const skipped = list.length - added.length;
-      const message = newCount > 0 ? `Added ${formatCount(newCount)}` : `No new ${countNouns[1]}`;
+      const message = newCount > 0 ? addedText(newCount) : noneNewText;
       if (skipped === 0) {
         showToast(message, newCount > 0 ? "success" : "info");
       } else {
-        showToast(`${message}; ${skipped} ${skipped === 1 ? "entry" : "entries"} could not be used`, "error");
+        showToast(plural("listSkipped", skipped, message), "error");
       }
     }
 
@@ -493,7 +492,7 @@ FrontFilter.entryList = (() => {
       add,
       show,
       stored,
-      formatCount,
+      countText,
       updateCount,
     };
   }

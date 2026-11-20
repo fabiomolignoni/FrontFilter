@@ -16,6 +16,8 @@
  * lets its user remove FrontFilter, or edit its storage, at any time.
  */
 FrontFilter.settingsLock = (() => {
+  // Its errors reach the settings page, which shows them.
+  const { t } = FrontFilter.i18n;
   const STORAGE_KEY = "settingsLock";
   const MINUTE = 60 * 1000;
   const HOUR = 60 * MINUTE;
@@ -55,6 +57,7 @@ FrontFilter.settingsLock = (() => {
     "redirectBlockedPages",
     "redirectUrl",
     "theme",
+    "language",
     "pauseStatistics",
   ]);
   const keywordRule = (keyword) => FrontFilter.getKeywordKey(keyword);
@@ -259,11 +262,11 @@ FrontFilter.settingsLock = (() => {
   }
 
   function checkUntil(until) {
-    if (!isTime(until)) throw new RangeError("Choose when the lock ends");
+    if (!isTime(until)) throw new RangeError(t("lockChooseEnd"));
   }
 
   function checkDelay(delay) {
-    if (!DELAYS.includes(delay)) throw new RangeError("Choose how long changes wait");
+    if (!DELAYS.includes(delay)) throw new RangeError(t("lockChooseDelay"));
   }
 
   // Splits changes asked for while locked. Those that block or hide as
@@ -380,9 +383,9 @@ FrontFilter.settingsLock = (() => {
   // period, the lock can be ended at once.
   function start(stored, { until, delay } = {}, now) {
     const settled = settle(stored, readLock(stored), now);
-    if (isActive(settled.lock, now)) throw new Error("Settings are already locked");
+    if (isActive(settled.lock, now)) throw new Error(t("lockAlreadyLocked"));
     checkUntil(until);
-    if (until - now < MIN_DURATION) throw new RangeError("Choose a time in the future");
+    if (until - now < MIN_DURATION) throw new RangeError(t("lockChooseFuture"));
     checkDelay(delay);
     const lock = {
       until,

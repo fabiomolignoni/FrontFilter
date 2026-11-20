@@ -8,6 +8,7 @@
 
 FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) {
   const LOCK = FrontFilter.settingsLock;
+  const { t, plural, locale } = FrontFilter.i18n;
   const MINUTE = 60 * 1000;
   const HOUR = 60 * MINUTE;
   const DAY = 24 * HOUR;
@@ -37,7 +38,6 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
     bannerText: byId("lock-banner-text"),
     bannerDetails: byId("lock-banner-details"),
   };
-  const INTRO = FrontFilter.normalizeText(card.text.textContent);
   // The lock as last read, null without one.
   let lock = null;
   let editing = false;
@@ -50,27 +50,23 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
   for (const delay of LOCK.DELAYS) {
     const option = document.createElement("option");
     option.value = delay === null ? "end" : String(delay);
-    option.textContent = delay === null ? "Until the lock ends" : formatDuration(delay);
+    option.textContent = delay === null ? t("lockDelayUntilEnd") : formatDuration(delay);
     card.delay.append(option);
-  }
-
-  function plural(count, noun) {
-    return `${count} ${noun}${count === 1 ? "" : "s"}`;
   }
 
   // A length of time, in its largest unit that reads well.
   function formatDuration(ms) {
     const hours = Math.round(ms / HOUR);
-    if (hours >= 48) return plural(Math.round(ms / DAY), "day");
-    if (hours === 24) return "1 day";
-    if (hours >= 1) return plural(hours, "hour");
-    return plural(Math.max(1, Math.round(ms / MINUTE)), "minute");
+    if (hours >= 48) return plural("lockDays", Math.round(ms / DAY));
+    if (hours === 24) return plural("lockDays", 1);
+    if (hours >= 1) return plural("lockHours", hours);
+    return plural("lockMinutes", Math.max(1, Math.round(ms / MINUTE)));
   }
 
   // A time, with its year when it is not this year's.
   function formatTime(time) {
     const date = new Date(time);
-    return date.toLocaleString(undefined, {
+    return date.toLocaleString(locale, {
       weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
       ...(date.getFullYear() !== new Date().getFullYear() && { year: "numeric" }),
     });
@@ -111,8 +107,8 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
 
   // Why an end cannot be used, or nothing.
   function untilProblem(until, now) {
-    if (!Number.isFinite(until)) return "Choose when the lock ends";
-    if (until - now < LOCK.MIN_DURATION) return "Choose a time in the future";
+    if (!Number.isFinite(until)) return t("lockChooseEnd");
+    if (until - now < LOCK.MIN_DURATION) return t("lockChooseFuture");
     return "";
   }
 
@@ -129,25 +125,25 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
   // What a change that waits does, in words.
   function describeChange({ key, value, entry }) {
     const shown = value ?? entry;
-    if (key === LOCK.UNTIL) return value === 0 ? "End the lock" : `End the lock on ${formatTime(value)}`;
+    if (key === LOCK.UNTIL) return value === 0 ? t("lockChangeEnd") : t("lockChangeEndOn", formatTime(value));
     if (key === LOCK.DELAY) {
-      return `Let loosening changes wait ${value === null ? "until the lock ends" : formatDuration(value)}`;
+      return value === null ? t("lockChangeDelayUntilEnd") : t("lockChangeDelay", formatDuration(value));
     }
     switch (key) {
       case "blockedSubreddits":
-        return value ? `Block r/${shown.name} on its front page only` : `Remove r/${shown.name}`;
-      case "allowedSubreddits": return `Allow r/${shown}`;
-      case "blockedUsers": return `Remove u/${shown}`;
-      case "blockedTitleKeywords": return `Remove keyword “${shown}”`;
-      case "allowedKeywords": return `Allow keyword “${shown}”`;
-      case "blockedFlairs": return `Remove flair “${shown}”`;
-      case "allowedFlairs": return `Allow flair “${shown}”`;
-      case "scrollLimit": return `${labelOf(key)}: ${plural(value, "post")} at a time`;
-      case "commentLimit": return `${labelOf(key)}: ${plural(value, "comment")} at a time`;
+        return value ? t("lockChangeSubredditFront", shown.name) : t("lockChangeSubredditRemove", shown.name);
+      case "allowedSubreddits": return t("lockChangeSubredditAllow", shown);
+      case "blockedUsers": return t("lockChangeUserRemove", shown);
+      case "blockedTitleKeywords": return t("lockChangeKeywordRemove", shown);
+      case "allowedKeywords": return t("lockChangeKeywordAllow", shown);
+      case "blockedFlairs": return t("lockChangeFlairRemove", shown);
+      case "allowedFlairs": return t("lockChangeFlairAllow", shown);
+      case "scrollLimit": return plural("lockChangeScrollLimit", value, labelOf(key));
+      case "commentLimit": return plural("lockChangeCommentLimit", value, labelOf(key));
       case "scrollMode":
       case "commentLimitMode":
-        return `${labelOf(key)}: offer to show more`;
-      default: return `Turn off “${labelOf(key)}”`;
+        return t("lockChangeLimitMode", labelOf(key));
+      default: return t("lockChangeTurnOff", labelOf(key));
     }
   }
 
@@ -157,30 +153,29 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
     const [first, ...others] = changes;
     const sections = FrontFilter.SETTING_GROUPS[first.key] || [];
     if (others.every((change) => sections.includes(change.key))) return describeChange(first);
-    if (source === "import" || source === "restore") {
-      return `${plural(changes.length, "change")} from your ${source}`;
-    }
-    return `${describeChange(first)}, and ${others.length} more`;
+    if (source === "import") return plural("lockChangesFromImport", changes.length);
+    if (source === "restore") return plural("lockChangesFromRestore", changes.length);
+    return plural("lockChangeAndMore", others.length, describeChange(first));
   }
 
   // Until when a change waits, as a sentence ends.
   function describeWhen(due) {
-    return due >= lock?.until ? `until the lock ends, ${formatTime(due)}` : `until ${formatTime(due)}`;
+    return due >= lock?.until ? t("lockWhenEnds", formatTime(due)) : t("lockWhen", formatTime(due));
   }
 
   // Tells what a save through the lock left waiting, if anything, and
   // returns whether it did.
   function report(result) {
     if (result?.refused?.length > 0) {
-      showToast(`The lock stays until ${formatTime(lock?.until)}: loosening it would wait until then`, "error");
+      showToast(t("lockRefused", formatTime(lock?.until)), "error");
       return true;
     }
     const waiting = result?.waiting ?? [];
     if (waiting.length === 0) return false;
     const when = describeWhen(Math.max(...waiting.map((change) => change.due)));
     showToast(waiting.length === 1
-      ? `${describeChange(waiting[0])}: waits ${when}`
-      : `${waiting.length} changes wait ${when}`);
+      ? t("lockChangeWaits", describeChange(waiting[0]), when)
+      : plural("lockChangesWait", waiting.length, when));
     return true;
   }
 
@@ -213,13 +208,13 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
       change.textContent = description;
       const when = document.createElement("span");
       when.className = "lock-pending-when";
-      when.textContent = due <= now ? "Applies now" : `Waits ${describeWhen(due)}`;
+      when.textContent = due <= now ? t("lockAppliesNow") : t("lockWaits", describeWhen(due));
       text.append(change, when);
       const cancel = document.createElement("button");
       cancel.type = "button";
       cancel.className = "btn btn-secondary lock-pending-cancel";
-      cancel.textContent = "Cancel";
-      cancel.setAttribute("aria-label", `Cancel: ${description}`);
+      cancel.textContent = t("commonCancel");
+      cancel.setAttribute("aria-label", t("lockCancelChange", description));
       cancel.disabled = disabled;
       cancel.addEventListener("click", () => cancelRequest(request.id));
       item.append(text, cancel);
@@ -235,12 +230,12 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
     const waiting = lock?.pending.length ?? 0;
     card.state.hidden = !locked;
     if (locked) {
-      card.state.textContent = `Locked until ${formatTime(lock.until)}`;
+      card.state.textContent = t("lockLockedUntil", formatTime(lock.until));
       card.text.textContent = lock.delay === null
-        ? "Changes that loosen your settings wait until the lock ends."
-        : `Changes that loosen your settings wait ${formatDuration(lock.delay)}, or until the lock ends.`;
+        ? t("lockLockedTextUntilEnd")
+        : t("lockLockedText", formatDuration(lock.delay));
     } else {
-      card.text.textContent = INTRO;
+      card.text.textContent = t("lockIntro");
     }
     card.fields.hidden = locked && !editing;
     card.start.hidden = locked;
@@ -250,8 +245,9 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
     card.editCancel.hidden = !editing;
     card.banner.hidden = !locked;
     if (locked) {
-      card.bannerText.textContent = `Locked until ${formatTime(lock.until)}`
-        + (waiting > 0 ? ` · ${plural(waiting, "change")} waiting` : "");
+      card.bannerText.textContent = waiting > 0
+        ? plural("lockBannerWaiting", waiting, formatTime(lock.until))
+        : t("lockLockedUntil", formatTime(lock.until));
     }
     renderPending(now);
     updateControls();
@@ -304,16 +300,15 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
     confirming = { until, delay };
     const duration = formatDuration(until - now);
     const waitsToEnd = delay === null || now + delay >= until;
-    const wait = waitsToEnd ? "until the lock ends" : formatDuration(delay);
-    card.confirmTitle.textContent = `Lock your settings for ${duration}?`;
+    const wait = waitsToEnd ? "" : formatDuration(delay);
+    card.confirmTitle.textContent = t("lockConfirmTitle", duration);
     const details = [
-      `Until ${formatTime(until)}.`,
-      "Blocking or hiding more applies at once.",
-      `Loosening your settings, as by removing a rule, allowing a subreddit or turning a filter off, waits ${wait}.`,
-      waitsToEnd ? "The lock can't end early." : `Ending the lock early waits ${wait} too.`,
-      `You can take back a change, or the lock itself, within ${formatDuration(LOCK.GRACE_PERIOD)}.`,
-      "Ads, avatars, awards, usernames, the sidebar's Resources, the Block buttons, the block page, "
-        + "the theme and statistics stay free to change.",
+      t("lockConfirmUntil", formatTime(until)),
+      t("lockConfirmStricter"),
+      waitsToEnd ? t("lockConfirmLooserUntilEnd") : t("lockConfirmLooser", wait),
+      waitsToEnd ? t("lockConfirmNoEarlyEnd") : t("lockConfirmEarlyEnd", wait),
+      t("lockConfirmGrace", formatDuration(LOCK.GRACE_PERIOD)),
+      t("lockConfirmFree"),
     ];
     card.confirmDetails.replaceChildren(...details.map((detail) => {
       const item = document.createElement("li");
@@ -321,10 +316,10 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
       return item;
     }));
     card.acknowledgeText.textContent = waitsToEnd
-      ? `I understand that I can't loosen my settings until ${formatTime(until)}`
-      : `I understand that loosening my settings will take ${wait}`;
+      ? t("lockAcknowledgeUntil", formatTime(until))
+      : t("lockAcknowledgeWait", wait);
     card.acknowledge.checked = false;
-    card.confirmButton.textContent = `Lock for ${duration}`;
+    card.confirmButton.textContent = t("lockConfirmButton", duration);
     card.confirm.hidden = false;
     updateControls();
     card.confirmTitle.focus();
@@ -354,9 +349,9 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
       confirming = null;
       card.confirm.hidden = true;
       render();
-      showToast(`Settings locked until ${formatTime(until)}`, "success");
+      showToast(t("lockStarted", formatTime(until)), "success");
     } catch (error) {
-      showToast(`Could not lock settings: ${error.message}`, "error");
+      showToast(t("lockStartFailed", error.message), "error");
     }
     card.heading.focus();
   }
@@ -368,7 +363,7 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
       if (!report(result)) done(result);
       return true;
     } catch (error) {
-      showToast(`Could not change the lock: ${error.message}`, "error");
+      showToast(t("lockChangeFailed", error.message), "error");
       return false;
     }
   }
@@ -405,12 +400,12 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
       stopEditing();
       return;
     }
-    if (await saveLock(settings, () => showToast("Lock changed", "success"))) stopEditing();
+    if (await saveLock(settings, () => showToast(t("lockChanged"), "success"))) stopEditing();
   }
 
   async function endLock() {
     await saveLock({ [LOCK.UNTIL]: 0 }, (result) => {
-      if (!result?.locked) showToast("Lock ended", "success");
+      if (!result?.locked) showToast(t("lockEnded"), "success");
     });
     card.heading.focus();
   }
@@ -418,10 +413,10 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
   async function cancelRequest(id) {
     try {
       const result = await ask({ action: "cancelLockedChange", id });
-      showToast(result?.cancelled ? "Change cancelled" : "That change already applied",
+      showToast(result?.cancelled ? t("lockChangeCancelled") : t("lockChangeAlreadyApplied"),
         result?.cancelled ? "success" : "info");
     } catch (error) {
-      showToast(`Could not cancel the change: ${error.message}`, "error");
+      showToast(t("lockCancelFailed", error.message), "error");
     }
     card.heading.focus();
   }

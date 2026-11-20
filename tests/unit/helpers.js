@@ -14,6 +14,40 @@ function readSource(file) {
   return readFileSync(join(SOURCE, file), "utf8");
 }
 
+// A translation's messages, as its messages.json holds them.
+function readMessages(folder = "en") {
+  return JSON.parse(readSource(`_locales/${folder}/messages.json`));
+}
+
+// A message with its placeholders filled as browsers fill them: each $name$
+// takes its placeholder's content, in which $1 to $9 are the substitutions,
+// and $$ is a dollar sign.
+function fillMessage({ message, placeholders = {} }, substitutions) {
+  const contents = new Map(Object.entries(placeholders)
+    .map(([name, { content }]) => [name.toLowerCase(), content]));
+  const substitute = (content) => content.replace(/\$([1-9])/g, (_, index) => substitutions[index - 1] ?? "");
+  return message.replace(/\$\$|\$([\w@]+)\$/g, (match, name) => {
+    if (match === "$$") return "$";
+    const content = contents.get(name.toLowerCase());
+    return content === undefined ? match : substitute(content);
+  });
+}
+
+// chrome.i18n as browsers give it: the messages of a translation, by name
+// in any case, then those of English, the default, for any it lacks. A
+// test can give a translation's messages of its own.
+function fakeI18n({ messages = null, uiLanguage = "en-US" } = {}) {
+  const byName = (entries) => new Map(Object.entries(entries).map(([name, entry]) => [name.toLowerCase(), entry]));
+  const chain = [...(messages ? [byName(messages)] : []), byName(readMessages())];
+  return {
+    getMessage(name, substitutions = []) {
+      const entry = chain.map((found) => found.get(String(name).toLowerCase())).find(Boolean);
+      return entry ? fillMessage(entry, [].concat(substitutions).map(String)) : "";
+    },
+    getUILanguage: () => uiLanguage,
+  };
+}
+
 // What the background script adds to Reddit pages open before an update,
 // in order: the statistics recorder alone.
 const STATS_RECORDER_SCRIPTS = Object.freeze([
@@ -305,12 +339,46 @@ function loadPage(file) {
   };
 }
 
+// An extension page as it shows before its scripts run: its markup, with
+// its text filled from the English messages, as shared/i18n.js fills it.
+function loadLocalizedPage(file) {
+  const page = loadPage(file);
+  const context = vm.createContext({ chrome: { i18n: fakeI18n() }, document: page.document });
+  runScripts(context, ["shared/core.js", "shared/i18n.js"]);
+  context.FrontFilter.i18n.localizePage(page.document);
+  return page;
+}
+
+// fetch as extension pages and the background have it, for the
+// extension's own files.
+function fakeFetch() {
+  return async (url) => {
+    const path = String(url).replace(/^[a-z-]+:\/\/[^/]+\//, "");
+    let text = null;
+    try {
+      text = readSource(path);
+    } catch {
+      // Not one of the extension's files.
+    }
+    return {
+      ok: text !== null,
+      status: text === null ? 404 : 200,
+      json: async () => JSON.parse(text),
+    };
+  };
+}
+
 module.exports = {
   STATS_RECORDER_SCRIPTS,
   FakeElement,
   createDocument,
   deferred,
+  fakeFetch,
+  fakeI18n,
+  loadLocalizedPage,
   loadPage,
+  parseHtml,
+  readMessages,
   readSource,
   runScripts,
   settle,

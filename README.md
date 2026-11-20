@@ -41,6 +41,9 @@ To run it from source, see [Development](#development). The
   subreddit pages, with undo.
 - **Export and import** your settings as JSON, with a backup of what an
   import replaces. Light, dark or system theme.
+- **In English, French, German, Italian, Portuguese (Brazil and Portugal)
+  and Spanish**, in your system's language or the one you choose in the
+  settings.
 
 ## Usage
 
@@ -102,6 +105,7 @@ and load `dist/frontfilter-firefox-<version>.xpi` as a temporary add-on from
 ```text
 src/
   manifest.json   Chrome's manifest; manifests/firefox.json holds Firefox's overrides
+  _locales/       the interface's text: English, and its translations
   shared/         settings, rule matching, statistics, the settings lock, the theme
   background/     navigation rules, and the one writer of statistics and the lock
   content/        what runs on Reddit: filters, limits, Block buttons
@@ -136,7 +140,8 @@ each release. See [CONTRIBUTING.md](CONTRIBUTING.md#when-reddit-changes).
 
 Bug reports, questions and focused pull requests are welcome in the
 [issue tracker](https://github.com/fabiomolignoni/FrontFilter/issues); read
-[CONTRIBUTING.md](CONTRIBUTING.md) first. Report security problems
+[CONTRIBUTING.md](CONTRIBUTING.md) first, which also says how to
+[translate FrontFilter](CONTRIBUTING.md#translations). Report security problems
 privately, through
 [GitHub's vulnerability reporting](https://github.com/fabiomolignoni/FrontFilter/security/advisories/new).
 

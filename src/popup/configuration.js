@@ -12,6 +12,7 @@ FrontFilter.createConfigurationCard = function ({
   flushPendingSave, enqueueStorageOperation, saveThroughLock, loadSettings,
   setControlsDisabled, openSettingsTab,
 }) {
+  const { t, plural, formatNumber, locale } = FrontFilter.i18n;
   const VERSION_KEY = FrontFilter.SETTINGS_VERSION_KEY;
   const BACKUP_KEY = FrontFilter.IMPORT_BACKUP_KEY;
   const byId = (id) => document.getElementById(id);
@@ -27,9 +28,6 @@ FrontFilter.createConfigurationCard = function ({
   };
   const backupRestore = byId("backup-restore");
   const backupRestoreText = byId("backup-restore-text");
-  const IMPORT_NOTE = FrontFilter.normalizeText(review.note.textContent);
-  const IMPORT_NOTE_LOCKED = "Lists in the file replace yours, but while settings are locked, "
-    + "what loosens them waits. You can restore your current settings afterwards.";
   // An import waits for confirmation, after showing what it would change.
   let pendingImport = null;
 
@@ -48,9 +46,9 @@ FrontFilter.createConfigurationCard = function ({
       link.download = "frontfilter-config.json";
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 0);
-      showToast("Configuration exported!", "success");
+      showToast(t("exportDone"), "success");
     } catch (error) {
-      showToast(`Export failed: ${error.message}`, "error");
+      showToast(t("exportFailed", error.message), "error");
     }
   }
 
@@ -59,7 +57,7 @@ FrontFilter.createConfigurationCard = function ({
   async function readConfig(file) {
     const data = JSON.parse(await file.text());
     if (!data || typeof data !== "object" || Array.isArray(data)) {
-      showToast("Invalid config: expected a JSON object", "error");
+      showToast(t("importNotAnObject"), "error");
       return null;
     }
 
@@ -69,13 +67,13 @@ FrontFilter.createConfigurationCard = function ({
         .filter(([key]) => FrontFilter.STORAGE_KEYS.includes(key)),
     );
     if (Object.keys(imported).length === 0) {
-      showToast("Invalid config: no recognized keys", "error");
+      showToast(t("importNoSettings"), "error");
       return null;
     }
 
     const invalidKeys = FrontFilter.getInvalidSettingKeys(imported);
     if (invalidKeys.length > 0) {
-      showToast(`Invalid config values: ${invalidKeys.join(", ")}`, "error");
+      showToast(t("importInvalidValues", invalidKeys.join(", ")), "error");
       return null;
     }
     return imported;
@@ -107,14 +105,13 @@ FrontFilter.createConfigurationCard = function ({
       if (described.has(list)) continue;
       described.add(list);
       const size = (settings) => list.keys.reduce((total, listKey) => total + settings[listKey].length, 0);
-      const count = list.formatCount(size(after));
+      const count = list.countText(size(after));
       changes.push(size(before) === size(after)
-        ? `${list.title}: ${count}, replaced`
-        : `${list.title}: ${size(before)} → ${count}`);
+        ? t("importListReplaced", list.title, count)
+        : t("importListResized", list.title, formatNumber(size(before)), count));
     }
     if (others > 0) {
-      const noun = others === 1 ? "setting" : "settings";
-      changes.push(changes.length > 0 ? `${others} other ${noun}` : `${others} ${noun}`);
+      changes.push(changes.length > 0 ? plural("importOtherSettings", others) : plural("importSettings", others));
     }
     return changes;
   }
@@ -126,22 +123,20 @@ FrontFilter.createConfigurationCard = function ({
       await flushPendingSave();
       const changes = describeImport(await readStoredSettings(), imported);
       pendingImport = changes.length > 0 ? imported : null;
-      review.title.textContent = changes.length > 0
-        ? "Import this file?"
-        : "This file matches your settings";
+      review.title.textContent = changes.length > 0 ? t("importQuestion") : t("importSameSettings");
       review.changes.replaceChildren(...changes.map((change) => {
         const item = document.createElement("li");
         item.textContent = change;
         return item;
       }));
-      review.note.textContent = lockCard.isLocked() ? IMPORT_NOTE_LOCKED : IMPORT_NOTE;
+      review.note.textContent = lockCard.isLocked() ? t("importNoteLocked") : t("importNote");
       review.note.hidden = changes.length === 0;
       review.confirm.hidden = changes.length === 0;
-      review.cancel.textContent = changes.length > 0 ? "Cancel" : "Close";
+      review.cancel.textContent = changes.length > 0 ? t("commonCancel") : t("commonClose");
       review.element.hidden = false;
       review.title.focus();
     } catch (error) {
-      showToast(`Import failed: ${error.message}`, "error");
+      showToast(t("importFailed", error.message), "error");
     }
   }
 
@@ -200,9 +195,9 @@ FrontFilter.createConfigurationCard = function ({
     review.element.hidden = true;
     try {
       const result = await replaceSettings("import", () => imported);
-      if (!lockCard.report(result)) showToast("Configuration imported!", "success");
+      if (!lockCard.report(result)) showToast(t("importDone"), "success");
     } catch (error) {
-      showToast(`Import failed: ${error.message}`, "error");
+      showToast(t("importFailed", error.message), "error");
     }
     importButton.focus();
   }
@@ -213,13 +208,13 @@ FrontFilter.createConfigurationCard = function ({
     try {
       const result = await replaceSettings("restore", async () => {
         const { [BACKUP_KEY]: backup } = await chrome.storage.local.get(BACKUP_KEY);
-        if (!backup?.settings) throw new Error("no saved settings to restore");
+        if (!backup?.settings) throw new Error(t("restoreNothing"));
         // A backup kept since an earlier version keeps its meaning.
         return FrontFilter.coerceSettings(FrontFilter.upgradeSettings(backup.settings));
       });
-      if (!lockCard.report(result)) showToast("Settings restored", "success");
+      if (!lockCard.report(result)) showToast(t("restoreDone"), "success");
     } catch (error) {
-      showToast(`Restore failed: ${error.message}`, "error");
+      showToast(t("restoreFailed", error.message), "error");
     }
   }
 
@@ -228,11 +223,10 @@ FrontFilter.createConfigurationCard = function ({
     const savedAt = Number(backup?.savedAt);
     backupRestore.hidden = !backup?.settings || !Number.isFinite(savedAt);
     if (backupRestore.hidden) return;
-    const when = new Date(savedAt).toLocaleString(undefined, {
-      dateStyle: "medium", timeStyle: "short",
-    });
-    const event = backup.replacedBy === "restore" ? "your restore" : "your import";
-    backupRestoreText.textContent = `Your settings before ${event} of ${when}`;
+    const when = new Date(savedAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
+    backupRestoreText.textContent = backup.replacedBy === "restore"
+      ? t("backupBeforeRestore", when)
+      : t("backupBeforeImport", when);
   }
 
   byId("export-config").addEventListener("click", exportConfig);

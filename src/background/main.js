@@ -166,6 +166,8 @@ const lockQueue = FrontFilter.createQueue();
 function updateLock(operation, message = {}) {
   return lockQueue.run(async () => {
     const stored = await chrome.storage.local.get([...FrontFilter.STORAGE_KEYS, LOCK.STORAGE_KEY]);
+    // The lock's errors reach the settings page, in its language.
+    await FrontFilter.i18n.use(stored.language);
     const { set, remove, lock, result } = operation(stored, message, Date.now());
     if (Object.keys(set).length > 0) await chrome.storage.local.set(set);
     if (remove.length > 0) await chrome.storage.local.remove(remove);
@@ -203,6 +205,15 @@ const ACTIONS = Object.freeze({
   resetStats,
 });
 
+// Questions that answer a result: the messages of the language the
+// settings choose, which content scripts cannot read themselves.
+const QUERIES = Object.freeze({
+  getMessages({ language }) {
+    if (!FrontFilter.LANGUAGES.includes(language)) throw new Error(`no such language: ${language}`);
+    return FrontFilter.i18n.fetchMessages(language);
+  },
+});
+
 // The lock's operations also answer their result: what waits, and the lock.
 const LOCK_ACTIONS = Object.freeze({
   startLock: LOCK.start,
@@ -219,6 +230,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       await ACTIONS[action](message);
       return { success: true };
     };
+  } else if (Object.hasOwn(QUERIES, action)) {
+    answer = async () => ({ success: true, result: await QUERIES[action](message) });
   } else if (Object.hasOwn(LOCK_ACTIONS, action)) {
     answer = async () => ({ success: true, result: await updateLock(LOCK_ACTIONS[action], message) });
   } else {

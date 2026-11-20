@@ -4,12 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <title>Content blocked · FrontFilter</title>
+    <title data-i18n="blockedPageTitle"></title>
     <script src="../shared/theme-bootstrap.js"></script>
     <link rel="stylesheet" href="../shared/theme.css" />
     <link rel="stylesheet" href="blocked.css" />
   </head>
   <body>
+    <!-- Text comes from _locales/ (shared/i18n.js). -->
     <main class="page">
       <div class="card">
         <div class="brand">
@@ -24,27 +25,28 @@
             <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
           </svg>
         </div>
-        <h1 id="block-message">This content is blocked</h1>
+        <h1 id="block-message"></h1>
         <p id="block-reason" class="reason" hidden></p>
         <div class="actions">
-          <button type="button" id="go-back" class="btn btn-primary">Go back</button>
+          <button type="button" id="go-back" class="btn btn-primary" data-i18n="blockedGoBack"></button>
           <button type="button" id="go-to-settings" class="btn btn-secondary"
-            hidden>Open settings</button>
+            data-i18n="blockedOpenSettings" hidden></button>
           <button type="button" id="undo-block" class="btn btn-secondary"
-            hidden>Undo block</button>
+            data-i18n="blockedUndo" hidden></button>
         </div>
       </div>
       <footer>
-        <nav class="project-links" aria-label="Project links">
+        <nav class="project-links" data-i18n-aria-label="projectLinks">
           <a href="https://github.com/fabiomolignoni/FrontFilter"
             target="_blank" rel="noopener noreferrer">GitHub</a>
           <span aria-hidden="true">&middot;</span>
           <a href="https://github.com/fabiomolignoni/FrontFilter/issues"
-            target="_blank" rel="noopener noreferrer">Report a bug</a>
+            target="_blank" rel="noopener noreferrer" data-i18n="reportBug"></a>
         </nav>
       </footer>
     </main>
     <script src="../shared/core.js"></script>
+    <script src="../shared/i18n.js"></script>
     <script src="../shared/stats.js"></script>
     <script src="blocked.js"></script>
   </body>

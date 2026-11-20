@@ -1,11 +1,11 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const vm = require("node:vm");
-const { runScripts } = require("./helpers");
+const { fakeI18n, runScripts } = require("./helpers");
 
 function loadLock() {
-  const context = vm.createContext({ URL, URLSearchParams });
-  runScripts(context, ["shared/core.js", "shared/settings-lock.js"]);
+  const context = vm.createContext({ URL, URLSearchParams, chrome: { i18n: fakeI18n() } });
+  runScripts(context, ["shared/core.js", "shared/i18n.js", "shared/settings-lock.js"]);
   return context.FrontFilter.settingsLock;
 }
 
@@ -65,11 +65,12 @@ test("leaves the settings no impulse would loosen free", () => {
     redirectBlockedPages: true,
     pauseStatistics: true,
   };
-  const before = lockedSince({ ...free, redirectUrl: "https://example.com/", theme: "dark" });
+  const before = lockedSince({ ...free, redirectUrl: "https://example.com/", theme: "dark", language: "it" });
   const loosened = {
     ...Object.fromEntries(Object.keys(free).map((key) => [key, false])),
     redirectUrl: "",
     theme: "light",
+    language: "system",
   };
   const { stored, result } = save(before, loosened);
   for (const [key, value] of Object.entries(loosened)) assert.equal(stored[key], value, key);

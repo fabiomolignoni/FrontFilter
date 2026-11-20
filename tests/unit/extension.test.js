@@ -8,7 +8,7 @@ const { existsSync, readFileSync } = require("node:fs");
 const { join, posix } = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
-const { STATS_RECORDER_SCRIPTS, readSource } = require("./helpers");
+const { STATS_RECORDER_SCRIPTS, readMessages, readSource } = require("./helpers");
 
 const ROOT = join(__dirname, "..", "..");
 const PROJECT_URL = "https://github.com/fabiomolignoni/FrontFilter";
@@ -34,9 +34,11 @@ test("keeps the source manifest directly loadable by Chrome", () => {
   assert.equal("scripts" in manifest.background, false);
   assert.equal("browser_specific_settings" in manifest, false);
   assert.equal(manifest.homepage_url, PROJECT_URL);
-  // The Chrome Web Store's limits.
-  assert.ok(manifest.name.length <= 75);
-  assert.ok(manifest.description.length <= 132);
+  // The Chrome Web Store's limits, for the English name and description:
+  // i18n.test.js checks those of every translation.
+  const message = (value) => readMessages()[value.match(/^__MSG_(\w+)__$/)[1]].message;
+  assert.ok(message(manifest.name).length <= 75);
+  assert.ok(message(manifest.description).length <= 132);
 });
 
 test("asks only for the permissions it uses, and for host access only to Reddit", () => {
@@ -134,14 +136,29 @@ test("loads each content script after the modules it uses", () => {
   assert.equal(STATS_RECORDER_SCRIPTS.at(-1), "content/stats-only.js");
 });
 
+// Scripts in the order the service worker, a page or the content scripts
+// load them.
+const workerScripts = firefoxManifest.background.scripts;
+const scriptsOf = (page) => Array.from(readSource(page).matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g),
+  ([, src]) => resolve(page, src));
+const isolatedScripts = manifest.content_scripts.find(({ world }) => world !== "MAIN").js;
+
 test("loads the statistics' module wherever statistics are recorded or shown", () => {
-  const workerImports = readSource(manifest.background.service_worker);
-  assert.match(workerImports, /"\.\.\/shared\/core\.js", "\.\.\/shared\/stats\.js"/);
+  assert.ok(workerScripts.indexOf("shared/core.js") < workerScripts.indexOf("shared/stats.js"));
   for (const page of PAGES) {
-    const scripts = Array.from(readSource(page).matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g),
-      ([, src]) => resolve(page, src));
+    const scripts = scriptsOf(page);
     assert.ok(scripts.indexOf("shared/core.js") < scripts.indexOf("shared/stats.js"), page);
     assert.ok(scripts.indexOf("shared/stats.js") < scripts.length - 1, page);
+  }
+});
+
+test("loads the interface's messages right after the shared module, wherever text shows", () => {
+  for (const [where, scripts] of [
+    ["the background", workerScripts],
+    ["the content scripts", isolatedScripts],
+    ...PAGES.map((page) => [page, scriptsOf(page)]),
+  ]) {
+    assert.equal(scripts.indexOf("shared/i18n.js"), scripts.indexOf("shared/core.js") + 1, where);
   }
 });
 

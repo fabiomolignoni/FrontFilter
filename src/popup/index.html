@@ -4,12 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <title>FrontFilter Settings</title>
+    <title data-i18n="settingsPageTitle"></title>
     <script src="../shared/theme-bootstrap.js"></script>
     <link rel="stylesheet" href="../shared/theme.css" />
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
+    <!-- Text comes from _locales/ (shared/i18n.js): each data-i18n names its
+      message, and data-i18n-title or data-i18n-aria-label an attribute's. -->
     <div class="container">
       <header class="top">
         <div class="header">
@@ -18,10 +20,10 @@
             <h1>FrontFilter</h1>
           </div>
           <div class="header-actions">
-            <span id="save-indicator" role="status">Saved</span>
+            <span id="save-indicator" role="status" data-i18n="saveSaved"></span>
             <!-- In the popup only: long lists are easier to edit in a tab. -->
             <button type="button" id="open-in-tab" class="icon-button"
-              aria-label="Open settings in a tab" title="Open settings in a tab">
+              data-i18n-aria-label="openInTab" data-i18n-title="openInTab">
               <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M9.5 2.5h4v4M13.5 2.5 7.5 8.5" />
                 <path d="M12 9.5v3a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3" />
@@ -31,21 +33,21 @@
         </div>
 
         <div class="tabs-bar">
-          <div class="tabs" role="tablist" aria-label="Settings sections">
+          <div class="tabs" role="tablist" data-i18n-aria-label="tabsLabel">
             <button type="button" class="tab" id="tab-block" role="tab" aria-selected="true"
               aria-controls="panel-block" tabindex="0">
               <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                 <circle cx="8" cy="8" r="5.75" />
                 <path d="M3.95 3.95l8.1 8.1" />
               </svg>
-              <span>Block</span>
+              <span data-i18n="tabBlock"></span>
             </button>
             <button type="button" class="tab" id="tab-filter" role="tab" aria-selected="false"
               aria-controls="panel-filter" tabindex="-1">
               <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M2.5 3h11L9.25 8.25v4.25l-2.5 1.25V8.25z" />
               </svg>
-              <span>Filter</span>
+              <span data-i18n="tabFilter"></span>
             </button>
             <button type="button" class="tab" id="tab-simplify" role="tab" aria-selected="false"
               aria-controls="panel-simplify" tabindex="-1">
@@ -54,14 +56,14 @@
                 <circle cx="10.5" cy="4.5" r="2" />
                 <circle cx="5.5" cy="11.5" r="2" />
               </svg>
-              <span>Simplify</span>
+              <span data-i18n="tabSimplify"></span>
             </button>
             <button type="button" class="tab" id="tab-stats" role="tab" aria-selected="false"
               aria-controls="panel-stats" tabindex="-1">
               <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M2.5 13.5h11M4.5 11V8.5M8 11V4M11.5 11V6.5" />
               </svg>
-              <span>Stats</span>
+              <span data-i18n="tabStats"></span>
             </button>
             <button type="button" class="tab" id="tab-settings" role="tab" aria-selected="false"
               aria-controls="panel-settings" tabindex="-1">
@@ -71,7 +73,7 @@
                 <path d="M12.42 3.58l-1.06 1.06M4.64 11.36l-1.06 1.06" />
                 <path d="M12.42 12.42l-1.06-1.06M4.64 4.64 3.58 3.58" />
               </svg>
-              <span>Settings</span>
+              <span data-i18n="tabSettings"></span>
             </button>
           </div>
         </div>
@@ -83,7 +85,8 @@
             <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
           </svg>
           <span class="lock-banner-text" id="lock-banner-text"></span>
-          <button type="button" id="lock-banner-details" class="lock-banner-button">Details</button>
+          <button type="button" id="lock-banner-details" class="lock-banner-button"
+            data-i18n="lockBannerDetails"></button>
         </div>
       </header>
 
@@ -110,41 +113,37 @@
             </div>
             <div class="current-actions" id="current-page-actions">
               <button type="button" id="add-current-subreddit"
-                class="btn btn-primary">Block</button>
+                class="btn btn-primary" data-i18n="currentBlock"></button>
               <button type="button" id="add-current-allowed-subreddit"
-                class="btn btn-secondary">Allow</button>
+                class="btn btn-secondary" data-i18n="currentAllow"></button>
             </div>
           </section>
 
           <section class="section" aria-labelledby="pages-heading">
-            <h2 class="section-title" id="pages-heading">Block pages</h2>
+            <h2 class="section-title" id="pages-heading" data-i18n="blockPagesHeading"></h2>
             <div class="card">
               <label class="row">
-                <span class="row-label">Homepage</span>
+                <span class="row-label" data-i18n="pageHomepage"></span>
                 <input type="checkbox" role="switch" id="block-homepage" name="blockHomepage" />
               </label>
               <label class="row">
-                <span class="row-text">
-                  <span class="row-label" id="block-for-you-label">For You</span>
-                  <span class="row-desc" id="block-for-you-desc">Home opens on Following</span>
-                </span>
-                <input type="checkbox" role="switch" id="block-for-you" name="blockForYou"
-                  aria-labelledby="block-for-you-label" aria-describedby="block-for-you-desc" />
+                <span class="row-label" data-i18n="pageForYou"></span>
+                <input type="checkbox" role="switch" id="block-for-you" name="blockForYou" />
               </label>
               <label class="row">
-                <span class="row-label">Popular</span>
+                <span class="row-label" data-i18n="pagePopular"></span>
                 <input type="checkbox" role="switch" id="block-popular" name="blockPopular" />
               </label>
               <label class="row">
-                <span class="row-label">Explore</span>
+                <span class="row-label" data-i18n="pageExplore"></span>
                 <input type="checkbox" role="switch" id="block-explore" name="blockExplore" />
               </label>
               <label class="row">
-                <span class="row-label">News</span>
+                <span class="row-label" data-i18n="pageNews"></span>
                 <input type="checkbox" role="switch" id="block-news" name="blockNews" />
               </label>
               <label class="row">
-                <span class="row-label">All subreddit front pages</span>
+                <span class="row-label" data-i18n="pageAllSubredditFronts"></span>
                 <input type="checkbox" role="switch" id="block-sub-home" name="blockSubHome" />
               </label>
             </div>
@@ -154,49 +153,44 @@
             <div class="list-header">
               <div class="list-heading">
                 <div class="list-title-row">
-                  <h2 class="list-title" id="subreddit-title">Subreddits</h2>
+                  <h2 class="list-title" id="subreddit-title" data-i18n="subredditsTitle"></h2>
                   <span id="subreddit-count" class="count"></span>
                   <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="subreddit-help" aria-label="About subreddits">?</button>
+                    aria-controls="subreddit-help" data-i18n-aria-label="subredditsHelpLabel">?</button>
                 </div>
-                <p class="list-desc">Block them, or allow some as exceptions</p>
+                <p class="list-desc" data-i18n="subredditsDescription"></p>
               </div>
               <div class="list-actions">
                 <button type="button" id="add-subreddit" class="btn btn-tonal"
-                  aria-label="Add a subreddit">
+                  data-i18n-aria-label="subredditsAddLabel">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
-                  Add
+                  <span data-i18n="listAdd"></span>
                 </button>
               </div>
             </div>
             <div class="help-text" id="subreddit-help" hidden>
               <dl class="help-examples">
-                <dt><code>news</code></dt>
-                <dd><strong>Front page</strong> blocks its main feed, with its hot, new, top and
-                  rising views. <strong>Everywhere</strong> blocks all its pages, and hides its posts
-                  from other feeds.</dd>
-                <dt><code>news*</code></dt>
-                <dd>A <code>*</code> matches any text: every subreddit whose name starts with
-                  “news”. <code>*</code> alone matches them all.</dd>
-                <dt><code>+worldnews</code></dt>
-                <dd>A <code>+</code> before it, or <strong>Allowed</strong>, makes an exception: it
-                  stays open, whatever these rules or “All subreddit front pages” block.</dd>
+                <dt><code data-i18n="subredditsHelpNameExample"></code></dt>
+                <dd data-i18n="subredditsHelpName"></dd>
+                <dt><code data-i18n="subredditsHelpPatternExample"></code></dt>
+                <dd data-i18n="subredditsHelpPattern"></dd>
+                <dt><code data-i18n="subredditsHelpExceptionExample"></code></dt>
+                <dd data-i18n="subredditsHelpException"></dd>
               </dl>
-              <p>To keep only a few subreddits, block <code>*</code> everywhere and allow them. A
-                Reddit URL works too.</p>
-              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
+              <p data-i18n="subredditsHelpKeepFew"></p>
+              <p data-i18n="listHelpPaste"></p>
             </div>
             <div id="subreddit-list" class="entry-list"></div>
           </section>
 
           <section class="section" aria-labelledby="block-buttons-heading">
-            <h2 class="section-title" id="block-buttons-heading">Block buttons</h2>
+            <h2 class="section-title" id="block-buttons-heading" data-i18n="blockButtonsHeading"></h2>
             <div class="card">
               <label class="row">
-                <span class="row-label" id="show-block-subreddit-button-label">Show on posts and
-                  subreddit pages</span>
+                <span class="row-label" id="show-block-subreddit-button-label"
+                  data-i18n="blockButtonsShow"></span>
                 <input type="checkbox" role="switch" id="show-block-subreddit-button"
                   name="showBlockSubredditButton"
                   aria-labelledby="block-buttons-heading show-block-subreddit-button-label" />
@@ -205,26 +199,26 @@
           </section>
 
           <section class="section" aria-labelledby="block-page-heading">
-            <h2 class="section-title" id="block-page-heading">When a page is blocked</h2>
+            <h2 class="section-title" id="block-page-heading" data-i18n="blockPageHeading"></h2>
             <div class="card">
               <label class="row">
-                <span class="row-label" id="hide-block-page-settings-button-label">Hide the Open
-                  settings button</span>
+                <span class="row-label" id="hide-block-page-settings-button-label"
+                  data-i18n="blockPageHideSettings"></span>
                 <input type="checkbox" role="switch" id="hide-block-page-settings-button"
                   name="hideBlockPageSettingsButton"
                   aria-labelledby="block-page-heading hide-block-page-settings-button-label" />
               </label>
               <div class="setting-group">
                 <label class="row">
-                  <span class="row-label" id="redirect-blocked-pages-label">Redirect to another
-                    website</span>
+                  <span class="row-label" id="redirect-blocked-pages-label"
+                    data-i18n="blockPageRedirect"></span>
                   <input type="checkbox" role="switch" id="redirect-blocked-pages"
                     name="redirectBlockedPages"
                     aria-labelledby="block-page-heading redirect-blocked-pages-label" />
                 </label>
                 <label class="row sub-option field-row redirect-url" id="redirect-url-option"
                   for="redirect-url" hidden>
-                  <span class="row-label">Website address</span>
+                  <span class="row-label" data-i18n="blockPageAddress"></span>
                   <input type="text" id="redirect-url" class="field field-url" inputmode="url"
                     spellcheck="false" placeholder="example.com" />
                 </label>
@@ -236,46 +230,35 @@
         <section class="tab-panel" id="panel-filter" role="tabpanel" aria-labelledby="tab-filter"
           tabindex="0" hidden>
           <section class="section" aria-labelledby="suggestions-heading">
-            <h2 class="section-title" id="suggestions-heading">Suggestions and ads</h2>
+            <h2 class="section-title" id="suggestions-heading" data-i18n="suggestionsHeading"></h2>
             <div class="card">
               <label class="row">
-                <span class="row-text">
-                  <span class="row-label" id="hide-suggested-posts-label">Hide suggested
-                    posts</span>
-                  <span class="row-desc" id="hide-suggested-posts-desc">In Home, from communities
-                    you haven't joined</span>
-                </span>
+                <span class="row-label" data-i18n="hideSuggestedPosts"></span>
                 <input type="checkbox" role="switch" id="hide-suggested-posts"
-                  name="hideSuggestedPosts" aria-labelledby="hide-suggested-posts-label"
-                  aria-describedby="hide-suggested-posts-desc" />
+                  name="hideSuggestedPosts" />
               </label>
               <label class="row">
-                <span class="row-label">Hide suggested communities</span>
+                <span class="row-label" data-i18n="hideSuggestedCommunities"></span>
                 <input type="checkbox" role="switch" id="hide-suggested-communities"
                   name="hideSuggestedCommunities" />
               </label>
               <label class="row">
-                <span class="row-label">Hide ads and promoted posts</span>
+                <span class="row-label" data-i18n="hideAds"></span>
                 <input type="checkbox" role="switch" id="hide-ads" name="hideAds" />
               </label>
             </div>
           </section>
 
           <section class="section" aria-labelledby="sensitive-heading">
-            <h2 class="section-title" id="sensitive-heading">Sensitive content</h2>
+            <h2 class="section-title" id="sensitive-heading" data-i18n="sensitiveHeading"></h2>
             <div class="card">
               <label class="row">
-                <span class="row-label">Hide NSFW content</span>
+                <span class="row-label" data-i18n="hideNsfw"></span>
                 <input type="checkbox" role="switch" id="hide-nsfw" name="hideNsfw" />
               </label>
               <label class="row">
-                <span class="row-text">
-                  <span class="row-label" id="hide-spoilers-label">Hide spoilers</span>
-                  <span class="row-desc" id="hide-spoilers-desc">Only posts tagged as
-                    spoilers</span>
-                </span>
-                <input type="checkbox" role="switch" id="hide-spoilers" name="hideSpoilers"
-                  aria-labelledby="hide-spoilers-label" aria-describedby="hide-spoilers-desc" />
+                <span class="row-label" data-i18n="hideSpoilers"></span>
+                <input type="checkbox" role="switch" id="hide-spoilers" name="hideSpoilers" />
               </label>
             </div>
           </section>
@@ -284,39 +267,36 @@
             <div class="list-header">
               <div class="list-heading">
                 <div class="list-title-row">
-                  <h2 class="list-title" id="keyword-title">Keywords</h2>
+                  <h2 class="list-title" id="keyword-title" data-i18n="keywordsTitle"></h2>
                   <span id="keyword-count" class="count"></span>
                   <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="keyword-help" aria-label="About keywords">?</button>
+                    aria-controls="keyword-help" data-i18n-aria-label="keywordsHelpLabel">?</button>
                 </div>
-                <p class="list-desc">Hide posts and comments that contain them</p>
+                <p class="list-desc" data-i18n="keywordsDescription"></p>
               </div>
               <div class="list-actions">
                 <button type="button" id="add-keyword" class="btn btn-tonal"
-                  aria-label="Add a keyword">
+                  data-i18n-aria-label="keywordsAddLabel">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
-                  Add
+                  <span data-i18n="listAdd"></span>
                 </button>
               </div>
             </div>
             <div class="help-text" id="keyword-help" hidden>
               <dl class="help-examples">
-                <dt><code>ai</code></dt>
-                <dd>Whole words only: hides “AI art”, not “said”.</dd>
-                <dt><code>spoiler*</code></dt>
-                <dd>A <code>*</code> at an end matches inside words too, as in “spoilers”.</dd>
-                <dt><code>/colou?r/</code></dt>
-                <dd>Between slashes, a regular expression.</dd>
-                <dt><code>+ai art</code></dt>
-                <dd>A <code>+</code> before it, or <strong>Allowed</strong>, makes an exception:
-                  what contains it stays, whatever keywords it contains.</dd>
+                <dt><code data-i18n="keywordsHelpWordExample"></code></dt>
+                <dd data-i18n="keywordsHelpWord"></dd>
+                <dt><code data-i18n="keywordsHelpPrefixExample"></code></dt>
+                <dd data-i18n="keywordsHelpPrefix"></dd>
+                <dt><code data-i18n="keywordsHelpRegexExample"></code></dt>
+                <dd data-i18n="keywordsHelpRegex"></dd>
+                <dt><code data-i18n="keywordsHelpExceptionExample"></code></dt>
+                <dd data-i18n="keywordsHelpException"></dd>
               </dl>
-              <p>Titles, text previews and comments are checked, ignoring case and accents. Replies
-                to a hidden comment hide too. Exceptions keep nothing other filters hide, such as
-                post flairs and users.</p>
-              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
+              <p data-i18n="keywordsHelpChecked"></p>
+              <p data-i18n="listHelpPaste"></p>
             </div>
             <div id="keyword-list" class="entry-list"></div>
           </section>
@@ -325,30 +305,27 @@
             <div class="list-header">
               <div class="list-heading">
                 <div class="list-title-row">
-                  <h2 class="list-title" id="flair-title">Post flairs</h2>
+                  <h2 class="list-title" id="flair-title" data-i18n="flairsTitle"></h2>
                   <span id="flair-count" class="count"></span>
                   <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="flair-help" aria-label="About post flairs">?</button>
+                    aria-controls="flair-help" data-i18n-aria-label="flairsHelpLabel">?</button>
                 </div>
-                <p class="list-desc">Hide the posts that carry them</p>
+                <p class="list-desc" data-i18n="flairsDescription"></p>
               </div>
               <div class="list-actions">
                 <button type="button" id="add-flair" class="btn btn-tonal"
-                  aria-label="Add a flair">
+                  data-i18n-aria-label="flairsAddLabel">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
-                  Add
+                  <span data-i18n="listAdd"></span>
                 </button>
               </div>
             </div>
             <div class="help-text" id="flair-help" hidden>
-              <p>Matching ignores case. A <code>*</code> matches any text: <code>*politic*</code>
-                hides “Politics” and “US politics”.</p>
-              <p>A <code>+</code> before a flair, or <strong>Allowed</strong>, makes an exception:
-                <code>*</code> with <code>+Discussion</code> hides every post with a flair but
-                discussions.</p>
-              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
+              <p data-i18n="flairsHelpPattern"></p>
+              <p data-i18n="flairsHelpException"></p>
+              <p data-i18n="listHelpPaste"></p>
             </div>
             <div id="flair-list" class="entry-list"></div>
           </section>
@@ -357,27 +334,26 @@
             <div class="list-header">
               <div class="list-heading">
                 <div class="list-title-row">
-                  <h2 class="list-title" id="blocked-user-title">Users</h2>
+                  <h2 class="list-title" id="blocked-user-title" data-i18n="usersTitle"></h2>
                   <span id="blocked-user-count" class="count"></span>
                   <button type="button" class="help-toggle" aria-expanded="false"
-                    aria-controls="blocked-user-help" aria-label="About users">?</button>
+                    aria-controls="blocked-user-help" data-i18n-aria-label="usersHelpLabel">?</button>
                 </div>
-                <p class="list-desc">Hide their posts and comments</p>
+                <p class="list-desc" data-i18n="usersDescription"></p>
               </div>
               <div class="list-actions">
                 <button type="button" id="add-blocked-user" class="btn btn-tonal"
-                  aria-label="Add a user">
+                  data-i18n-aria-label="usersAddLabel">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 3v10M3 8h10" />
                   </svg>
-                  Add
+                  <span data-i18n="listAdd"></span>
                 </button>
               </div>
             </div>
             <div class="help-text" id="blocked-user-help" hidden>
-              <p>Their posts and comments hide everywhere, with the replies to their comments, and
-                their profiles are blocked. Enter a name, <code>u/name</code> or a profile URL.</p>
-              <p>Paste a list, one per line or separated by commas, to add several at once.</p>
+              <p data-i18n="usersHelp"></p>
+              <p data-i18n="listHelpPaste"></p>
             </div>
             <div id="blocked-user-list" class="entry-list"></div>
           </section>
@@ -386,45 +362,45 @@
         <section class="tab-panel" id="panel-simplify" role="tabpanel"
           aria-labelledby="tab-simplify" tabindex="0" hidden>
           <section class="section" aria-labelledby="limits-heading">
-            <h2 class="section-title" id="limits-heading">Limit scrolling</h2>
+            <h2 class="section-title" id="limits-heading" data-i18n="limitsHeading"></h2>
             <div class="card">
               <div class="setting-group">
                 <label class="row">
-                  <span class="row-label">Scroll limit</span>
+                  <span class="row-label" data-i18n="scrollLimit"></span>
                   <input type="checkbox" role="switch" id="limit-infinite-scroll"
                     name="limitInfiniteScroll" />
                 </label>
                 <div class="sub-options">
                   <label class="row sub-option field-row" for="scroll-limit">
-                    <span class="row-label">Posts at a time</span>
+                    <span class="row-label" data-i18n="scrollLimitCount"></span>
                     <input type="number" id="scroll-limit" class="field field-number" min="1"
                       step="1" value="25" />
                   </label>
                   <label class="row sub-option field-row" for="scroll-mode">
-                    <span class="row-label">At the limit</span>
+                    <span class="row-label" data-i18n="limitAtLimit"></span>
                     <select id="scroll-mode" class="field">
-                      <option value="fixed">Stop</option>
-                      <option value="button">Offer to show more</option>
+                      <option value="fixed" data-i18n="limitModeStop"></option>
+                      <option value="button" data-i18n="limitModeOffer"></option>
                     </select>
                   </label>
                 </div>
               </div>
               <div class="setting-group">
                 <label class="row">
-                  <span class="row-label">Comment limit</span>
+                  <span class="row-label" data-i18n="commentLimit"></span>
                   <input type="checkbox" role="switch" id="limit-comments" name="limitComments" />
                 </label>
                 <div class="sub-options">
                   <label class="row sub-option field-row" for="comment-limit">
-                    <span class="row-label">Comments at a time</span>
+                    <span class="row-label" data-i18n="commentLimitCount"></span>
                     <input type="number" id="comment-limit" class="field field-number" min="1"
                       step="1" value="10" />
                   </label>
                   <label class="row sub-option field-row" for="comment-limit-mode">
-                    <span class="row-label">At the limit</span>
+                    <span class="row-label" data-i18n="limitAtLimit"></span>
                     <select id="comment-limit-mode" class="field">
-                      <option value="fixed">Stop</option>
-                      <option value="button">Offer to show more</option>
+                      <option value="fixed" data-i18n="limitModeStop"></option>
+                      <option value="button" data-i18n="limitModeOffer"></option>
                     </select>
                   </label>
                 </div>
@@ -433,13 +409,13 @@
           </section>
 
           <section class="section" aria-labelledby="posts-heading">
-            <h2 class="section-title" id="posts-heading">Posts and comments</h2>
+            <h2 class="section-title" id="posts-heading" data-i18n="postsHeading"></h2>
             <div class="card">
               <label class="row">
-                <span class="row-label">Disable video autoplay</span>
+                <span class="row-label" data-i18n="disableAutoplay"></span>
                 <input type="checkbox" role="switch" id="disable-autoplay" name="disableAutoplay" />
               </label>
-              <div class="setting-group" role="group" aria-label="Votes and user info visibility">
+              <div class="setting-group" role="group" data-i18n-aria-label="socialGroupLabel">
                 <div class="row group-header">
                   <button type="button" class="group-toggle" id="social-toggle"
                     aria-expanded="false" aria-controls="social-options">
@@ -447,7 +423,7 @@
                       <path d="M4.5 3 7.5 6 4.5 9" />
                     </svg>
                     <span class="row-text">
-                      <span class="row-label" id="social-title">Hide votes and user info</span>
+                      <span class="row-label" id="social-title" data-i18n="socialTitle"></span>
                       <span class="row-desc group-summary" id="social-summary"
                         data-group="hideSocialSignals"></span>
                     </span>
@@ -457,33 +433,33 @@
                 </div>
                 <div class="sub-options" id="social-options" hidden>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-votes-label">Votes</span>
+                    <span class="row-label" id="hide-votes-label" data-i18n="hideVotes"></span>
                     <input type="checkbox" role="switch" id="hide-votes" name="hideVotes"
                       aria-labelledby="social-title hide-votes-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-karma-label">Karma</span>
+                    <span class="row-label" id="hide-karma-label" data-i18n="hideKarma"></span>
                     <input type="checkbox" role="switch" id="hide-karma" name="hideKarma"
                       aria-labelledby="social-title hide-karma-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-awards-label">Awards</span>
+                    <span class="row-label" id="hide-awards-label" data-i18n="hideAwards"></span>
                     <input type="checkbox" role="switch" id="hide-awards" name="hideAwards"
                       aria-labelledby="social-title hide-awards-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-avatars-label">Avatars</span>
+                    <span class="row-label" id="hide-avatars-label" data-i18n="hideAvatars"></span>
                     <input type="checkbox" role="switch" id="hide-avatars" name="hideAvatars"
                       aria-labelledby="social-title hide-avatars-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-usernames-label">Usernames</span>
+                    <span class="row-label" id="hide-usernames-label" data-i18n="hideUsernames"></span>
                     <input type="checkbox" role="switch" id="hide-usernames" name="hideUsernames"
                       aria-labelledby="social-title hide-usernames-label" />
                   </label>
                 </div>
               </div>
-              <div class="setting-group" role="group" aria-label="Comment visibility">
+              <div class="setting-group" role="group" data-i18n-aria-label="commentsGroupLabel">
                 <div class="row group-header">
                   <button type="button" class="group-toggle" id="comments-toggle"
                     aria-expanded="false" aria-controls="comments-options">
@@ -491,9 +467,9 @@
                       <path d="M4.5 3 7.5 6 4.5 9" />
                     </svg>
                     <span class="row-text">
-                      <span class="row-label" id="comments-title">Hide comments</span>
+                      <span class="row-label" id="comments-title" data-i18n="commentsTitle"></span>
                       <span class="row-desc group-summary" id="comments-summary"
-                        data-group="hideComments" data-partial="Only replies hidden"></span>
+                        data-group="hideComments" data-i18n-partial="commentsOnlyReplies"></span>
                     </span>
                   </button>
                   <input type="checkbox" id="hide-comments" name="hideComments"
@@ -501,7 +477,8 @@
                 </div>
                 <div class="sub-options" id="comments-options" hidden>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-comment-replies-label">Replies</span>
+                    <span class="row-label" id="hide-comment-replies-label"
+                      data-i18n="hideReplies"></span>
                     <input type="checkbox" role="switch" id="hide-comment-replies"
                       name="hideCommentReplies"
                       aria-labelledby="comments-title hide-comment-replies-label" />
@@ -512,9 +489,9 @@
           </section>
 
           <section class="section" aria-labelledby="layout-heading">
-            <h2 class="section-title" id="layout-heading">Page layout</h2>
+            <h2 class="section-title" id="layout-heading" data-i18n="layoutHeading"></h2>
             <div class="card">
-              <div class="setting-group" role="group" aria-label="Navbar visibility">
+              <div class="setting-group" role="group" data-i18n-aria-label="navbarGroupLabel">
                 <div class="row group-header">
                   <button type="button" class="group-toggle" id="navbar-toggle"
                     aria-expanded="false" aria-controls="navbar-options">
@@ -522,7 +499,7 @@
                       <path d="M4.5 3 7.5 6 4.5 9" />
                     </svg>
                     <span class="row-text">
-                      <span class="row-label" id="navbar-title">Hide navbar</span>
+                      <span class="row-label" id="navbar-title" data-i18n="navbarTitle"></span>
                       <span class="row-desc group-summary" id="navbar-summary"
                         data-group="hideNavbar"></span>
                     </span>
@@ -532,39 +509,42 @@
                 </div>
                 <div class="sub-options" id="navbar-options" hidden>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-navbar-menu-label">Menu button</span>
+                    <span class="row-label" id="hide-navbar-menu-label" data-i18n="navbarMenu"></span>
                     <input type="checkbox" role="switch" id="hide-navbar-menu" name="hideNavbarMenu"
                       aria-labelledby="navbar-title hide-navbar-menu-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-navbar-search-label">Search</span>
+                    <span class="row-label" id="hide-navbar-search-label"
+                      data-i18n="navbarSearch"></span>
                     <input type="checkbox" role="switch" id="hide-navbar-search"
                       name="hideNavbarSearch"
                       aria-labelledby="navbar-title hide-navbar-search-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-navbar-chat-label">Chat</span>
+                    <span class="row-label" id="hide-navbar-chat-label" data-i18n="navbarChat"></span>
                     <input type="checkbox" role="switch" id="hide-navbar-chat" name="hideNavbarChat"
                       aria-labelledby="navbar-title hide-navbar-chat-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label"
-                      id="hide-navbar-notifications-label">Notifications</span>
+                    <span class="row-label" id="hide-navbar-notifications-label"
+                      data-i18n="navbarNotifications"></span>
                     <input type="checkbox" role="switch" id="hide-navbar-notifications"
                       name="hideNavbarNotifications"
                       aria-labelledby="navbar-title hide-navbar-notifications-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-navbar-profile-label">Profile menu</span>
+                    <span class="row-label" id="hide-navbar-profile-label"
+                      data-i18n="navbarProfile"></span>
                     <input type="checkbox" role="switch" id="hide-navbar-profile"
                       name="hideNavbarProfile"
                       aria-labelledby="navbar-title hide-navbar-profile-label" />
                   </label>
                   <label class="row sub-option">
                     <span class="row-text">
-                      <span class="row-label" id="hide-navbar-others-label">Other buttons</span>
-                      <span class="row-desc" id="hide-navbar-others-desc">Such as Create and
-                        Advertise</span>
+                      <span class="row-label" id="hide-navbar-others-label"
+                        data-i18n="navbarOthers"></span>
+                      <span class="row-desc" id="hide-navbar-others-desc"
+                        data-i18n="navbarOthersDescription"></span>
                     </span>
                     <input type="checkbox" role="switch" id="hide-navbar-others"
                       name="hideNavbarOthers"
@@ -573,7 +553,7 @@
                   </label>
                 </div>
               </div>
-              <div class="setting-group" role="group" aria-label="Left sidebar visibility">
+              <div class="setting-group" role="group" data-i18n-aria-label="leftSidebarGroupLabel">
                 <div class="row group-header">
                   <button type="button" class="group-toggle" id="left-sidebar-toggle"
                     aria-expanded="false" aria-controls="left-sidebar-options">
@@ -581,7 +561,8 @@
                       <path d="M4.5 3 7.5 6 4.5 9" />
                     </svg>
                     <span class="row-text">
-                      <span class="row-label" id="left-sidebar-title">Hide left sidebar</span>
+                      <span class="row-label" id="left-sidebar-title"
+                        data-i18n="leftSidebarTitle"></span>
                       <span class="row-desc group-summary" id="left-sidebar-summary"
                         data-group="hideLeftSidebar"></span>
                     </span>
@@ -591,33 +572,36 @@
                 </div>
                 <div class="sub-options" id="left-sidebar-options" hidden>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-left-sidebar-games-label">Games</span>
+                    <span class="row-label" id="hide-left-sidebar-games-label"
+                      data-i18n="leftSidebarGames"></span>
                     <input type="checkbox" role="switch" id="hide-left-sidebar-games"
                       name="hideLeftSidebarGames"
                       aria-labelledby="left-sidebar-title hide-left-sidebar-games-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-left-sidebar-custom-feeds-label">Custom
-                      feeds</span>
+                    <span class="row-label" id="hide-left-sidebar-custom-feeds-label"
+                      data-i18n="leftSidebarCustomFeeds"></span>
                     <input type="checkbox" role="switch" id="hide-left-sidebar-custom-feeds"
                       name="hideLeftSidebarCustomFeeds"
                       aria-labelledby="left-sidebar-title hide-left-sidebar-custom-feeds-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-left-sidebar-recent-label">Recent</span>
+                    <span class="row-label" id="hide-left-sidebar-recent-label"
+                      data-i18n="leftSidebarRecent"></span>
                     <input type="checkbox" role="switch" id="hide-left-sidebar-recent"
                       name="hideLeftSidebarRecent"
                       aria-labelledby="left-sidebar-title hide-left-sidebar-recent-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label"
-                      id="hide-left-sidebar-communities-label">Communities</span>
+                    <span class="row-label" id="hide-left-sidebar-communities-label"
+                      data-i18n="leftSidebarCommunities"></span>
                     <input type="checkbox" role="switch" id="hide-left-sidebar-communities"
                       name="hideLeftSidebarCommunities"
                       aria-labelledby="left-sidebar-title hide-left-sidebar-communities-label" />
                   </label>
                   <label class="row sub-option">
-                    <span class="row-label" id="hide-left-sidebar-resources-label">Resources</span>
+                    <span class="row-label" id="hide-left-sidebar-resources-label"
+                      data-i18n="leftSidebarResources"></span>
                     <input type="checkbox" role="switch" id="hide-left-sidebar-resources"
                       name="hideLeftSidebarResources"
                       aria-labelledby="left-sidebar-title hide-left-sidebar-resources-label" />
@@ -625,7 +609,7 @@
                 </div>
               </div>
               <label class="row">
-                <span class="row-label">Hide right sidebar</span>
+                <span class="row-label" data-i18n="hideRightSidebar"></span>
                 <input type="checkbox" role="switch" id="hide-right-sidebar"
                   name="hideRelatedPosts" />
               </label>
@@ -636,44 +620,38 @@
         <!-- Filled from the statistics (popup/stats-tab.js). -->
         <section class="tab-panel" id="panel-stats" role="tabpanel" aria-labelledby="tab-stats"
           tabindex="0" hidden>
-          <p class="stats-notice" id="stats-paused" hidden>Statistics are paused: nothing new is
-            counted.</p>
+          <p class="stats-notice" id="stats-paused" data-i18n="statsPaused" hidden></p>
 
           <section class="section" aria-labelledby="stats-today-heading">
             <div class="section-header">
-              <h2 class="section-title" id="stats-today-heading">Today</h2>
+              <h2 class="section-title" id="stats-today-heading" data-i18n="statsToday"></h2>
               <button type="button" class="help-toggle" aria-expanded="false"
-                aria-controls="stats-help" aria-label="About statistics">?</button>
+                aria-controls="stats-help" data-i18n-aria-label="statsHelpLabel">?</button>
             </div>
             <div class="help-text" id="stats-help" hidden>
-              <p><strong>Time</strong> counts while a Reddit tab is in front and you have scrolled,
-                clicked or typed in it in the last 5 minutes. A new visit starts after 10 minutes
-                away from Reddit.</p>
-              <p><strong>Pages blocked</strong> counts each visit FrontFilter stopped. While blocked
-                pages lead to another website, only those reached from Reddit's own pages count.</p>
-              <p><strong>Hidden</strong> counts each post and comment your filters hid, once per page
-                and by the first filter that hides it, in Reddit's current design.</p>
-              <p>The daily average leaves out today, which isn't over yet. Statistics never leave
-                this device, and daily figures are kept for 30 days.</p>
+              <p data-i18n="statsHelpTime"></p>
+              <p data-i18n="statsHelpBlocked"></p>
+              <p data-i18n="statsHelpHidden"></p>
+              <p data-i18n="statsHelpAverage"></p>
             </div>
             <dl class="stat-grid">
               <div class="stat-tile">
-                <dt class="stat-label">On Reddit</dt>
-                <dd class="stat-value" id="stat-time">0 min</dd>
+                <dt class="stat-label" data-i18n="statsTileTime"></dt>
+                <dd class="stat-value" id="stat-time"></dd>
                 <dd class="stat-detail" id="stat-time-week"></dd>
               </div>
               <div class="stat-tile">
-                <dt class="stat-label">Visits</dt>
+                <dt class="stat-label" data-i18n="statsTileVisits"></dt>
                 <dd class="stat-value" id="stat-visits">0</dd>
                 <dd class="stat-detail" id="stat-visits-week"></dd>
               </div>
               <div class="stat-tile">
-                <dt class="stat-label">Pages blocked</dt>
+                <dt class="stat-label" data-i18n="statsTileBlocked"></dt>
                 <dd class="stat-value" id="stat-blocked">0</dd>
                 <dd class="stat-detail" id="stat-blocked-week"></dd>
               </div>
               <div class="stat-tile">
-                <dt class="stat-label">Hidden by filters</dt>
+                <dt class="stat-label" data-i18n="statsTileHidden"></dt>
                 <dd class="stat-value" id="stat-hidden">0</dd>
                 <dd class="stat-detail" id="stat-hidden-week"></dd>
               </div>
@@ -681,10 +659,10 @@
           </section>
 
           <section class="section stats-week" aria-labelledby="stats-week-heading">
-            <h2 class="section-title" id="stats-week-heading">Last 7 days</h2>
+            <h2 class="section-title" id="stats-week-heading" data-i18n="statsWeekHeading"></h2>
             <div class="card card-padded chart-card">
               <div class="chart-header">
-                <h3 class="chart-title" id="time-chart-title">Time on Reddit</h3>
+                <h3 class="chart-title" id="time-chart-title" data-i18n="statsChartTitle"></h3>
                 <p class="chart-readout">
                   <span class="chart-readout-label" id="chart-readout-label"></span>
                   <span class="chart-readout-value" id="chart-readout-value"></span>
@@ -697,52 +675,48 @@
 
             <div class="card list-card">
               <div class="list-header">
-                <h3 class="list-title">Blocked most</h3>
+                <h3 class="list-title" data-i18n="statsBlockedMost"></h3>
               </div>
-              <ol class="rank-list" id="blocked-ranking" aria-label="Blocked most"></ol>
+              <ol class="rank-list" id="blocked-ranking" data-i18n-aria-label="statsBlockedMost"></ol>
             </div>
 
             <div class="card list-card">
               <div class="list-header">
-                <h3 class="list-title">Hidden by</h3>
+                <h3 class="list-title" data-i18n="statsHiddenBy"></h3>
               </div>
-              <ol class="rank-list" id="hidden-ranking" aria-label="Hidden by"></ol>
+              <ol class="rank-list" id="hidden-ranking" data-i18n-aria-label="statsHiddenBy"></ol>
             </div>
           </section>
 
           <section class="section" aria-labelledby="stats-settings-heading">
-            <h2 class="section-title" id="stats-settings-heading">Statistics</h2>
+            <h2 class="section-title" id="stats-settings-heading"
+              data-i18n="statsSettingsHeading"></h2>
             <div class="card">
               <label class="row">
-                <span class="row-text">
-                  <span class="row-label" id="pause-statistics-label">Pause statistics</span>
-                  <span class="row-desc" id="pause-statistics-desc">Nothing new is counted; what
-                    is counted stays</span>
-                </span>
-                <input type="checkbox" role="switch" id="pause-statistics" name="pauseStatistics"
-                  aria-labelledby="pause-statistics-label"
-                  aria-describedby="pause-statistics-desc" />
+                <span class="row-label" data-i18n="pauseStatistics"></span>
+                <input type="checkbox" role="switch" id="pause-statistics" name="pauseStatistics" />
               </label>
               <div class="setting-group">
                 <div class="row">
                   <span class="row-text">
-                    <span class="row-label" id="reset-stats-label">Reset statistics</span>
+                    <span class="row-label" id="reset-stats-label" data-i18n="resetStats"></span>
                     <span class="row-desc" id="stats-since"></span>
                   </span>
                   <button type="button" id="reset-stats" class="btn btn-secondary"
-                    aria-labelledby="reset-stats-label" aria-describedby="stats-since">Reset</button>
+                    aria-labelledby="reset-stats-label" aria-describedby="stats-since"
+                    data-i18n="resetStatsButton"></button>
                 </div>
                 <!-- Resetting cannot be undone, so it asks first. -->
                 <div class="confirm-box" id="reset-stats-confirm" role="group"
                   aria-labelledby="reset-stats-question" hidden>
-                  <p class="confirm-title" id="reset-stats-question" tabindex="-1">Delete all
-                    statistics?</p>
-                  <p class="confirm-note">This can't be undone.</p>
+                  <p class="confirm-title" id="reset-stats-question" tabindex="-1"
+                    data-i18n="resetStatsQuestion"></p>
+                  <p class="confirm-note" data-i18n="resetStatsNote"></p>
                   <div class="backup-actions">
-                    <button type="button" id="reset-stats-delete" class="btn btn-danger">Delete
-                      statistics</button>
+                    <button type="button" id="reset-stats-delete" class="btn btn-danger"
+                      data-i18n="resetStatsDelete"></button>
                     <button type="button" id="reset-stats-cancel"
-                      class="btn btn-secondary">Cancel</button>
+                      class="btn btn-secondary" data-i18n="commonCancel"></button>
                   </div>
                 </div>
               </div>
@@ -753,14 +727,21 @@
         <section class="tab-panel" id="panel-settings" role="tabpanel"
           aria-labelledby="tab-settings" tabindex="0" hidden>
           <section class="section" aria-labelledby="appearance-heading">
-            <h2 class="section-title" id="appearance-heading">Appearance</h2>
+            <h2 class="section-title" id="appearance-heading" data-i18n="appearanceHeading"></h2>
             <div class="card">
               <label class="row field-row" for="color-theme">
-                <span class="row-label">Color mode</span>
+                <span class="row-label" data-i18n="colorMode"></span>
                 <select id="color-theme" class="field">
-                  <option value="system">System</option>
-                  <option value="dark">Dark</option>
-                  <option value="light">Light</option>
+                  <option value="system" data-i18n="colorModeSystem"></option>
+                  <option value="dark" data-i18n="colorModeDark"></option>
+                  <option value="light" data-i18n="colorModeLight"></option>
+                </select>
+              </label>
+              <!-- Then each language FrontFilter speaks, in its own words. -->
+              <label class="row field-row" for="language">
+                <span class="row-label" data-i18n="languageLabel"></span>
+                <select id="language" class="field">
+                  <option value="system" data-i18n="languageSystem"></option>
                 </select>
               </label>
             </div>
@@ -768,33 +749,33 @@
 
           <!-- Filled from the stored lock (popup/lock-card.js). -->
           <section class="section" aria-labelledby="lock-heading">
-            <h2 class="section-title" id="lock-heading" tabindex="-1">Settings lock</h2>
+            <h2 class="section-title" id="lock-heading" tabindex="-1" data-i18n="lockHeading"></h2>
             <div class="card lock-card">
               <div class="lock-summary">
                 <p class="lock-state" id="lock-state" hidden></p>
-                <p class="card-text" id="lock-text">Keep your settings strict until a date you
-                  choose: blocking or hiding more applies at once, and loosening them waits.</p>
+                <p class="card-text" id="lock-text" data-i18n="lockIntro"></p>
               </div>
               <div class="setting-group" id="lock-fields">
                 <label class="row field-row" for="lock-until">
-                  <span class="row-label">Locked until</span>
+                  <span class="row-label" data-i18n="lockUntilLabel"></span>
                   <input type="datetime-local" id="lock-until" class="field" />
                 </label>
                 <label class="row field-row" for="lock-delay">
-                  <span class="row-label">Loosening changes wait</span>
+                  <span class="row-label" data-i18n="lockDelayLabel"></span>
                   <select id="lock-delay" class="field"></select>
                 </label>
               </div>
               <div class="lock-actions">
-                <button type="button" id="lock-start" class="btn btn-primary">Lock
-                  settings…</button>
-                <button type="button" id="lock-change" class="btn btn-secondary"
-                  hidden>Change…</button>
-                <button type="button" id="lock-end" class="btn btn-secondary" hidden>End
-                  lock</button>
-                <button type="button" id="lock-save" class="btn btn-primary" hidden>Save</button>
+                <button type="button" id="lock-start" class="btn btn-primary"
+                  data-i18n="lockStart"></button>
+                <button type="button" id="lock-change" class="btn btn-secondary" data-i18n="lockChange"
+                  hidden></button>
+                <button type="button" id="lock-end" class="btn btn-secondary" data-i18n="lockEnd"
+                  hidden></button>
+                <button type="button" id="lock-save" class="btn btn-primary" data-i18n="lockSave"
+                  hidden></button>
                 <button type="button" id="lock-edit-cancel" class="btn btn-secondary"
-                  hidden>Cancel</button>
+                  data-i18n="commonCancel" hidden></button>
               </div>
               <!-- Locking asks first, saying what the lock will do. -->
               <div class="confirm-box" id="lock-confirm" role="group"
@@ -807,14 +788,15 @@
                 </label>
                 <div class="backup-actions">
                   <button type="button" id="lock-confirm-button" class="btn btn-primary"
-                    disabled>Lock</button>
+                    disabled></button>
                   <button type="button" id="lock-confirm-cancel"
-                    class="btn btn-secondary">Cancel</button>
+                    class="btn btn-secondary" data-i18n="commonCancel"></button>
                 </div>
               </div>
               <!-- What waits, and when it applies. -->
               <div class="lock-pending" id="lock-pending" hidden>
-                <h3 class="lock-pending-title" id="lock-pending-title">Waiting</h3>
+                <h3 class="lock-pending-title" id="lock-pending-title"
+                  data-i18n="lockPendingTitle"></h3>
                 <ul class="lock-pending-list" id="lock-pending-list"
                   aria-labelledby="lock-pending-title"></ul>
               </div>
@@ -822,43 +804,43 @@
           </section>
 
           <section class="section" aria-labelledby="backup-heading">
-            <h2 class="section-title" id="backup-heading">Configuration backup</h2>
+            <h2 class="section-title" id="backup-heading" data-i18n="backupHeading"></h2>
             <div class="card card-padded">
               <div class="backup-actions">
                 <button type="button" id="export-config" class="btn btn-secondary"
-                  aria-label="Export configuration">
+                  data-i18n-aria-label="exportLabel">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 2.5v8M4.75 7.25 8 10.5l3.25-3.25M3 13.5h10" />
                   </svg>
-                  Export
+                  <span data-i18n="exportButton"></span>
                 </button>
                 <button type="button" id="import-config" class="btn btn-secondary"
-                  aria-label="Import configuration">
+                  data-i18n-aria-label="importLabel">
                   <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
                     <path d="M8 10.5v-8M4.75 5.75 8 2.5l3.25 3.25M3 13.5h10" />
                   </svg>
-                  Import
+                  <span data-i18n="importButton"></span>
                 </button>
               </div>
               <input type="file" id="import-file" accept=".json,application/json" hidden />
               <!-- What an import would change, before it does. -->
               <div class="import-review" id="import-review" role="group"
                 aria-labelledby="import-review-title" hidden>
-                <p class="import-review-title" id="import-review-title" tabindex="-1">Import
-                  this file?</p>
+                <p class="import-review-title" id="import-review-title" tabindex="-1"></p>
                 <ul class="import-review-changes" id="import-review-changes"></ul>
-                <p class="import-review-note" id="import-review-note">Lists in the file replace
-                  yours. You can
-                  restore your current settings afterwards.</p>
+                <p class="import-review-note" id="import-review-note"></p>
                 <div class="backup-actions">
-                  <button type="button" id="import-confirm" class="btn btn-primary">Import</button>
-                  <button type="button" id="import-cancel" class="btn btn-secondary">Cancel</button>
+                  <button type="button" id="import-confirm" class="btn btn-primary"
+                    data-i18n="importButton"></button>
+                  <button type="button" id="import-cancel" class="btn btn-secondary"
+                    data-i18n="commonCancel"></button>
                 </div>
               </div>
               <!-- The settings the last import or restore replaced. -->
               <div class="backup-restore" id="backup-restore" hidden>
                 <p class="card-text" id="backup-restore-text"></p>
-                <button type="button" id="restore-backup" class="btn btn-secondary">Restore</button>
+                <button type="button" id="restore-backup" class="btn btn-secondary"
+                  data-i18n="restoreButton"></button>
               </div>
             </div>
           </section>
@@ -868,12 +850,12 @@
               <img src="../icons/icon-48.png" alt="" width="36" height="36" />
               <div class="about-text">
                 <h2 class="about-title" id="app-version">FrontFilter</h2>
-                <nav class="about-links" aria-label="Project links">
+                <nav class="about-links" data-i18n-aria-label="projectLinks">
                   <a href="https://github.com/fabiomolignoni/FrontFilter" target="_blank"
                     rel="noopener noreferrer">GitHub</a>
                   <span aria-hidden="true">&middot;</span>
                   <a href="https://github.com/fabiomolignoni/FrontFilter/issues" target="_blank"
-                    rel="noopener noreferrer">Report a bug</a>
+                    rel="noopener noreferrer" data-i18n="reportBug"></a>
                 </nav>
               </div>
             </div>
@@ -882,6 +864,7 @@
       </main>
     </div>
     <script src="../shared/core.js"></script>
+    <script src="../shared/i18n.js"></script>
     <script src="../shared/stats.js"></script>
     <script src="../shared/settings-lock.js"></script>
     <script src="stats-tab.js"></script>

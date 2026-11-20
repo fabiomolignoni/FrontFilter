@@ -1,0 +1,2449 @@
+{
+  "languageTag": {
+    "message": "de"
+  },
+  "extensionName": {
+    "message": "FrontFilter – Feed- und Ablenkungsblocker für Reddit"
+  },
+  "extensionDescription": {
+    "message": "Weniger Ablenkung auf Reddit: Blockiere Feeds und Subreddits, filtere Beiträge und Kommentare und begrenze endloses Scrollen."
+  },
+  "commonCancel": {
+    "message": "Abbrechen"
+  },
+  "commonClose": {
+    "message": "Schließen"
+  },
+  "commonUndo": {
+    "message": "Rückgängig"
+  },
+  "projectLinks": {
+    "message": "Projektlinks"
+  },
+  "reportBug": {
+    "message": "Fehler melden"
+  },
+  "settingsPageTitle": {
+    "message": "FrontFilter-Einstellungen"
+  },
+  "saveSaving": {
+    "message": "Wird gespeichert…"
+  },
+  "saveSaved": {
+    "message": "Gespeichert"
+  },
+  "saveFailed": {
+    "message": "Speichern fehlgeschlagen"
+  },
+  "saveFailedBecause": {
+    "message": "Speichern fehlgeschlagen: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "loadFailed": {
+    "message": "Einstellungen konnten nicht geladen werden: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "openInTab": {
+    "message": "Einstellungen in einem Tab öffnen"
+  },
+  "tabsLabel": {
+    "message": "Bereiche der Einstellungen"
+  },
+  "tabBlock": {
+    "message": "Blockieren"
+  },
+  "tabFilter": {
+    "message": "Filtern"
+  },
+  "tabSimplify": {
+    "message": "Vereinfachen"
+  },
+  "tabStats": {
+    "message": "Statistik"
+  },
+  "tabSettings": {
+    "message": "Einstellungen"
+  },
+  "settingInGroup": {
+    "message": "$GROUP$: $SETTING$",
+    "placeholders": {
+      "group": {
+        "content": "$1",
+        "example": "Hide navbar"
+      },
+      "setting": {
+        "content": "$2",
+        "example": "Search"
+      }
+    }
+  },
+  "groupSummaryHidden_one": {
+    "message": "$COUNT$ von $TOTAL$ ausgeblendet",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "total": {
+        "content": "$2",
+        "example": "5"
+      }
+    }
+  },
+  "groupSummaryHidden_other": {
+    "message": "$COUNT$ von $TOTAL$ ausgeblendet",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "5"
+      }
+    }
+  },
+  "currentBlock": {
+    "message": "Blockieren"
+  },
+  "currentAllow": {
+    "message": "Zulassen"
+  },
+  "currentBlockLabel": {
+    "message": "$PAGE$ blockieren",
+    "placeholders": {
+      "page": {
+        "content": "$1",
+        "example": "r/news"
+      }
+    }
+  },
+  "currentAllowLabel": {
+    "message": "$PAGE$ zulassen",
+    "placeholders": {
+      "page": {
+        "content": "$1",
+        "example": "r/news"
+      }
+    }
+  },
+  "currentNoSubreddit": {
+    "message": "Kein Subreddit im aktuellen Tab gefunden"
+  },
+  "currentTabUnavailable": {
+    "message": "Kein Zugriff auf den aktuellen Tab"
+  },
+  "currentBlocked": {
+    "message": "r/$SUBREDDIT$ überall blockiert",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "currentAllowedToast": {
+    "message": "r/$SUBREDDIT$ zugelassen",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "currentAllowed": {
+    "message": "Zugelassen, bleibt also offen"
+  },
+  "currentAllowedBy": {
+    "message": "Durch $RULE$ zugelassen, bleibt also offen",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news*"
+      }
+    }
+  },
+  "currentBlockedEverywhere": {
+    "message": "Überall blockiert"
+  },
+  "currentBlockedEverywhereBy": {
+    "message": "Durch $RULE$ überall blockiert",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news*"
+      }
+    }
+  },
+  "currentFrontBlocked": {
+    "message": "Hauptseite blockiert"
+  },
+  "currentFrontBlockedBy": {
+    "message": "Hauptseite durch $RULE$ blockiert",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news*"
+      }
+    }
+  },
+  "currentFrontBlockedWithAll": {
+    "message": "Hauptseite blockiert, wie bei allen Subreddits"
+  },
+  "currentNotBlocked": {
+    "message": "Nicht blockiert"
+  },
+  "currentHiddenBoth": {
+    "message": "$POSTS$ und $COMMENTS$ auf dieser Seite ausgeblendet",
+    "placeholders": {
+      "posts": {
+        "content": "$1",
+        "example": "3 posts"
+      },
+      "comments": {
+        "content": "$2",
+        "example": "2 comments"
+      }
+    }
+  },
+  "currentHiddenPosts_one": {
+    "message": "$COUNT$ Beitrag auf dieser Seite ausgeblendet",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "currentHiddenPosts_other": {
+    "message": "$COUNT$ Beiträge auf dieser Seite ausgeblendet",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentHiddenComments_one": {
+    "message": "$COUNT$ Kommentar auf dieser Seite ausgeblendet",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "currentHiddenComments_other": {
+    "message": "$COUNT$ Kommentare auf dieser Seite ausgeblendet",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentHiddenNothing": {
+    "message": "Nichts auf dieser Seite ausgeblendet"
+  },
+  "countPosts_one": {
+    "message": "$COUNT$ Beitrag",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "countPosts_other": {
+    "message": "$COUNT$ Beiträge",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "countComments_one": {
+    "message": "$COUNT$ Kommentar",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "countComments_other": {
+    "message": "$COUNT$ Kommentare",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "blockPagesHeading": {
+    "message": "Seiten blockieren"
+  },
+  "pageHomepage": {
+    "message": "Startseite"
+  },
+  "pageForYou": {
+    "message": "Für dich"
+  },
+  "pagePopular": {
+    "message": "Beliebt"
+  },
+  "pageExplore": {
+    "message": "Entdecken"
+  },
+  "pageNews": {
+    "message": "Neuigkeiten"
+  },
+  "pageAllSubredditFronts": {
+    "message": "Hauptseiten aller Subreddits"
+  },
+  "blockPageSetting": {
+    "message": "$PAGE$ blockieren",
+    "placeholders": {
+      "page": {
+        "content": "$1",
+        "example": "Popular"
+      }
+    }
+  },
+  "listAdd": {
+    "message": "Hinzufügen"
+  },
+  "listHelpPaste": {
+    "message": "Um mehrere auf einmal hinzuzufügen, füge eine Liste ein: ein Eintrag pro Zeile oder durch Kommas getrennt."
+  },
+  "listModeAllowed": {
+    "message": "Zugelassen"
+  },
+  "listModeHidden": {
+    "message": "Ausgeblendet"
+  },
+  "listModeHideLabel": {
+    "message": "Ausblenden oder zulassen"
+  },
+  "listRemove": {
+    "message": "Entfernen"
+  },
+  "listShowFewer": {
+    "message": "Weniger anzeigen"
+  },
+  "listShowAll_one": {
+    "message": "Alle anzeigen ($COUNT$)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "listShowAll_other": {
+    "message": "Alle $COUNT$ anzeigen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "listRemoved": {
+    "message": "„$RULE$“ entfernt",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "listUndoRemove": {
+    "message": "Entfernen von „$RULE$“ rückgängig machen",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "listSkipped_one": {
+    "message": "$MESSAGE$; $COUNT$ Eintrag konnte nicht verwendet werden",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "message": {
+        "content": "$2",
+        "example": "Added 3 rules"
+      }
+    }
+  },
+  "listSkipped_other": {
+    "message": "$MESSAGE$; $COUNT$ Einträge konnten nicht verwendet werden",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "message": {
+        "content": "$2",
+        "example": "Added 3 rules"
+      }
+    }
+  },
+  "subredditsTitle": {
+    "message": "Subreddits"
+  },
+  "subredditsHelpLabel": {
+    "message": "Hilfe zu Subreddits"
+  },
+  "subredditsDescription": {
+    "message": "Blockiere sie oder lass einige als Ausnahmen zu"
+  },
+  "subredditsAddLabel": {
+    "message": "Subreddit hinzufügen"
+  },
+  "subredditsHelpNameExample": {
+    "message": "news"
+  },
+  "subredditsHelpName": {
+    "message": "<strong>Hauptseite</strong> blockiert seinen Haupt-Feed, mit den Sortierungen Heiß, Neu, Top und Aufsteigend. <strong>Überall</strong> blockiert alle seine Seiten und blendet seine Beiträge in anderen Feeds aus."
+  },
+  "subredditsHelpPatternExample": {
+    "message": "news*"
+  },
+  "subredditsHelpPattern": {
+    "message": "Ein <code>*</code> steht für beliebigen Text: hier alle Subreddits, deren Name mit „news“ beginnt. <code>*</code> allein steht für alle."
+  },
+  "subredditsHelpExceptionExample": {
+    "message": "+worldnews"
+  },
+  "subredditsHelpException": {
+    "message": "Ein <code>+</code> davor oder <strong>Zugelassen</strong> macht daraus eine Ausnahme: Solche Subreddits bleiben offen, egal was diese Regeln oder „Hauptseiten aller Subreddits“ blockieren."
+  },
+  "subredditsHelpKeepFew": {
+    "message": "Um nur wenige Subreddits offen zu lassen, blockiere <code>*</code> überall und lass diese zu. Auch eine Reddit-URL funktioniert."
+  },
+  "subredditsSearch": {
+    "message": "Subreddits durchsuchen"
+  },
+  "subredditsModeFrontPage": {
+    "message": "Hauptseite"
+  },
+  "subredditsModeEverywhere": {
+    "message": "Überall"
+  },
+  "subredditsModeLabel": {
+    "message": "Blockieren oder zulassen"
+  },
+  "subredditsPlaceholder": {
+    "message": "Subreddit, Muster mit * oder Reddit-URL"
+  },
+  "subredditsRemove": {
+    "message": "Subreddit-Regel entfernen"
+  },
+  "subredditsEmpty": {
+    "message": "Noch keine Subreddits blockiert oder zugelassen"
+  },
+  "subredditsInvalid": {
+    "message": "Gib einen Subreddit-Namen, ein Muster mit * oder eine Reddit-URL ein"
+  },
+  "subredditsCount_one": {
+    "message": "$COUNT$ Regel",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "subredditsCount_other": {
+    "message": "$COUNT$ Regeln",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "subredditsAdded_one": {
+    "message": "$COUNT$ Regel hinzugefügt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "subredditsAdded_other": {
+    "message": "$COUNT$ Regeln hinzugefügt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "subredditsNoneNew": {
+    "message": "Keine neuen Regeln"
+  },
+  "subredditsNoMatch": {
+    "message": "Keine Regel passt zu „$SEARCH$“",
+    "placeholders": {
+      "search": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "blockButtonsHeading": {
+    "message": "Schaltflächen zum Blockieren"
+  },
+  "blockButtonsShow": {
+    "message": "Bei Beiträgen und auf Subreddit-Seiten anzeigen"
+  },
+  "blockPageHeading": {
+    "message": "Wenn eine Seite blockiert ist"
+  },
+  "blockPageHideSettings": {
+    "message": "Schaltfläche „Einstellungen öffnen“ ausblenden"
+  },
+  "blockPageRedirect": {
+    "message": "Zu einer anderen Website weiterleiten"
+  },
+  "blockPageAddress": {
+    "message": "Website-Adresse"
+  },
+  "blockPageAddressInvalid": {
+    "message": "Gib eine Website-Adresse ein, etwa example.com"
+  },
+  "suggestionsHeading": {
+    "message": "Vorschläge und Werbung"
+  },
+  "hideSuggestedPosts": {
+    "message": "Vorgeschlagene Beiträge ausblenden"
+  },
+  "hideSuggestedCommunities": {
+    "message": "Vorgeschlagene Communitys ausblenden"
+  },
+  "hideAds": {
+    "message": "Werbung und gesponserte Beiträge ausblenden"
+  },
+  "sensitiveHeading": {
+    "message": "Sensible Inhalte"
+  },
+  "hideNsfw": {
+    "message": "18+-Inhalte ausblenden"
+  },
+  "hideSpoilers": {
+    "message": "Spoiler ausblenden"
+  },
+  "keywordsTitle": {
+    "message": "Schlüsselwörter"
+  },
+  "keywordsHelpLabel": {
+    "message": "Hilfe zu Schlüsselwörtern"
+  },
+  "keywordsDescription": {
+    "message": "Blende Beiträge und Kommentare aus, die sie enthalten"
+  },
+  "keywordsAddLabel": {
+    "message": "Schlüsselwort hinzufügen"
+  },
+  "keywordsHelpWordExample": {
+    "message": "KI"
+  },
+  "keywordsHelpWord": {
+    "message": "Nur ganze Wörter: blendet „KI-Kunst“ aus, nicht „Skifahren“."
+  },
+  "keywordsHelpPrefixExample": {
+    "message": "Spoiler*"
+  },
+  "keywordsHelpPrefix": {
+    "message": "Ein <code>*</code> am Anfang oder Ende findet auch Teile von Wörtern, wie in „Spoilerwarnung“."
+  },
+  "keywordsHelpRegexExample": {
+    "message": "/katzen?/"
+  },
+  "keywordsHelpRegex": {
+    "message": "Zwischen Schrägstrichen: ein regulärer Ausdruck."
+  },
+  "keywordsHelpExceptionExample": {
+    "message": "+KI-Kunst"
+  },
+  "keywordsHelpException": {
+    "message": "Ein <code>+</code> davor oder <strong>Zugelassen</strong> macht daraus eine Ausnahme: Beiträge und Kommentare damit bleiben sichtbar, egal welche Schlüsselwörter sie sonst enthalten."
+  },
+  "keywordsHelpChecked": {
+    "message": "Geprüft werden Titel, Textvorschauen und Kommentare, ohne auf Groß- und Kleinschreibung, Akzente oder Umlaute zu achten. Antworten auf einen ausgeblendeten Kommentar werden ebenfalls ausgeblendet. Ausnahmen holen nichts zurück, was andere Filter ausblenden, etwa Beitrags-Flairs und Konten."
+  },
+  "keywordsSearch": {
+    "message": "Schlüsselwörter durchsuchen"
+  },
+  "keywordsPlaceholder": {
+    "message": "Wort, Wortgruppe oder /Regex/"
+  },
+  "keywordsLabel": {
+    "message": "Schlüsselwort, Wortgruppe oder regulärer Ausdruck"
+  },
+  "keywordsRemove": {
+    "message": "Schlüsselwort entfernen"
+  },
+  "keywordsEmpty": {
+    "message": "Noch keine Schlüsselwörter gefiltert"
+  },
+  "keywordsInvalid": {
+    "message": "Gib ein Schlüsselwort oder einen gültigen regulären Ausdruck zwischen Schrägstrichen ein"
+  },
+  "keywordsCount_one": {
+    "message": "$COUNT$ Schlüsselwort",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "keywordsCount_other": {
+    "message": "$COUNT$ Schlüsselwörter",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "keywordsAdded_one": {
+    "message": "$COUNT$ Schlüsselwort hinzugefügt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "keywordsAdded_other": {
+    "message": "$COUNT$ Schlüsselwörter hinzugefügt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "keywordsNoneNew": {
+    "message": "Keine neuen Schlüsselwörter"
+  },
+  "keywordsNoMatch": {
+    "message": "Kein Schlüsselwort passt zu „$SEARCH$“",
+    "placeholders": {
+      "search": {
+        "content": "$1",
+        "example": "art"
+      }
+    }
+  },
+  "flairsTitle": {
+    "message": "Beitrags-Flairs"
+  },
+  "flairsHelpLabel": {
+    "message": "Hilfe zu Beitrags-Flairs"
+  },
+  "flairsDescription": {
+    "message": "Blende Beiträge mit diesen Flairs aus"
+  },
+  "flairsAddLabel": {
+    "message": "Flair hinzufügen"
+  },
+  "flairsHelpPattern": {
+    "message": "Groß- und Kleinschreibung zählen nicht. Ein <code>*</code> steht für beliebigen Text: <code>*politik*</code> blendet „Politik“ und „Weltpolitik“ aus."
+  },
+  "flairsHelpException": {
+    "message": "Ein <code>+</code> vor einem Flair oder <strong>Zugelassen</strong> macht daraus eine Ausnahme: <code>*</code> mit <code>+Diskussion</code> blendet jeden Beitrag mit Flair aus, außer Diskussionen."
+  },
+  "flairsSearch": {
+    "message": "Flairs durchsuchen"
+  },
+  "flairsPlaceholder": {
+    "message": "Flair, etwa Meme oder *politik*"
+  },
+  "flairsLabel": {
+    "message": "Beitrags-Flair"
+  },
+  "flairsRemove": {
+    "message": "Flair entfernen"
+  },
+  "flairsEmpty": {
+    "message": "Noch keine Flairs gefiltert"
+  },
+  "flairsInvalid": {
+    "message": "Flairs dürfen höchstens 100 Zeichen lang sein"
+  },
+  "flairsCount_one": {
+    "message": "$COUNT$ Flair",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "flairsCount_other": {
+    "message": "$COUNT$ Flairs",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "flairsAdded_one": {
+    "message": "$COUNT$ Flair hinzugefügt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "flairsAdded_other": {
+    "message": "$COUNT$ Flairs hinzugefügt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "flairsNoneNew": {
+    "message": "Keine neuen Flairs"
+  },
+  "flairsNoMatch": {
+    "message": "Kein Flair passt zu „$SEARCH$“",
+    "placeholders": {
+      "search": {
+        "content": "$1",
+        "example": "meme"
+      }
+    }
+  },
+  "usersTitle": {
+    "message": "Konten"
+  },
+  "usersHelpLabel": {
+    "message": "Hilfe zu Konten"
+  },
+  "usersDescription": {
+    "message": "Blende ihre Beiträge und Kommentare aus"
+  },
+  "usersAddLabel": {
+    "message": "Konto hinzufügen"
+  },
+  "usersHelp": {
+    "message": "Ihre Beiträge und Kommentare werden überall ausgeblendet, samt den Antworten auf ihre Kommentare, und ihre Profile werden blockiert. Gib einen Namen, <code>u/Name</code> oder eine Profil-URL ein."
+  },
+  "usersSearch": {
+    "message": "Konten durchsuchen"
+  },
+  "usersPlaceholder": {
+    "message": "Nutzername, u/Name oder Profil-URL"
+  },
+  "usersRemove": {
+    "message": "Konto entfernen"
+  },
+  "usersEmpty": {
+    "message": "Noch keine Konten gefiltert"
+  },
+  "usersInvalid": {
+    "message": "Gib einen Nutzernamen wie u/Name oder eine Profil-URL ein"
+  },
+  "usersCount_one": {
+    "message": "$COUNT$ Konto",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "usersCount_other": {
+    "message": "$COUNT$ Konten",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "usersAdded_one": {
+    "message": "$COUNT$ Konto hinzugefügt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "usersAdded_other": {
+    "message": "$COUNT$ Konten hinzugefügt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "usersNoneNew": {
+    "message": "Keine neuen Konten"
+  },
+  "usersNoMatch": {
+    "message": "Kein Konto passt zu „$SEARCH$“",
+    "placeholders": {
+      "search": {
+        "content": "$1",
+        "example": "spez"
+      }
+    }
+  },
+  "limitsHeading": {
+    "message": "Scrollen begrenzen"
+  },
+  "scrollLimit": {
+    "message": "Scroll-Limit"
+  },
+  "scrollLimitCount": {
+    "message": "Beiträge auf einmal"
+  },
+  "limitAtLimit": {
+    "message": "Am Limit"
+  },
+  "limitModeStop": {
+    "message": "Keine weiteren anzeigen"
+  },
+  "limitModeOffer": {
+    "message": "Weitere auf Wunsch anzeigen"
+  },
+  "commentLimit": {
+    "message": "Kommentar-Limit"
+  },
+  "commentLimitCount": {
+    "message": "Kommentare auf einmal"
+  },
+  "scrollLimitInvalid": {
+    "message": "Gib als Anzahl der Beiträge eine positive ganze Zahl ein"
+  },
+  "commentLimitInvalid": {
+    "message": "Gib als Anzahl der Kommentare eine positive ganze Zahl ein"
+  },
+  "postsHeading": {
+    "message": "Beiträge und Kommentare"
+  },
+  "disableAutoplay": {
+    "message": "Videos nicht automatisch abspielen"
+  },
+  "socialGroupLabel": {
+    "message": "Sichtbarkeit von Votes und Profilinfos"
+  },
+  "socialTitle": {
+    "message": "Votes und Profilinfos ausblenden"
+  },
+  "hideVotes": {
+    "message": "Votes"
+  },
+  "hideKarma": {
+    "message": "Karma"
+  },
+  "hideAwards": {
+    "message": "Auszeichnungen"
+  },
+  "hideAvatars": {
+    "message": "Avatare"
+  },
+  "hideUsernames": {
+    "message": "Nutzernamen"
+  },
+  "commentsGroupLabel": {
+    "message": "Sichtbarkeit der Kommentare"
+  },
+  "commentsTitle": {
+    "message": "Kommentare ausblenden"
+  },
+  "commentsOnlyReplies": {
+    "message": "Nur Antworten ausgeblendet"
+  },
+  "hideReplies": {
+    "message": "Antworten"
+  },
+  "layoutHeading": {
+    "message": "Seitenlayout"
+  },
+  "navbarGroupLabel": {
+    "message": "Sichtbarkeit der Navigationsleiste"
+  },
+  "navbarTitle": {
+    "message": "Navigationsleiste ausblenden"
+  },
+  "navbarMenu": {
+    "message": "Menüschaltfläche"
+  },
+  "navbarSearch": {
+    "message": "Suche"
+  },
+  "navbarChat": {
+    "message": "Chat"
+  },
+  "navbarNotifications": {
+    "message": "Benachrichtigungen"
+  },
+  "navbarProfile": {
+    "message": "Profilmenü"
+  },
+  "navbarOthers": {
+    "message": "Weitere Schaltflächen"
+  },
+  "navbarOthersDescription": {
+    "message": "Etwa „Erstellen“ und „Werben“"
+  },
+  "leftSidebarGroupLabel": {
+    "message": "Sichtbarkeit der linken Seitenleiste"
+  },
+  "leftSidebarTitle": {
+    "message": "Linke Seitenleiste ausblenden"
+  },
+  "leftSidebarGames": {
+    "message": "Spiele"
+  },
+  "leftSidebarCustomFeeds": {
+    "message": "Benutzerdefinierte Feeds"
+  },
+  "leftSidebarRecent": {
+    "message": "Kürzlich besucht"
+  },
+  "leftSidebarCommunities": {
+    "message": "Communitys"
+  },
+  "leftSidebarResources": {
+    "message": "Ressourcen"
+  },
+  "hideRightSidebar": {
+    "message": "Rechte Seitenleiste ausblenden"
+  },
+  "statsPaused": {
+    "message": "Die Statistik ist pausiert: Nichts Neues wird gezählt."
+  },
+  "statsToday": {
+    "message": "Heute"
+  },
+  "statsHelpLabel": {
+    "message": "Hilfe zur Statistik"
+  },
+  "statsHelpTime": {
+    "message": "<strong>Zeit</strong> zählt, solange ein Reddit-Tab im Vordergrund ist und du in den letzten 5 Minuten darin gescrollt, geklickt oder getippt hast. Ein neuer Besuch beginnt nach 10 Minuten ohne Reddit."
+  },
+  "statsHelpBlocked": {
+    "message": "<strong>Blockierte Seiten</strong> zählt jeden Besuch, den FrontFilter verhindert hat. Solange blockierte Seiten zu einer anderen Website weiterleiten, zählen nur die, die von Reddits eigenen Seiten aus aufgerufen wurden."
+  },
+  "statsHelpHidden": {
+    "message": "<strong>Durch Filter ausgeblendet</strong> zählt jeden Beitrag und Kommentar, den deine Filter ausgeblendet haben, einmal pro Seite und für den ersten Filter, der ihn ausblendet, im aktuellen Design von Reddit."
+  },
+  "statsHelpAverage": {
+    "message": "Der Tagesdurchschnitt lässt heute aus, da der Tag noch nicht vorbei ist. Die Statistik verlässt nie dieses Gerät, und Tageswerte werden 30 Tage lang aufbewahrt."
+  },
+  "statsTileTime": {
+    "message": "Auf Reddit"
+  },
+  "statsTileVisits": {
+    "message": "Besuche"
+  },
+  "statsTileBlocked": {
+    "message": "Blockierte Seiten"
+  },
+  "statsTileHidden": {
+    "message": "Durch Filter ausgeblendet"
+  },
+  "statsInWeek": {
+    "message": "$VALUE$ in 7 Tagen",
+    "placeholders": {
+      "value": {
+        "content": "$1",
+        "example": "3 h 5 min"
+      }
+    }
+  },
+  "statsWeekHeading": {
+    "message": "Letzte 7 Tage"
+  },
+  "statsChartTitle": {
+    "message": "Zeit auf Reddit"
+  },
+  "statsDailyAverage": {
+    "message": "Tagesdurchschnitt"
+  },
+  "statsDayLabel_one": {
+    "message": "$DAY$: $TIME$, $COUNT$ Besuch",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "day": {
+        "content": "$2",
+        "example": "Friday, Nov 20"
+      },
+      "time": {
+        "content": "$3",
+        "example": "38 min"
+      }
+    }
+  },
+  "statsDayLabel_other": {
+    "message": "$DAY$: $TIME$, $COUNT$ Besuche",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      },
+      "day": {
+        "content": "$2",
+        "example": "Friday, Nov 20"
+      },
+      "time": {
+        "content": "$3",
+        "example": "38 min"
+      }
+    }
+  },
+  "statsChangeSame": {
+    "message": "Etwa gleich wie in der Vorwoche"
+  },
+  "statsChangeLess": {
+    "message": "$PERCENT$ weniger als in der Vorwoche",
+    "placeholders": {
+      "percent": {
+        "content": "$1",
+        "example": "12%"
+      }
+    }
+  },
+  "statsChangeMore": {
+    "message": "$PERCENT$ mehr als in der Vorwoche",
+    "placeholders": {
+      "percent": {
+        "content": "$1",
+        "example": "12%"
+      }
+    }
+  },
+  "statsBlockedMost": {
+    "message": "Am häufigsten blockiert"
+  },
+  "statsHiddenBy": {
+    "message": "Ausgeblendet durch"
+  },
+  "statsRankMore_one": {
+    "message": "Eine weitere",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "statsRankMore_other": {
+    "message": "$COUNT$ weitere",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "statsNothingBlocked": {
+    "message": "In den letzten 7 Tagen nichts blockiert"
+  },
+  "statsNothingHidden": {
+    "message": "In den letzten 7 Tagen nichts ausgeblendet"
+  },
+  "statsHiddenDetail": {
+    "message": "$POSTS$, $COMMENTS$",
+    "placeholders": {
+      "posts": {
+        "content": "$1",
+        "example": "3 posts"
+      },
+      "comments": {
+        "content": "$2",
+        "example": "2 comments"
+      }
+    }
+  },
+  "statsReasonSubreddits": {
+    "message": "Subreddits"
+  },
+  "statsReasonUsers": {
+    "message": "Konten"
+  },
+  "statsReasonKeywords": {
+    "message": "Schlüsselwörter"
+  },
+  "statsReasonFlairs": {
+    "message": "Flairs"
+  },
+  "statsReasonNsfw": {
+    "message": "18+"
+  },
+  "statsReasonSpoilers": {
+    "message": "Spoiler"
+  },
+  "statsReasonSuggested": {
+    "message": "Vorgeschlagene Beiträge"
+  },
+  "statsReasonAds": {
+    "message": "Werbung"
+  },
+  "statsPageSubredditFronts": {
+    "message": "Subreddit-Hauptseiten"
+  },
+  "statsOtherPages": {
+    "message": "Andere Seiten"
+  },
+  "statsSettingsHeading": {
+    "message": "Statistik"
+  },
+  "pauseStatistics": {
+    "message": "Statistik pausieren"
+  },
+  "resetStats": {
+    "message": "Statistik zurücksetzen"
+  },
+  "resetStatsButton": {
+    "message": "Zurücksetzen"
+  },
+  "resetStatsQuestion": {
+    "message": "Gesamte Statistik löschen?"
+  },
+  "resetStatsNote": {
+    "message": "Das kann nicht rückgängig gemacht werden."
+  },
+  "resetStatsDelete": {
+    "message": "Statistik löschen"
+  },
+  "statsNothingYet": {
+    "message": "Noch nichts gezählt"
+  },
+  "statsSince": {
+    "message": "Seit $DATE$: $TIME$ auf Reddit, $BLOCKED$, $HIDDEN$",
+    "placeholders": {
+      "date": {
+        "content": "$1",
+        "example": "Nov 20, 2026"
+      },
+      "time": {
+        "content": "$2",
+        "example": "12 h"
+      },
+      "blocked": {
+        "content": "$3",
+        "example": "3 pages blocked"
+      },
+      "hidden": {
+        "content": "$4",
+        "example": "45 hidden"
+      }
+    }
+  },
+  "statsSinceBlocked_one": {
+    "message": "$COUNT$ Seite blockiert",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "statsSinceBlocked_other": {
+    "message": "$COUNT$ Seiten blockiert",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "statsSinceHidden_one": {
+    "message": "$COUNT$ ausgeblendet",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "statsSinceHidden_other": {
+    "message": "$COUNT$ ausgeblendet",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "45"
+      }
+    }
+  },
+  "statsDeleted": {
+    "message": "Statistik gelöscht"
+  },
+  "statsDeleteFailed": {
+    "message": "Statistik konnte nicht gelöscht werden: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "durationUnderMinute": {
+    "message": "< 1 Min."
+  },
+  "durationMinutes": {
+    "message": "$MINUTES$ Min.",
+    "placeholders": {
+      "minutes": {
+        "content": "$1",
+        "example": "38"
+      }
+    }
+  },
+  "durationHours": {
+    "message": "$HOURS$ Std.",
+    "placeholders": {
+      "hours": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "durationHoursMinutes": {
+    "message": "$HOURS$ Std. $MINUTES$ Min.",
+    "placeholders": {
+      "hours": {
+        "content": "$1",
+        "example": "1"
+      },
+      "minutes": {
+        "content": "$2",
+        "example": "5"
+      }
+    }
+  },
+  "durationUnderMinuteCompact": {
+    "message": "<1min"
+  },
+  "durationMinutesCompact": {
+    "message": "$MINUTES$min",
+    "placeholders": {
+      "minutes": {
+        "content": "$1",
+        "example": "38"
+      }
+    }
+  },
+  "durationHoursCompact": {
+    "message": "$HOURS$h",
+    "placeholders": {
+      "hours": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "appearanceHeading": {
+    "message": "Darstellung"
+  },
+  "colorMode": {
+    "message": "Farbmodus"
+  },
+  "colorModeSystem": {
+    "message": "System"
+  },
+  "colorModeDark": {
+    "message": "Dunkel"
+  },
+  "colorModeLight": {
+    "message": "Hell"
+  },
+  "languageLabel": {
+    "message": "Sprache"
+  },
+  "languageSystem": {
+    "message": "System"
+  },
+  "lockHeading": {
+    "message": "Einstellungssperre"
+  },
+  "lockIntro": {
+    "message": "Halte deine Einstellungen bis zu einem Datum deiner Wahl streng: Mehr zu blockieren oder auszublenden gilt sofort, Lockerungen müssen warten."
+  },
+  "lockUntilLabel": {
+    "message": "Gesperrt bis"
+  },
+  "lockDelayLabel": {
+    "message": "Lockerungen warten"
+  },
+  "lockStart": {
+    "message": "Einstellungen sperren…"
+  },
+  "lockChange": {
+    "message": "Ändern…"
+  },
+  "lockEnd": {
+    "message": "Sperre beenden"
+  },
+  "lockSave": {
+    "message": "Speichern"
+  },
+  "lockPendingTitle": {
+    "message": "Ausstehend"
+  },
+  "lockBannerDetails": {
+    "message": "Details"
+  },
+  "lockDelayUntilEnd": {
+    "message": "Bis zum Ende der Sperre"
+  },
+  "lockDays_one": {
+    "message": "$COUNT$ Tag",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "lockDays_other": {
+    "message": "$COUNT$ Tage",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "lockHours_one": {
+    "message": "$COUNT$ Stunde",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "lockHours_other": {
+    "message": "$COUNT$ Stunden",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "lockMinutes_one": {
+    "message": "$COUNT$ Minute",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "lockMinutes_other": {
+    "message": "$COUNT$ Minuten",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "15"
+      }
+    }
+  },
+  "lockChooseEnd": {
+    "message": "Wähle, wann die Sperre endet"
+  },
+  "lockChooseFuture": {
+    "message": "Wähle einen Zeitpunkt in der Zukunft"
+  },
+  "lockChooseDelay": {
+    "message": "Wähle, wie lange Änderungen warten"
+  },
+  "lockAlreadyLocked": {
+    "message": "Die Einstellungen sind bereits gesperrt"
+  },
+  "lockChangeEnd": {
+    "message": "Sperre beenden"
+  },
+  "lockChangeEndOn": {
+    "message": "Sperre am $TIME$ beenden",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockChangeDelayUntilEnd": {
+    "message": "Lockerungen bis zum Ende der Sperre warten lassen"
+  },
+  "lockChangeDelay": {
+    "message": "Lockerungen $DURATION$ warten lassen",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "1 day"
+      }
+    }
+  },
+  "lockChangeSubredditFront": {
+    "message": "r/$SUBREDDIT$ nur auf seiner Hauptseite blockieren",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "lockChangeSubredditRemove": {
+    "message": "r/$SUBREDDIT$ entfernen",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "lockChangeSubredditAllow": {
+    "message": "r/$SUBREDDIT$ zulassen",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "lockChangeUserRemove": {
+    "message": "u/$USER$ entfernen",
+    "placeholders": {
+      "user": {
+        "content": "$1",
+        "example": "spez"
+      }
+    }
+  },
+  "lockChangeKeywordRemove": {
+    "message": "Schlüsselwort „$KEYWORD$“ entfernen",
+    "placeholders": {
+      "keyword": {
+        "content": "$1",
+        "example": "ai"
+      }
+    }
+  },
+  "lockChangeKeywordAllow": {
+    "message": "Schlüsselwort „$KEYWORD$“ zulassen",
+    "placeholders": {
+      "keyword": {
+        "content": "$1",
+        "example": "ai art"
+      }
+    }
+  },
+  "lockChangeFlairRemove": {
+    "message": "Flair „$FLAIR$“ entfernen",
+    "placeholders": {
+      "flair": {
+        "content": "$1",
+        "example": "Meme"
+      }
+    }
+  },
+  "lockChangeFlairAllow": {
+    "message": "Flair „$FLAIR$“ zulassen",
+    "placeholders": {
+      "flair": {
+        "content": "$1",
+        "example": "Discussion"
+      }
+    }
+  },
+  "lockChangeScrollLimit_one": {
+    "message": "$LIMIT$: $COUNT$ Beitrag auf einmal",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "limit": {
+        "content": "$2",
+        "example": "Scroll limit"
+      }
+    }
+  },
+  "lockChangeScrollLimit_other": {
+    "message": "$LIMIT$: $COUNT$ Beiträge auf einmal",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "50"
+      },
+      "limit": {
+        "content": "$2",
+        "example": "Scroll limit"
+      }
+    }
+  },
+  "lockChangeCommentLimit_one": {
+    "message": "$LIMIT$: $COUNT$ Kommentar auf einmal",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "limit": {
+        "content": "$2",
+        "example": "Comment limit"
+      }
+    }
+  },
+  "lockChangeCommentLimit_other": {
+    "message": "$LIMIT$: $COUNT$ Kommentare auf einmal",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "20"
+      },
+      "limit": {
+        "content": "$2",
+        "example": "Comment limit"
+      }
+    }
+  },
+  "lockChangeLimitMode": {
+    "message": "$LIMIT$: weitere auf Wunsch anzeigen",
+    "placeholders": {
+      "limit": {
+        "content": "$1",
+        "example": "Scroll limit"
+      }
+    }
+  },
+  "lockChangeTurnOff": {
+    "message": "„$SETTING$“ deaktivieren",
+    "placeholders": {
+      "setting": {
+        "content": "$1",
+        "example": "Hide ads and promoted posts"
+      }
+    }
+  },
+  "lockChangesFromImport_one": {
+    "message": "$COUNT$ Änderung aus deinem Import",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "lockChangesFromImport_other": {
+    "message": "$COUNT$ Änderungen aus deinem Import",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "lockChangesFromRestore_one": {
+    "message": "$COUNT$ Änderung aus deiner Wiederherstellung",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "lockChangesFromRestore_other": {
+    "message": "$COUNT$ Änderungen aus deiner Wiederherstellung",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "lockChangeAndMore_one": {
+    "message": "$CHANGE$ und eine weitere",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "change": {
+        "content": "$2",
+        "example": "Remove r/news"
+      }
+    }
+  },
+  "lockChangeAndMore_other": {
+    "message": "$CHANGE$ und $COUNT$ weitere",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "change": {
+        "content": "$2",
+        "example": "Remove r/news"
+      }
+    }
+  },
+  "lockWhenEnds": {
+    "message": "bis zum Ende der Sperre am $TIME$",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockWhen": {
+    "message": "bis $TIME$",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockRefused": {
+    "message": "Die Sperre bleibt bis $TIME$: Eine Lockerung müsste bis dahin warten",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockChangeWaits": {
+    "message": "$CHANGE$: wartet $WHEN$",
+    "placeholders": {
+      "change": {
+        "content": "$1",
+        "example": "Remove r/news"
+      },
+      "when": {
+        "content": "$2",
+        "example": "until Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockChangesWait_one": {
+    "message": "$COUNT$ Änderung wartet $WHEN$",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "when": {
+        "content": "$2",
+        "example": "until Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockChangesWait_other": {
+    "message": "$COUNT$ Änderungen warten $WHEN$",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      },
+      "when": {
+        "content": "$2",
+        "example": "until Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockAppliesNow": {
+    "message": "Gilt jetzt"
+  },
+  "lockWaits": {
+    "message": "Wartet $WHEN$",
+    "placeholders": {
+      "when": {
+        "content": "$1",
+        "example": "until Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockCancelChange": {
+    "message": "Abbrechen: $CHANGE$",
+    "placeholders": {
+      "change": {
+        "content": "$1",
+        "example": "Remove r/news"
+      }
+    }
+  },
+  "lockLockedUntil": {
+    "message": "Gesperrt bis $TIME$",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockLockedTextUntilEnd": {
+    "message": "Änderungen, die deine Einstellungen lockern, warten bis zum Ende der Sperre."
+  },
+  "lockLockedText": {
+    "message": "Änderungen, die deine Einstellungen lockern, warten $DURATION$ oder bis zum Ende der Sperre.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "1 day"
+      }
+    }
+  },
+  "lockBannerWaiting_one": {
+    "message": "Gesperrt bis $TIME$ · $COUNT$ Änderung ausstehend",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "time": {
+        "content": "$2",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockBannerWaiting_other": {
+    "message": "Gesperrt bis $TIME$ · $COUNT$ Änderungen ausstehend",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "time": {
+        "content": "$2",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockConfirmTitle": {
+    "message": "Einstellungen für $DURATION$ sperren?",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "7 days"
+      }
+    }
+  },
+  "lockConfirmUntil": {
+    "message": "Bis $TIME$.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockConfirmStricter": {
+    "message": "Mehr zu blockieren oder auszublenden gilt sofort."
+  },
+  "lockConfirmLooser": {
+    "message": "Lockerungen deiner Einstellungen, etwa das Entfernen einer Regel, das Zulassen eines Subreddits oder das Ausschalten eines Filters, warten $DURATION$.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "1 day"
+      }
+    }
+  },
+  "lockConfirmLooserUntilEnd": {
+    "message": "Lockerungen deiner Einstellungen, etwa das Entfernen einer Regel, das Zulassen eines Subreddits oder das Ausschalten eines Filters, warten bis zum Ende der Sperre."
+  },
+  "lockConfirmNoEarlyEnd": {
+    "message": "Die Sperre kann nicht vorzeitig enden."
+  },
+  "lockConfirmEarlyEnd": {
+    "message": "Auch ein vorzeitiges Ende der Sperre wartet $DURATION$.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "1 day"
+      }
+    }
+  },
+  "lockConfirmGrace": {
+    "message": "Eine Änderung oder die Sperre selbst kannst du noch $DURATION$ lang zurücknehmen.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "15 minutes"
+      }
+    }
+  },
+  "lockConfirmFree": {
+    "message": "Werbung, Avatare, Auszeichnungen, Nutzernamen, die Ressourcen der Seitenleiste, die Schaltflächen zum Blockieren, die Einstellungen für blockierte Seiten, der Farbmodus, die Sprache und die Statistik bleiben frei änderbar."
+  },
+  "lockAcknowledgeUntil": {
+    "message": "Mir ist klar, dass ich meine Einstellungen bis $TIME$ nicht lockern kann",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockAcknowledgeWait": {
+    "message": "Mir ist klar, dass das Lockern meiner Einstellungen $DURATION$ dauert",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "1 day"
+      }
+    }
+  },
+  "lockConfirmButton": {
+    "message": "Für $DURATION$ sperren",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "7 days"
+      }
+    }
+  },
+  "lockStarted": {
+    "message": "Einstellungen gesperrt bis $TIME$",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockStartFailed": {
+    "message": "Einstellungen konnten nicht gesperrt werden: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Choose a time in the future"
+      }
+    }
+  },
+  "lockChangeFailed": {
+    "message": "Sperre konnte nicht geändert werden: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Choose a time in the future"
+      }
+    }
+  },
+  "lockChanged": {
+    "message": "Sperre geändert"
+  },
+  "lockEnded": {
+    "message": "Sperre beendet"
+  },
+  "lockChangeCancelled": {
+    "message": "Änderung abgebrochen"
+  },
+  "lockChangeAlreadyApplied": {
+    "message": "Diese Änderung gilt bereits"
+  },
+  "lockCancelFailed": {
+    "message": "Änderung konnte nicht abgebrochen werden: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "backupHeading": {
+    "message": "Sicherung der Konfiguration"
+  },
+  "exportLabel": {
+    "message": "Konfiguration exportieren"
+  },
+  "exportButton": {
+    "message": "Exportieren"
+  },
+  "importLabel": {
+    "message": "Konfiguration importieren"
+  },
+  "importButton": {
+    "message": "Importieren"
+  },
+  "restoreButton": {
+    "message": "Wiederherstellen"
+  },
+  "exportDone": {
+    "message": "Konfiguration exportiert!"
+  },
+  "exportFailed": {
+    "message": "Export fehlgeschlagen: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "importNotAnObject": {
+    "message": "Ungültige Konfiguration: JSON-Objekt erwartet"
+  },
+  "importNoSettings": {
+    "message": "Ungültige Konfiguration: keine bekannten Schlüssel"
+  },
+  "importInvalidValues": {
+    "message": "Ungültige Konfigurationswerte: $KEYS$",
+    "placeholders": {
+      "keys": {
+        "content": "$1",
+        "example": "scrollLimit, theme"
+      }
+    }
+  },
+  "importListReplaced": {
+    "message": "$LIST$: $COUNT$, ersetzt",
+    "placeholders": {
+      "list": {
+        "content": "$1",
+        "example": "Subreddits"
+      },
+      "count": {
+        "content": "$2",
+        "example": "3 rules"
+      }
+    }
+  },
+  "importListResized": {
+    "message": "$LIST$: $BEFORE$ → $AFTER$",
+    "placeholders": {
+      "list": {
+        "content": "$1",
+        "example": "Subreddits"
+      },
+      "before": {
+        "content": "$2",
+        "example": "2"
+      },
+      "after": {
+        "content": "$3",
+        "example": "3 rules"
+      }
+    }
+  },
+  "importOtherSettings_one": {
+    "message": "$COUNT$ weitere Einstellung",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "importOtherSettings_other": {
+    "message": "$COUNT$ weitere Einstellungen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "importSettings_one": {
+    "message": "$COUNT$ Einstellung",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "importSettings_other": {
+    "message": "$COUNT$ Einstellungen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "importQuestion": {
+    "message": "Diese Datei importieren?"
+  },
+  "importSameSettings": {
+    "message": "Diese Datei entspricht deinen Einstellungen"
+  },
+  "importNote": {
+    "message": "Listen aus der Datei ersetzen deine. Deine aktuellen Einstellungen kannst du danach wiederherstellen."
+  },
+  "importNoteLocked": {
+    "message": "Listen aus der Datei ersetzen deine, aber solange die Einstellungen gesperrt sind, wartet, was sie lockert. Deine aktuellen Einstellungen kannst du danach wiederherstellen."
+  },
+  "importFailed": {
+    "message": "Import fehlgeschlagen: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Unexpected token"
+      }
+    }
+  },
+  "importDone": {
+    "message": "Konfiguration importiert!"
+  },
+  "importChooseFile": {
+    "message": "Klicke auf „Importieren“, um die Datei auszuwählen"
+  },
+  "restoreNothing": {
+    "message": "keine gespeicherten Einstellungen zum Wiederherstellen"
+  },
+  "restoreDone": {
+    "message": "Einstellungen wiederhergestellt"
+  },
+  "restoreFailed": {
+    "message": "Wiederherstellung fehlgeschlagen: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "no saved settings to restore"
+      }
+    }
+  },
+  "backupBeforeImport": {
+    "message": "Deine Einstellungen vor deinem Import ($TIME$)",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Nov 20, 2026, 3:00 PM"
+      }
+    }
+  },
+  "backupBeforeRestore": {
+    "message": "Deine Einstellungen vor deiner Wiederherstellung ($TIME$)",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Nov 20, 2026, 3:00 PM"
+      }
+    }
+  },
+  "blockedPageTitle": {
+    "message": "Inhalt blockiert · FrontFilter"
+  },
+  "blockedContent": {
+    "message": "Dieser Inhalt ist blockiert"
+  },
+  "blockedHomepage": {
+    "message": "Die Reddit-Startseite ist blockiert"
+  },
+  "blockedPopular": {
+    "message": "Die Seite „Beliebt“ ist blockiert"
+  },
+  "blockedExplore": {
+    "message": "Die Seite „Entdecken“ ist blockiert"
+  },
+  "blockedNews": {
+    "message": "Die Seite „Neuigkeiten“ ist blockiert"
+  },
+  "blockedSubredditFronts": {
+    "message": "Die Hauptseiten der Subreddits sind blockiert"
+  },
+  "blockedSubreddit": {
+    "message": "r/$SUBREDDIT$ ist blockiert",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "blockedUser": {
+    "message": "u/$USER$ ist blockiert",
+    "placeholders": {
+      "user": {
+        "content": "$1",
+        "example": "spez"
+      }
+    }
+  },
+  "blockedByRule": {
+    "message": "Blockiert durch die Regel $RULE$",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news*"
+      }
+    }
+  },
+  "blockedGoBack": {
+    "message": "Zurück"
+  },
+  "blockedOpenSettings": {
+    "message": "Einstellungen öffnen"
+  },
+  "blockedUndo": {
+    "message": "Blockierung aufheben"
+  },
+  "quickBlockButton": {
+    "message": "Blockieren"
+  },
+  "quickBlockTitle": {
+    "message": "r/$SUBREDDIT$ mit FrontFilter überall ausblenden",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockLabel": {
+    "message": "r/$SUBREDDIT$ mit FrontFilter blockieren",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockDone": {
+    "message": "r/$SUBREDDIT$ blockiert",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockAlready": {
+    "message": "r/$SUBREDDIT$ ist bereits blockiert",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockFailed": {
+    "message": "r/$SUBREDDIT$ konnte nicht blockiert werden: $ERROR$",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      },
+      "error": {
+        "content": "$2",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "quickBlockUndoneToFront": {
+    "message": "r/$SUBREDDIT$ ist nur auf seiner Hauptseite blockiert",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockUndone": {
+    "message": "r/$SUBREDDIT$ nicht mehr blockiert",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockUndoFailed": {
+    "message": "Blockierung von r/$SUBREDDIT$ konnte nicht aufgehoben werden: $ERROR$",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      },
+      "error": {
+        "content": "$2",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "feedLimitShowNext_one": {
+    "message": "Nächsten Beitrag anzeigen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitShowNext_other": {
+    "message": "Nächste $COUNT$ anzeigen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "25"
+      }
+    }
+  },
+  "feedLimitShowRemaining_one": {
+    "message": "Letzten Beitrag anzeigen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitShowRemaining_other": {
+    "message": "Restliche $COUNT$ anzeigen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "7"
+      }
+    }
+  },
+  "feedLimitProgress_one": {
+    "message": "$SHOWN$ / $COUNT$ Beitrag",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "shown": {
+        "content": "$2",
+        "example": "31"
+      }
+    }
+  },
+  "feedLimitProgress_other": {
+    "message": "$SHOWN$ / $COUNT$ Beiträge",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "50"
+      },
+      "shown": {
+        "content": "$2",
+        "example": "31"
+      }
+    }
+  },
+  "feedLimitLoading_one": {
+    "message": "$SHOWN$ / $COUNT$ Beitrag · Wird geladen…",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "shown": {
+        "content": "$2",
+        "example": "31"
+      }
+    }
+  },
+  "feedLimitLoading_other": {
+    "message": "$SHOWN$ / $COUNT$ Beiträge · Wird geladen…",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "50"
+      },
+      "shown": {
+        "content": "$2",
+        "example": "31"
+      }
+    }
+  },
+  "feedLimitEnd_one": {
+    "message": "Ende des Feeds · $COUNT$ Beitrag angezeigt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitEnd_other": {
+    "message": "Ende des Feeds · $COUNT$ Beiträge angezeigt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
+  },
+  "feedLimitShown_one": {
+    "message": "$COUNT$ Beitrag angezeigt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitShown_other": {
+    "message": "$COUNT$ Beiträge angezeigt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "25"
+      }
+    }
+  },
+  "feedLimitReached_one": {
+    "message": "$COUNT$ Beitrag angezeigt · Limit erreicht",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitReached_other": {
+    "message": "$COUNT$ Beiträge angezeigt · Limit erreicht",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "25"
+      }
+    }
+  },
+  "feedLimitNoResults": {
+    "message": "Der Feed liefert keine Ergebnisse. Versuche es erneut."
+  },
+  "feedLimitCannotLoad": {
+    "message": "Dieser Feed konnte keine weiteren Beiträge laden. Versuche es erneut."
+  },
+  "feedLimitStuck": {
+    "message": "Reddit hat den Feed nicht weitergeladen. Versuche es erneut."
+  },
+  "feedLimitNoMatches": {
+    "message": "Auf den letzten Seiten wurden keine passenden Beiträge gefunden. Versuche es erneut, um fortzufahren."
+  },
+  "feedLimitLoadFailed": {
+    "message": "Die nächste Gruppe konnte nicht geladen werden. Versuche es erneut."
+  },
+  "feedLimitEmptyPages_one": {
+    "message": "Auf der letzten Seite blieben nach dem Filtern keine Beiträge übrig.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitEmptyPages_other": {
+    "message": "Auf den letzten $COUNT$ Seiten blieben nach dem Filtern keine Beiträge übrig.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "feedLimitLoadMore": {
+    "message": "Mehr laden"
+  },
+  "feedLimitRetry": {
+    "message": "Erneut versuchen"
+  },
+  "commentLimitShown_one": {
+    "message": "$COUNT$ Kommentar angezeigt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "commentLimitShown_other": {
+    "message": "$COUNT$ Kommentare angezeigt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "10"
+      }
+    }
+  },
+  "commentLimitReached_one": {
+    "message": "$COUNT$ Kommentar angezeigt · Limit erreicht",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "commentLimitReached_other": {
+    "message": "$COUNT$ Kommentare angezeigt · Limit erreicht",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "10"
+      }
+    }
+  },
+  "commentLimitShowNext_one": {
+    "message": "Nächsten Kommentar anzeigen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "commentLimitShowNext_other": {
+    "message": "Nächste $COUNT$ anzeigen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "10"
+      }
+    }
+  },
+  "commentLimitShowRemaining_one": {
+    "message": "Letzten Kommentar anzeigen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "commentLimitShowRemaining_other": {
+    "message": "Restliche $COUNT$ anzeigen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "4"
+      }
+    }
+  }
+}

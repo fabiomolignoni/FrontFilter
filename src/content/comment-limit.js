@@ -13,6 +13,7 @@ FrontFilter.createCommentLimiter = function ({ getSettings, isBlocked }) {
   const COMMENT = FrontFilter.SELECTORS.comment;
   const POSTS = FrontFilter.posts;
   const VIEW = FrontFilter.limitView;
+  const { plural } = FrontFilter.i18n;
   // The comment tree being limited. In it, top-level comments, ad slots
   // and loaders stay hidden until marked visible (feed-limit.css), so none
   // shows before the limit has counted it.
@@ -127,9 +128,12 @@ FrontFilter.createCommentLimiter = function ({ getSettings, isBlocked }) {
       controls.remove();
       return;
     }
-    let message = `${shown} ${shown === 1 ? "comment" : "comments"} shown`;
-    if (current.mode === "fixed") message += " · Limit reached";
-    const label = !loadable && held <= size ? `Show remaining ${held}` : `Show next ${size}`;
+    const message = current.mode === "fixed"
+      ? plural("commentLimitReached", shown)
+      : plural("commentLimitShown", shown);
+    const label = !loadable && held <= size
+      ? plural("commentLimitShowRemaining", held)
+      : plural("commentLimitShowNext", size);
     if (status.textContent !== message) status.textContent = message;
     if (button.textContent !== label) button.textContent = label;
     // Outside the tree, which Reddit renders.

@@ -1333,6 +1333,30 @@ class PageTests:
 
     # One-click Block buttons
 
+    def test_text_on_reddit_speaks_the_language_chosen_in_the_settings(self):
+        # Content scripts get a chosen language's messages from the background.
+        self.js("resetFeed([post('one', 'alpha', {credit: true}), post('two', 'beta', {credit: true})])")
+        self.expect(["one", "two"])
+        self.configure(
+            showBlockSubredditButton=True, limitInfiniteScroll=True, scrollLimit=1, scrollMode="button",
+            language="it",
+        )
+        self.expect(["one"])
+        button = "document.querySelector('.frontfilter-block-subreddit')"
+        controls = "return document.querySelector('.frontfilter-feed-controls')?.textContent || ''"
+        self.wait_until(lambda: self.js(f"return {button}?.textContent") == "Blocca")
+        self.assertEqual(self.js(f"return {button}.getAttribute('aria-label')"), "Blocca r/alpha con FrontFilter")
+        self.wait_until(lambda: "1 post mostrato" in self.js(controls))
+        self.assertIn("Mostra il prossimo", self.js(controls))
+        # So does the Retry button, hidden until a page fails to load,
+        # which the limit made before the messages came.
+        self.assertIn("Riprova", self.js(controls))
+        # Back in the browser's language, English here, the text follows.
+        self.configure(language="system")
+        self.wait_until(lambda: self.js(f"return {button}?.textContent") == "Block")
+        self.wait_until(lambda: "1 post shown" in self.js(controls))
+        self.assertIn("Retry", self.js(controls))
+
     def test_feed_block_buttons_undo_and_visibility_rules(self):
         # The buttons are off by default. The page is r/test, so its own posts
         # get none, and allowed subreddits get none either.
