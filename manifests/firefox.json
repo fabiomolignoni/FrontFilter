@@ -8,6 +8,7 @@
   "background": {
     "scripts": [
       "shared/core.js",
+      "shared/i18n.js",
       "shared/stats.js",
       "shared/settings-lock.js",
       "background/navigation-rules.js",

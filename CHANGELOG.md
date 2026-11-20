@@ -8,6 +8,10 @@ Notable changes to FrontFilter, newest first.
 
 - **For You**, in **Block pages**, blocks Home's For You feed: Home opens on
   Following, and no longer shows the For You tab or its posts.
+- FrontFilter speaks French, German, Italian, Portuguese, in Brazil's words
+  and in Portugal's, and Spanish. **Language**, in the **Settings** tab,
+  chooses the language of its pages and of what it adds to Reddit's: the
+  system's, by default, or one FrontFilter speaks.
 
 ### Changed
 
@@ -28,12 +32,21 @@ Notable changes to FrontFilter, newest first.
   that report a problem stay at least 4 seconds.
 - **Post flairs**, in the **Filter** tab, says what the list does, as the
   other lists do.
+- The settings page drops the line under **Hide suggested posts**, **Hide
+  spoilers** and **Pause statistics**: their names say what they do.
+- Dates, times and numbers are written as the language of FrontFilter's
+  text writes them, in the system's variant of it, such as British English:
+  English text no longer holds dates written in another language.
+- The settings page's tabs show their names alone when they are too long to
+  fit beside their icons.
 - FrontFilter no longer converts settings saved by versions before 3.0 when
   it updates: every installation updated to 3.0 has them converted already.
   Files exported by those versions still import with their meaning.
 
 ### Fixed
 
+- The scroll limit says “1 post shown”, no longer “1 posts shown”, when it
+  shows one post.
 - A `*` subreddit rule no longer redirects `reddit.com/r/`, which names no
   subreddit.
 - With the scroll limit on, a Reddit tab could keep in memory the feeds it

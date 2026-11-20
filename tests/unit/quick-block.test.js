@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const vm = require("node:vm");
-const { createDocument, runScripts, settle } = require("./helpers");
+const { createDocument, fakeFetch, fakeI18n, runScripts, settle } = require("./helpers");
 
 // A Home feed with posts from three subreddits and a profile, and a
 // subreddit header, in the markup the Block buttons rely on.
@@ -59,6 +59,7 @@ function loadQuickBlock({
     document: page.document,
     window: { location },
     chrome: {
+      i18n: fakeI18n(),
       storage: {
         local: {
           get: async (key) => ({ [key]: stored[key] }),
@@ -72,7 +73,7 @@ function loadQuickBlock({
     },
   });
   runScripts(context, [
-    "shared/core.js", "content/selectors.js", "content/posts.js", "content/quick-block.js",
+    "shared/core.js", "shared/i18n.js", "content/selectors.js", "content/posts.js", "content/quick-block.js",
   ]);
   const quickBlock = context.FrontFilter.createQuickBlock({
     getSettings: () => settings,
@@ -82,6 +83,7 @@ function loadQuickBlock({
 
   const toast = () => page.document.querySelector(".frontfilter-block-toast");
   return {
+    context,
     quickBlock,
     settings,
     location,
@@ -257,4 +259,20 @@ test("reports a block that could not be saved", async () => {
   await settle();
   assert.equal(page.toastText(), "Could not block r/worldnews: storage unavailable");
   assert.equal(page.quickBlock.takeUndo("worldnews"), "");
+});
+
+test("relabels its buttons in a language chosen once they show", async () => {
+  const page = loadQuickBlock();
+  const { i18n } = page.context.FrontFilter;
+  const load = (tag) => {
+    page.context.fetch = fakeFetch();
+    page.context.chrome.runtime = { getURL: (path) => `chrome-extension://frontfilter/${path}` };
+    return i18n.fetchMessages(tag);
+  };
+  assert.equal(await i18n.use("it", load), true);
+  page.quickBlock.relabel();
+  const button = page.button("news");
+  assert.equal(button.textContent, "Blocca");
+  assert.equal(button.title, "Nascondi r/news ovunque con FrontFilter");
+  assert.equal(button.getAttribute("aria-label"), "Blocca r/news con FrontFilter");
 });

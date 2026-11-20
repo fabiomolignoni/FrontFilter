@@ -29,7 +29,7 @@ Block buttons on Reddit:
 - keywords and post flairs you filter, and keywords you allow;
 - the pages, page elements, and features you choose to hide or limit;
 - the website blocked pages lead to, if you choose one;
-- your color theme; and
+- your color theme and language; and
 - your settings lock, if you set one: until when it lasts, how long changes
   that loosen your settings wait, and the changes that wait, with when they
   were made.
@@ -97,8 +97,9 @@ advertising, profiling, or any other purpose, and no person reviews it.
 - **Settings lock:** a lock you set is kept in the same local storage until
   it ends, when the changes that waited apply and it is deleted. It is not
   part of exported configurations.
-- **Theme cache:** your color theme is also cached in the extension's own
-  local storage, so its pages open in the right colors.
+- **Theme and language cache:** your color theme and language are also
+  cached in the extension's own local storage, so its pages open in the
+  right colors and language.
 - **Undo marker:** a one-click block made on a subreddit's own page stores a
   short-lived marker so the block page can offer **Undo block**. It is valid
   for 10 seconds and is deleted by the block page.

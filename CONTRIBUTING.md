@@ -66,8 +66,9 @@ pull request. Run the browser tests yourself when you change page behavior.
   except the canary described below.
 - **Update the documentation.** Change the README when features change, and
   [PRIVACY.md](PRIVACY.md) when permissions or data handling change.
-- **Write in English** for code, interface text, documentation, and commit
-  messages.
+- **Write in English** for code, documentation, and commit messages. Write
+  interface text in `src/_locales/en/messages.json`, never in code or markup:
+  see [Translations](#translations).
 - **Commit only source.** Never commit generated packages, browser profiles,
   exported settings, credentials, or personal data.
 
@@ -116,6 +117,75 @@ To fix a change:
 The canary cannot sign in, so features shown only to signed-in users and Old
 Reddit, which now requires an account, need checking by hand. Keep it light:
 it should load a handful of pages. Never commit snapshots.
+
+## Translations
+
+FrontFilter's text is in `src/_locales/`: `en/messages.json` holds English,
+the default, and each other folder a translation. By default, browsers show
+the translation for their own language, and English for any message it
+lacks; **Language**, in the settings, chooses another. Scripts ask for
+messages by name (`src/shared/i18n.js`), and pages name theirs with
+`data-i18n` attributes.
+
+To add a language:
+
+1. Copy `src/_locales/en/messages.json` to a folder named as browsers name
+   the language: `it`, `de`, `pt_BR`.
+2. Translate each `message`. Keep the `placeholders` as they are: browsers
+   need each translation's own. `$NAME$` marks where a placeholder's value
+   goes, and the placeholder's `example` shows one: word the message so
+   that it reads right with any value, as an article before a date may not
+   (Italian writes “dal 20” but “dall'8”), nor a case that changes a
+   number's word (German writes “innerhalb von 2 Tagen”, not “Tage”). The
+   `description`s are for translators, and can be left out.
+3. Call Reddit's pages, sorts and buttons what Reddit calls them in the
+   language, and keep one word for each thing throughout. Where Reddit words
+   a thing differently by region, as its Spanish for Spain and for Mexico,
+   choose a word that reads right in each, or name the thing as both do.
+   Where the regions part further, in their words and in how they address
+   the reader, as Portuguese does in Brazil and in Portugal, give each region
+   a folder of its own, `pt_BR` and `pt_PT`, with every message: what a
+   folder lacks shows in English, not in the other region's words.
+4. Set `languageTag` to the language, with a hyphen: `pt-BR`. Dates and
+   numbers are written as it writes them: a translation for a region, as
+   the region does; one for a whole language, as the browser's variant of
+   it does.
+5. A message whose name ends in `_one` or `_other` counts something. Add the
+   forms the language uses, such as `_few` and `_many` for Polish, by
+   [Unicode's plural rules](https://www.unicode.org/cldr/charts/latest/supplemental/language_plural_rules.html).
+   A form that would read as `_other` can be left out, as Italian's `_many`:
+   `_other` stands in for any form missing. Mind which counts a form covers:
+   French's `_one` is for 0 as well as 1, and so is Brazilian Portuguese's,
+   but not European Portuguese's.
+6. Keep `<strong>` and `<code>` tags around the words they mark: no other
+   markup shows. Follow the language's typography, its quotation marks and
+   apostrophes included, and write a space that must not break as an escape,
+   so that it shows: French puts `\u00a0` before a colon and `\u202f`
+   before ; ! ? and inside « ».
+7. `extensionName` and `extensionDescription` are the extension's name and
+   description in the browser and the stores: at most 75 and 132
+   characters.
+8. Add the language to `LANGUAGES` in `src/shared/core.js`, so that the
+   settings offer it, in the order of the languages' own names. A region's
+   name follows in brackets, as in “Português (Brasil)”.
+
+`npm test` checks every translation against English: messages English does
+not have, placeholders other than English's, and the stores' limits; and
+that `LANGUAGES` lists every folder. A
+right-to-left language also needs the pages' styles checked, as they lay
+out left to right.
+
+When you change interface text:
+
+- Write whole sentences, with placeholders for what changes, rather than
+  pieces joined in code: word order and agreement differ between languages.
+- Write a message that counts as a plural family, with `_one` and `_other`
+  forms and the count as its first placeholder, and show it with `plural()`.
+- Name messages with a literal string in `t()`, `plural()` and `parts()`,
+  so the tests find them: `npm test` fails on a message that is missing,
+  and on one that nothing uses.
+- Rename a message whose meaning changes, so that no translation shows the
+  old meaning for the new one.
 
 ## Releasing
 

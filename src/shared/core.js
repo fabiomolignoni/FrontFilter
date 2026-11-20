@@ -5,6 +5,11 @@
  */
 
 var FrontFilter = (() => {
+  // The languages FrontFilter speaks, by their folders in _locales/, with a
+  // hyphen for a region: pt-BR's folder is pt_BR. The settings list them in
+  // this order, which is that of their names in their own words.
+  const LANGUAGES = Object.freeze(["de", "en", "es", "fr", "it", "pt-BR", "pt-PT"]);
+
   const DEFAULT_SETTINGS = Object.freeze({
     blockedSubreddits: Object.freeze([]),
     allowedSubreddits: Object.freeze([]),
@@ -68,6 +73,8 @@ var FrontFilter = (() => {
     commentLimit: 10,
     commentLimitMode: "fixed",
     theme: "system",
+    // The interface's language: the browser's, or one of LANGUAGES.
+    language: "system",
     // The statistics themselves are not settings (shared/stats.js).
     pauseStatistics: false,
   });
@@ -598,6 +605,7 @@ var FrontFilter = (() => {
     scrollMode: Object.freeze(["fixed", "button"]),
     commentLimitMode: Object.freeze(["fixed", "button"]),
     theme: Object.freeze(["system", "dark", "light"]),
+    language: Object.freeze(["system", ...LANGUAGES]),
   });
 
   // How many posts or comments a limit shows: a positive whole number.
@@ -868,6 +876,7 @@ var FrontFilter = (() => {
   }
 
   return {
+    LANGUAGES,
     STORAGE_KEYS,
     SETTING_GROUPS,
     NAVIGATION_STORAGE_KEYS,

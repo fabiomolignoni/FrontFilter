@@ -1,0 +1,2773 @@
+{
+  "languageTag": {
+    "message": "en",
+    "description": "Not shown: this translation's language, as a BCP 47 tag such as it or pt-BR. Dates and numbers follow it."
+  },
+  "extensionName": {
+    "message": "FrontFilter - Reddit Feed & Distraction Blocker",
+    "description": "The extension's name in Chrome and the Chrome Web Store, at most 75 characters. Keep FrontFilter."
+  },
+  "extensionDescription": {
+    "message": "Make Reddit less distracting: block feeds and subreddits, filter posts and comments, and limit endless scrolling.",
+    "description": "The extension's description in the browser and the stores, at most 132 characters."
+  },
+  "commonCancel": {
+    "message": "Cancel",
+    "description": "A button that closes a question without doing anything."
+  },
+  "commonClose": {
+    "message": "Close",
+    "description": "A button that closes a review of a file that changes nothing."
+  },
+  "commonUndo": {
+    "message": "Undo",
+    "description": "A button that takes back what was just done."
+  },
+  "projectLinks": {
+    "message": "Project links",
+    "description": "Read by screen readers: the links to the project's website."
+  },
+  "reportBug": {
+    "message": "Report a bug",
+    "description": "A link to the project's issue tracker."
+  },
+  "settingsPageTitle": {
+    "message": "FrontFilter Settings",
+    "description": "The settings page's title, in its tab."
+  },
+  "saveSaving": {
+    "message": "Saving…",
+    "description": "Beside the title while a change is being saved."
+  },
+  "saveSaved": {
+    "message": "Saved",
+    "description": "Beside the title once a change is saved."
+  },
+  "saveFailed": {
+    "message": "Save failed",
+    "description": "Beside the title when a change could not be saved."
+  },
+  "saveFailedBecause": {
+    "message": "Save failed: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "loadFailed": {
+    "message": "Could not load settings: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "openInTab": {
+    "message": "Open settings in a tab",
+    "description": "The button that opens the popup's settings in a tab."
+  },
+  "tabsLabel": {
+    "message": "Settings sections",
+    "description": "Read by screen readers: the row of tabs."
+  },
+  "tabBlock": {
+    "message": "Block",
+    "description": "A tab: the pages and subreddits FrontFilter blocks."
+  },
+  "tabFilter": {
+    "message": "Filter",
+    "description": "A tab: the posts and comments FrontFilter hides."
+  },
+  "tabSimplify": {
+    "message": "Simplify",
+    "description": "A tab: limits and parts of Reddit's pages to hide."
+  },
+  "tabStats": {
+    "message": "Stats",
+    "description": "A tab: statistics."
+  },
+  "tabSettings": {
+    "message": "Settings",
+    "description": "A tab: appearance, the settings lock and backups."
+  },
+  "settingInGroup": {
+    "message": "$GROUP$: $SETTING$",
+    "description": "A setting named with its group or section, as in what the settings lock makes wait.",
+    "placeholders": {
+      "group": {
+        "content": "$1",
+        "example": "Hide navbar"
+      },
+      "setting": {
+        "content": "$2",
+        "example": "Search"
+      }
+    }
+  },
+  "groupSummaryHidden_one": {
+    "message": "$COUNT$ of $TOTAL$ hidden",
+    "description": "Under a group of switches that are partly on. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "total": {
+        "content": "$2",
+        "example": "5"
+      }
+    }
+  },
+  "groupSummaryHidden_other": {
+    "message": "$COUNT$ of $TOTAL$ hidden",
+    "description": "Under a group of switches that are partly on. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "5"
+      }
+    }
+  },
+  "currentBlock": {
+    "message": "Block",
+    "description": "Blocks the subreddit open in the current tab."
+  },
+  "currentAllow": {
+    "message": "Allow",
+    "description": "Makes an exception of the subreddit open in the current tab."
+  },
+  "currentBlockLabel": {
+    "message": "Block $PAGE$",
+    "description": "Read by screen readers: the card's Block button.",
+    "placeholders": {
+      "page": {
+        "content": "$1",
+        "example": "r/news"
+      }
+    }
+  },
+  "currentAllowLabel": {
+    "message": "Allow $PAGE$",
+    "description": "Read by screen readers: the card's Allow button.",
+    "placeholders": {
+      "page": {
+        "content": "$1",
+        "example": "r/news"
+      }
+    }
+  },
+  "currentNoSubreddit": {
+    "message": "No subreddit found on current tab"
+  },
+  "currentTabUnavailable": {
+    "message": "Could not access current tab"
+  },
+  "currentBlocked": {
+    "message": "r/$SUBREDDIT$ blocked everywhere",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "currentAllowedToast": {
+    "message": "r/$SUBREDDIT$ allowed",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "currentAllowed": {
+    "message": "Allowed, so it stays open",
+    "description": "What the rules do to the subreddit in the current tab."
+  },
+  "currentAllowedBy": {
+    "message": "Allowed by $RULE$, so it stays open",
+    "description": "What the rules do to the subreddit in the current tab, by a pattern.",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news*"
+      }
+    }
+  },
+  "currentBlockedEverywhere": {
+    "message": "Blocked everywhere",
+    "description": "What the rules do to the subreddit in the current tab."
+  },
+  "currentBlockedEverywhereBy": {
+    "message": "Blocked everywhere by $RULE$",
+    "description": "What the rules do to the subreddit in the current tab, by a pattern.",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news*"
+      }
+    }
+  },
+  "currentFrontBlocked": {
+    "message": "Front page blocked",
+    "description": "What the rules do to the subreddit in the current tab."
+  },
+  "currentFrontBlockedBy": {
+    "message": "Front page blocked by $RULE$",
+    "description": "What the rules do to the subreddit in the current tab, by a pattern.",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news*"
+      }
+    }
+  },
+  "currentFrontBlockedWithAll": {
+    "message": "Front page blocked, like every subreddit's",
+    "description": "The subreddit in the current tab, while All subreddit front pages is on."
+  },
+  "currentNotBlocked": {
+    "message": "Not blocked",
+    "description": "What the rules do to the subreddit in the current tab."
+  },
+  "currentHiddenBoth": {
+    "message": "$POSTS$ and $COMMENTS$ hidden on this page",
+    "placeholders": {
+      "posts": {
+        "content": "$1",
+        "example": "3 posts"
+      },
+      "comments": {
+        "content": "$2",
+        "example": "2 comments"
+      }
+    }
+  },
+  "currentHiddenPosts_one": {
+    "message": "$COUNT$ post hidden on this page",
+    "description": "Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "currentHiddenPosts_other": {
+    "message": "$COUNT$ posts hidden on this page",
+    "description": "Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentHiddenComments_one": {
+    "message": "$COUNT$ comment hidden on this page",
+    "description": "Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "currentHiddenComments_other": {
+    "message": "$COUNT$ comments hidden on this page",
+    "description": "Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentHiddenNothing": {
+    "message": "Nothing hidden on this page"
+  },
+  "countPosts_one": {
+    "message": "$COUNT$ post",
+    "description": "A number of posts, within other messages. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "countPosts_other": {
+    "message": "$COUNT$ posts",
+    "description": "A number of posts, within other messages. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "countComments_one": {
+    "message": "$COUNT$ comment",
+    "description": "A number of comments, within other messages. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "countComments_other": {
+    "message": "$COUNT$ comments",
+    "description": "A number of comments, within other messages. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "blockPagesHeading": {
+    "message": "Block pages"
+  },
+  "pageHomepage": {
+    "message": "Homepage",
+    "description": "Reddit's home page."
+  },
+  "pageForYou": {
+    "message": "For You",
+    "description": "Reddit's For You feed, on its home page, as Reddit names it."
+  },
+  "pagePopular": {
+    "message": "Popular",
+    "description": "Reddit's Popular page, as Reddit names it."
+  },
+  "pageExplore": {
+    "message": "Explore",
+    "description": "Reddit's Explore page, as Reddit names it."
+  },
+  "pageNews": {
+    "message": "News",
+    "description": "Reddit's News page, as Reddit names it."
+  },
+  "pageAllSubredditFronts": {
+    "message": "All subreddit front pages",
+    "description": "Blocks the front page of every subreddit."
+  },
+  "blockPageSetting": {
+    "message": "Block $PAGE$",
+    "description": "A page's switch named on its own, as in what the settings lock makes wait.",
+    "placeholders": {
+      "page": {
+        "content": "$1",
+        "example": "Popular"
+      }
+    }
+  },
+  "listAdd": {
+    "message": "Add",
+    "description": "Adds a row to a list of rules."
+  },
+  "listHelpPaste": {
+    "message": "Paste a list, one per line or separated by commas, to add several at once."
+  },
+  "listModeAllowed": {
+    "message": "Allowed",
+    "description": "A rule's badge: the rule is an exception, which keeps what it matches."
+  },
+  "listModeHidden": {
+    "message": "Hidden",
+    "description": "A keyword or flair rule's badge: what it matches is hidden."
+  },
+  "listModeHideLabel": {
+    "message": "Hide or allow",
+    "description": "Read by screen readers: a keyword or flair rule's badge."
+  },
+  "listRemove": {
+    "message": "Remove",
+    "description": "The tooltip of a rule's × button."
+  },
+  "listShowFewer": {
+    "message": "Show fewer",
+    "description": "Folds a long list of rules."
+  },
+  "listShowAll_one": {
+    "message": "Show all $COUNT$",
+    "description": "Unfolds a long list of rules. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "listShowAll_other": {
+    "message": "Show all $COUNT$",
+    "description": "Unfolds a long list of rules. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "listRemoved": {
+    "message": "Removed “$RULE$”",
+    "description": "Where a removed rule was, beside Undo.",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "listUndoRemove": {
+    "message": "Undo removing “$RULE$”",
+    "description": "Read by screen readers: the Undo button.",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "listSkipped_one": {
+    "message": "$MESSAGE$; $COUNT$ entry could not be used",
+    "description": "After pasting a list: $MESSAGE$ says what was added. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "message": {
+        "content": "$2",
+        "example": "Added 3 rules"
+      }
+    }
+  },
+  "listSkipped_other": {
+    "message": "$MESSAGE$; $COUNT$ entries could not be used",
+    "description": "After pasting a list: $MESSAGE$ says what was added. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "message": {
+        "content": "$2",
+        "example": "Added 3 rules"
+      }
+    }
+  },
+  "subredditsTitle": {
+    "message": "Subreddits",
+    "description": "The list of subreddit rules."
+  },
+  "subredditsHelpLabel": {
+    "message": "About subreddits",
+    "description": "Read by screen readers: the list's ? button."
+  },
+  "subredditsDescription": {
+    "message": "Block them, or allow some as exceptions"
+  },
+  "subredditsAddLabel": {
+    "message": "Add a subreddit",
+    "description": "Read by screen readers: the list's Add button."
+  },
+  "subredditsHelpNameExample": {
+    "message": "news",
+    "description": "An example rule: a subreddit's name."
+  },
+  "subredditsHelpName": {
+    "message": "<strong>Front page</strong> blocks its main feed, with its hot, new, top and rising views. <strong>Everywhere</strong> blocks all its pages, and hides its posts from other feeds.",
+    "description": "Front page and Everywhere are the rule's badges. Keep the <strong> and <code> tags around the words they mark."
+  },
+  "subredditsHelpPatternExample": {
+    "message": "news*",
+    "description": "An example rule: a pattern. Match the example below."
+  },
+  "subredditsHelpPattern": {
+    "message": "A <code>*</code> matches any text: every subreddit whose name starts with “news”. <code>*</code> alone matches them all.",
+    "description": "Keep the <strong> and <code> tags around the words they mark."
+  },
+  "subredditsHelpExceptionExample": {
+    "message": "+worldnews",
+    "description": "An example rule: an exception, written with a +."
+  },
+  "subredditsHelpException": {
+    "message": "A <code>+</code> before it, or <strong>Allowed</strong>, makes an exception: it stays open, whatever these rules or “All subreddit front pages” block.",
+    "description": "Allowed is the rule's badge; All subreddit front pages a switch. Keep the <strong> and <code> tags around the words they mark."
+  },
+  "subredditsHelpKeepFew": {
+    "message": "To keep only a few subreddits, block <code>*</code> everywhere and allow them. A Reddit URL works too.",
+    "description": "Keep the <strong> and <code> tags around the words they mark."
+  },
+  "subredditsSearch": {
+    "message": "Search subreddits",
+    "description": "The search field of a long list."
+  },
+  "subredditsModeFrontPage": {
+    "message": "Front page",
+    "description": "A subreddit rule's badge: it blocks the subreddit's front page."
+  },
+  "subredditsModeEverywhere": {
+    "message": "Everywhere",
+    "description": "A subreddit rule's badge: it blocks all the subreddit's pages and hides its posts."
+  },
+  "subredditsModeLabel": {
+    "message": "Block or allow",
+    "description": "Read by screen readers: a subreddit rule's badge."
+  },
+  "subredditsPlaceholder": {
+    "message": "Subreddit, wildcard, or Reddit URL",
+    "description": "An empty subreddit rule's field."
+  },
+  "subredditsRemove": {
+    "message": "Remove subreddit rule",
+    "description": "Read by screen readers: a rule's × button."
+  },
+  "subredditsEmpty": {
+    "message": "No subreddits blocked or allowed yet"
+  },
+  "subredditsInvalid": {
+    "message": "Enter a subreddit name, a pattern with *, or a Reddit URL"
+  },
+  "subredditsCount_one": {
+    "message": "$COUNT$ rule",
+    "description": "Beside the list's title. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "subredditsCount_other": {
+    "message": "$COUNT$ rules",
+    "description": "Beside the list's title. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "subredditsAdded_one": {
+    "message": "Added $COUNT$ rule",
+    "description": "After pasting a list. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "subredditsAdded_other": {
+    "message": "Added $COUNT$ rules",
+    "description": "After pasting a list. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "subredditsNoneNew": {
+    "message": "No new rules",
+    "description": "After pasting a list of rules the list already has."
+  },
+  "subredditsNoMatch": {
+    "message": "No rules match “$SEARCH$”",
+    "placeholders": {
+      "search": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "blockButtonsHeading": {
+    "message": "Block buttons",
+    "description": "The Block buttons FrontFilter adds to Reddit's pages."
+  },
+  "blockButtonsShow": {
+    "message": "Show on posts and subreddit pages"
+  },
+  "blockPageHeading": {
+    "message": "When a page is blocked"
+  },
+  "blockPageHideSettings": {
+    "message": "Hide the Open settings button",
+    "description": "Open settings is a button of the block page."
+  },
+  "blockPageRedirect": {
+    "message": "Redirect to another website"
+  },
+  "blockPageAddress": {
+    "message": "Website address"
+  },
+  "blockPageAddressInvalid": {
+    "message": "Enter a website address, such as example.com"
+  },
+  "suggestionsHeading": {
+    "message": "Suggestions and ads"
+  },
+  "hideSuggestedPosts": {
+    "message": "Hide suggested posts"
+  },
+  "hideSuggestedCommunities": {
+    "message": "Hide suggested communities"
+  },
+  "hideAds": {
+    "message": "Hide ads and promoted posts"
+  },
+  "sensitiveHeading": {
+    "message": "Sensitive content"
+  },
+  "hideNsfw": {
+    "message": "Hide NSFW content"
+  },
+  "hideSpoilers": {
+    "message": "Hide spoilers"
+  },
+  "keywordsTitle": {
+    "message": "Keywords",
+    "description": "The list of keyword rules."
+  },
+  "keywordsHelpLabel": {
+    "message": "About keywords",
+    "description": "Read by screen readers: the list's ? button."
+  },
+  "keywordsDescription": {
+    "message": "Hide posts and comments that contain them"
+  },
+  "keywordsAddLabel": {
+    "message": "Add a keyword",
+    "description": "Read by screen readers: the list's Add button."
+  },
+  "keywordsHelpWordExample": {
+    "message": "ai",
+    "description": "An example rule: a word. Match the examples below."
+  },
+  "keywordsHelpWord": {
+    "message": "Whole words only: hides “AI art”, not “said”.",
+    "description": "Pick texts that contain the example word, as a word and inside another word."
+  },
+  "keywordsHelpPrefixExample": {
+    "message": "spoiler*",
+    "description": "An example rule: a word that ends with *."
+  },
+  "keywordsHelpPrefix": {
+    "message": "A <code>*</code> at an end matches inside words too, as in “spoilers”.",
+    "description": "Keep the <strong> and <code> tags around the words they mark."
+  },
+  "keywordsHelpRegexExample": {
+    "message": "/colou?r/",
+    "description": "An example rule: a regular expression."
+  },
+  "keywordsHelpRegex": {
+    "message": "Between slashes, a regular expression."
+  },
+  "keywordsHelpExceptionExample": {
+    "message": "+ai art",
+    "description": "An example rule: an exception, written with a +."
+  },
+  "keywordsHelpException": {
+    "message": "A <code>+</code> before it, or <strong>Allowed</strong>, makes an exception: what contains it stays, whatever keywords it contains.",
+    "description": "Allowed is the rule's badge. Keep the <strong> and <code> tags around the words they mark."
+  },
+  "keywordsHelpChecked": {
+    "message": "Titles, text previews and comments are checked, ignoring case and accents. Replies to a hidden comment hide too. Exceptions keep nothing other filters hide, such as post flairs and users."
+  },
+  "keywordsSearch": {
+    "message": "Search keywords",
+    "description": "The search field of a long list."
+  },
+  "keywordsPlaceholder": {
+    "message": "Keyword, phrase, or /regex/",
+    "description": "An empty keyword rule's field."
+  },
+  "keywordsLabel": {
+    "message": "Keyword, phrase, or regular expression",
+    "description": "Read by screen readers: a keyword rule's field."
+  },
+  "keywordsRemove": {
+    "message": "Remove keyword",
+    "description": "Read by screen readers: a rule's × button."
+  },
+  "keywordsEmpty": {
+    "message": "No keywords filtered yet"
+  },
+  "keywordsInvalid": {
+    "message": "Enter a keyword, or a valid regular expression between slashes"
+  },
+  "keywordsCount_one": {
+    "message": "$COUNT$ keyword",
+    "description": "Beside the list's title. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "keywordsCount_other": {
+    "message": "$COUNT$ keywords",
+    "description": "Beside the list's title. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "keywordsAdded_one": {
+    "message": "Added $COUNT$ keyword",
+    "description": "After pasting a list. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "keywordsAdded_other": {
+    "message": "Added $COUNT$ keywords",
+    "description": "After pasting a list. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "keywordsNoneNew": {
+    "message": "No new keywords",
+    "description": "After pasting a list of keywords the list already has."
+  },
+  "keywordsNoMatch": {
+    "message": "No keywords match “$SEARCH$”",
+    "placeholders": {
+      "search": {
+        "content": "$1",
+        "example": "art"
+      }
+    }
+  },
+  "flairsTitle": {
+    "message": "Post flairs",
+    "description": "The list of flair rules: the tags subreddits give posts."
+  },
+  "flairsHelpLabel": {
+    "message": "About post flairs",
+    "description": "Read by screen readers: the list's ? button."
+  },
+  "flairsDescription": {
+    "message": "Hide the posts that carry them"
+  },
+  "flairsAddLabel": {
+    "message": "Add a flair",
+    "description": "Read by screen readers: the list's Add button."
+  },
+  "flairsHelpPattern": {
+    "message": "Matching ignores case. A <code>*</code> matches any text: <code>*politic*</code> hides “Politics” and “US politics”.",
+    "description": "The example pattern and the flairs it hides go together. Keep the <strong> and <code> tags around the words they mark."
+  },
+  "flairsHelpException": {
+    "message": "A <code>+</code> before a flair, or <strong>Allowed</strong>, makes an exception: <code>*</code> with <code>+Discussion</code> hides every post with a flair but discussions.",
+    "description": "Allowed is the rule's badge. Keep the <strong> and <code> tags around the words they mark."
+  },
+  "flairsSearch": {
+    "message": "Search flairs",
+    "description": "The search field of a long list."
+  },
+  "flairsPlaceholder": {
+    "message": "Flair, e.g. Meme or *politic*",
+    "description": "An empty flair rule's field."
+  },
+  "flairsLabel": {
+    "message": "Post flair",
+    "description": "Read by screen readers: a flair rule's field."
+  },
+  "flairsRemove": {
+    "message": "Remove flair",
+    "description": "Read by screen readers: a rule's × button."
+  },
+  "flairsEmpty": {
+    "message": "No flairs filtered yet"
+  },
+  "flairsInvalid": {
+    "message": "Flairs can be at most 100 characters long"
+  },
+  "flairsCount_one": {
+    "message": "$COUNT$ flair",
+    "description": "Beside the list's title. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "flairsCount_other": {
+    "message": "$COUNT$ flairs",
+    "description": "Beside the list's title. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "flairsAdded_one": {
+    "message": "Added $COUNT$ flair",
+    "description": "After pasting a list. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "flairsAdded_other": {
+    "message": "Added $COUNT$ flairs",
+    "description": "After pasting a list. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "flairsNoneNew": {
+    "message": "No new flairs",
+    "description": "After pasting a list of flairs the list already has."
+  },
+  "flairsNoMatch": {
+    "message": "No flairs match “$SEARCH$”",
+    "placeholders": {
+      "search": {
+        "content": "$1",
+        "example": "meme"
+      }
+    }
+  },
+  "usersTitle": {
+    "message": "Users",
+    "description": "The list of users whose posts and comments hide."
+  },
+  "usersHelpLabel": {
+    "message": "About users",
+    "description": "Read by screen readers: the list's ? button."
+  },
+  "usersDescription": {
+    "message": "Hide their posts and comments"
+  },
+  "usersAddLabel": {
+    "message": "Add a user",
+    "description": "Read by screen readers: the list's Add button."
+  },
+  "usersHelp": {
+    "message": "Their posts and comments hide everywhere, with the replies to their comments, and their profiles are blocked. Enter a name, <code>u/name</code> or a profile URL.",
+    "description": "Keep the <strong> and <code> tags around the words they mark."
+  },
+  "usersSearch": {
+    "message": "Search users",
+    "description": "The search field of a long list."
+  },
+  "usersPlaceholder": {
+    "message": "Username, u/name, or profile URL",
+    "description": "An empty user rule's field."
+  },
+  "usersRemove": {
+    "message": "Remove user",
+    "description": "Read by screen readers: a rule's × button."
+  },
+  "usersEmpty": {
+    "message": "No users filtered yet"
+  },
+  "usersInvalid": {
+    "message": "Enter a username, such as u/name, or a profile URL"
+  },
+  "usersCount_one": {
+    "message": "$COUNT$ user",
+    "description": "Beside the list's title. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "usersCount_other": {
+    "message": "$COUNT$ users",
+    "description": "Beside the list's title. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "usersAdded_one": {
+    "message": "Added $COUNT$ user",
+    "description": "After pasting a list. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "usersAdded_other": {
+    "message": "Added $COUNT$ users",
+    "description": "After pasting a list. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "usersNoneNew": {
+    "message": "No new users",
+    "description": "After pasting a list of users the list already has."
+  },
+  "usersNoMatch": {
+    "message": "No users match “$SEARCH$”",
+    "placeholders": {
+      "search": {
+        "content": "$1",
+        "example": "spez"
+      }
+    }
+  },
+  "limitsHeading": {
+    "message": "Limit scrolling"
+  },
+  "scrollLimit": {
+    "message": "Scroll limit",
+    "description": "Shows a feed's posts a number at a time."
+  },
+  "scrollLimitCount": {
+    "message": "Posts at a time"
+  },
+  "limitAtLimit": {
+    "message": "At the limit",
+    "description": "Followed by a choice: Stop, or Offer to show more."
+  },
+  "limitModeStop": {
+    "message": "Stop",
+    "description": "At the limit, no more posts or comments show."
+  },
+  "limitModeOffer": {
+    "message": "Offer to show more",
+    "description": "At the limit, a button shows the next ones."
+  },
+  "commentLimit": {
+    "message": "Comment limit",
+    "description": "Shows a post's comments a number at a time."
+  },
+  "commentLimitCount": {
+    "message": "Comments at a time"
+  },
+  "scrollLimitInvalid": {
+    "message": "Enter a positive whole number of posts"
+  },
+  "commentLimitInvalid": {
+    "message": "Enter a positive whole number of comments"
+  },
+  "postsHeading": {
+    "message": "Posts and comments"
+  },
+  "disableAutoplay": {
+    "message": "Disable video autoplay"
+  },
+  "socialGroupLabel": {
+    "message": "Votes and user info visibility",
+    "description": "Read by screen readers: a group of switches."
+  },
+  "socialTitle": {
+    "message": "Hide votes and user info",
+    "description": "A switch for its group: Votes, Karma, Awards, Avatars, Usernames."
+  },
+  "hideVotes": {
+    "message": "Votes",
+    "description": "In the group Hide votes and user info."
+  },
+  "hideKarma": {
+    "message": "Karma",
+    "description": "In the group Hide votes and user info."
+  },
+  "hideAwards": {
+    "message": "Awards",
+    "description": "In the group Hide votes and user info."
+  },
+  "hideAvatars": {
+    "message": "Avatars",
+    "description": "In the group Hide votes and user info."
+  },
+  "hideUsernames": {
+    "message": "Usernames",
+    "description": "In the group Hide votes and user info."
+  },
+  "commentsGroupLabel": {
+    "message": "Comment visibility",
+    "description": "Read by screen readers: a group of switches."
+  },
+  "commentsTitle": {
+    "message": "Hide comments",
+    "description": "A switch for its group: Replies."
+  },
+  "commentsOnlyReplies": {
+    "message": "Only replies hidden",
+    "description": "Under Hide comments while only Replies is on."
+  },
+  "hideReplies": {
+    "message": "Replies",
+    "description": "In the group Hide comments."
+  },
+  "layoutHeading": {
+    "message": "Page layout"
+  },
+  "navbarGroupLabel": {
+    "message": "Navbar visibility",
+    "description": "Read by screen readers: a group of switches."
+  },
+  "navbarTitle": {
+    "message": "Hide navbar",
+    "description": "A switch for its group: the parts of Reddit's top bar."
+  },
+  "navbarMenu": {
+    "message": "Menu button",
+    "description": "In the group Hide navbar."
+  },
+  "navbarSearch": {
+    "message": "Search",
+    "description": "In the group Hide navbar: Reddit's search field."
+  },
+  "navbarChat": {
+    "message": "Chat",
+    "description": "In the group Hide navbar."
+  },
+  "navbarNotifications": {
+    "message": "Notifications",
+    "description": "In the group Hide navbar."
+  },
+  "navbarProfile": {
+    "message": "Profile menu",
+    "description": "In the group Hide navbar."
+  },
+  "navbarOthers": {
+    "message": "Other buttons",
+    "description": "In the group Hide navbar."
+  },
+  "navbarOthersDescription": {
+    "message": "Such as Create and Advertise",
+    "description": "Under Other buttons: Reddit's buttons, as Reddit names them."
+  },
+  "leftSidebarGroupLabel": {
+    "message": "Left sidebar visibility",
+    "description": "Read by screen readers: a group of switches."
+  },
+  "leftSidebarTitle": {
+    "message": "Hide left sidebar",
+    "description": "A switch for its group: the sections of Reddit's left sidebar."
+  },
+  "leftSidebarGames": {
+    "message": "Games",
+    "description": "In the group Hide left sidebar, as Reddit names the section."
+  },
+  "leftSidebarCustomFeeds": {
+    "message": "Custom feeds",
+    "description": "In the group Hide left sidebar, as Reddit names the section."
+  },
+  "leftSidebarRecent": {
+    "message": "Recent",
+    "description": "In the group Hide left sidebar, as Reddit names the section."
+  },
+  "leftSidebarCommunities": {
+    "message": "Communities",
+    "description": "In the group Hide left sidebar, as Reddit names the section."
+  },
+  "leftSidebarResources": {
+    "message": "Resources",
+    "description": "In the group Hide left sidebar, as Reddit names the section."
+  },
+  "hideRightSidebar": {
+    "message": "Hide right sidebar"
+  },
+  "statsPaused": {
+    "message": "Statistics are paused: nothing new is counted."
+  },
+  "statsToday": {
+    "message": "Today",
+    "description": "A heading, and the chart's label for today's time."
+  },
+  "statsHelpLabel": {
+    "message": "About statistics",
+    "description": "Read by screen readers: the ? button."
+  },
+  "statsHelpTime": {
+    "message": "<strong>Time</strong> counts while a Reddit tab is in front and you have scrolled, clicked or typed in it in the last 5 minutes. A new visit starts after 10 minutes away from Reddit.",
+    "description": "Keep the <strong> and <code> tags around the words they mark."
+  },
+  "statsHelpBlocked": {
+    "message": "<strong>Pages blocked</strong> counts each visit FrontFilter stopped. While blocked pages lead to another website, only those reached from Reddit's own pages count.",
+    "description": "Keep the <strong> and <code> tags around the words they mark."
+  },
+  "statsHelpHidden": {
+    "message": "<strong>Hidden</strong> counts each post and comment your filters hid, once per page and by the first filter that hides it, in Reddit's current design.",
+    "description": "Keep the <strong> and <code> tags around the words they mark."
+  },
+  "statsHelpAverage": {
+    "message": "The daily average leaves out today, which isn't over yet. Statistics never leave this device, and daily figures are kept for 30 days."
+  },
+  "statsTileTime": {
+    "message": "On Reddit",
+    "description": "A figure: today's time on Reddit."
+  },
+  "statsTileVisits": {
+    "message": "Visits",
+    "description": "A figure: today's visits to Reddit."
+  },
+  "statsTileBlocked": {
+    "message": "Pages blocked",
+    "description": "A figure: the pages FrontFilter blocked today."
+  },
+  "statsTileHidden": {
+    "message": "Hidden by filters",
+    "description": "A figure: the posts and comments filters hid today."
+  },
+  "statsInWeek": {
+    "message": "$VALUE$ in 7 days",
+    "description": "Under a figure: its total over the last 7 days.",
+    "placeholders": {
+      "value": {
+        "content": "$1",
+        "example": "3 h 5 min"
+      }
+    }
+  },
+  "statsWeekHeading": {
+    "message": "Last 7 days"
+  },
+  "statsChartTitle": {
+    "message": "Time on Reddit"
+  },
+  "statsDailyAverage": {
+    "message": "Daily average",
+    "description": "The chart's label for the average time a day."
+  },
+  "statsDayLabel_one": {
+    "message": "$DAY$: $TIME$, $COUNT$ visit",
+    "description": "Read by screen readers: a day of the chart. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "day": {
+        "content": "$2",
+        "example": "Friday, Nov 20"
+      },
+      "time": {
+        "content": "$3",
+        "example": "38 min"
+      }
+    }
+  },
+  "statsDayLabel_other": {
+    "message": "$DAY$: $TIME$, $COUNT$ visits",
+    "description": "Read by screen readers: a day of the chart. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      },
+      "day": {
+        "content": "$2",
+        "example": "Friday, Nov 20"
+      },
+      "time": {
+        "content": "$3",
+        "example": "38 min"
+      }
+    }
+  },
+  "statsChangeSame": {
+    "message": "About the same as the week before",
+    "description": "The daily average, against the week before."
+  },
+  "statsChangeLess": {
+    "message": "$PERCENT$ less than the week before",
+    "description": "The daily average, against the week before.",
+    "placeholders": {
+      "percent": {
+        "content": "$1",
+        "example": "12%"
+      }
+    }
+  },
+  "statsChangeMore": {
+    "message": "$PERCENT$ more than the week before",
+    "description": "The daily average, against the week before.",
+    "placeholders": {
+      "percent": {
+        "content": "$1",
+        "example": "12%"
+      }
+    }
+  },
+  "statsBlockedMost": {
+    "message": "Blocked most",
+    "description": "The pages blocked most in the last 7 days."
+  },
+  "statsHiddenBy": {
+    "message": "Hidden by",
+    "description": "What hid posts and comments in the last 7 days: Subreddits, Keywords, and so on."
+  },
+  "statsRankMore_one": {
+    "message": "$COUNT$ more",
+    "description": "The last row of a ranking: the other pages together. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "statsRankMore_other": {
+    "message": "$COUNT$ more",
+    "description": "The last row of a ranking: the other pages together. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "statsNothingBlocked": {
+    "message": "Nothing blocked in the last 7 days"
+  },
+  "statsNothingHidden": {
+    "message": "Nothing hidden in the last 7 days"
+  },
+  "statsHiddenDetail": {
+    "message": "$POSTS$, $COMMENTS$",
+    "description": "What a filter hid.",
+    "placeholders": {
+      "posts": {
+        "content": "$1",
+        "example": "3 posts"
+      },
+      "comments": {
+        "content": "$2",
+        "example": "2 comments"
+      }
+    }
+  },
+  "statsReasonSubreddits": {
+    "message": "Subreddits",
+    "description": "A row of Hidden by: subreddit rules."
+  },
+  "statsReasonUsers": {
+    "message": "Users",
+    "description": "A row of Hidden by: user rules."
+  },
+  "statsReasonKeywords": {
+    "message": "Keywords",
+    "description": "A row of Hidden by: keyword rules."
+  },
+  "statsReasonFlairs": {
+    "message": "Flairs",
+    "description": "A row of Hidden by: post flair rules."
+  },
+  "statsReasonNsfw": {
+    "message": "NSFW",
+    "description": "A row of Hidden by: Hide NSFW content."
+  },
+  "statsReasonSpoilers": {
+    "message": "Spoilers",
+    "description": "A row of Hidden by: Hide spoilers."
+  },
+  "statsReasonSuggested": {
+    "message": "Suggested posts",
+    "description": "A row of Hidden by: Hide suggested posts."
+  },
+  "statsReasonAds": {
+    "message": "Ads",
+    "description": "A row of Hidden by: Hide ads and promoted posts."
+  },
+  "statsPageSubredditFronts": {
+    "message": "Subreddit front pages",
+    "description": "A row of Blocked most: the subreddit front pages All subreddit front pages blocked."
+  },
+  "statsOtherPages": {
+    "message": "Other pages",
+    "description": "A row of Blocked most: pages counted together."
+  },
+  "statsSettingsHeading": {
+    "message": "Statistics"
+  },
+  "pauseStatistics": {
+    "message": "Pause statistics"
+  },
+  "resetStats": {
+    "message": "Reset statistics"
+  },
+  "resetStatsButton": {
+    "message": "Reset"
+  },
+  "resetStatsQuestion": {
+    "message": "Delete all statistics?"
+  },
+  "resetStatsNote": {
+    "message": "This can't be undone."
+  },
+  "resetStatsDelete": {
+    "message": "Delete statistics"
+  },
+  "statsNothingYet": {
+    "message": "Nothing counted yet",
+    "description": "Under Reset statistics."
+  },
+  "statsSince": {
+    "message": "Since $DATE$: $TIME$ on Reddit, $BLOCKED$, $HIDDEN$",
+    "description": "Under Reset statistics: the totals since counting began.",
+    "placeholders": {
+      "date": {
+        "content": "$1",
+        "example": "Nov 20, 2026"
+      },
+      "time": {
+        "content": "$2",
+        "example": "12 h"
+      },
+      "blocked": {
+        "content": "$3",
+        "example": "3 pages blocked"
+      },
+      "hidden": {
+        "content": "$4",
+        "example": "45 hidden"
+      }
+    }
+  },
+  "statsSinceBlocked_one": {
+    "message": "$COUNT$ page blocked",
+    "description": "Within Since…, the pages blocked. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "statsSinceBlocked_other": {
+    "message": "$COUNT$ pages blocked",
+    "description": "Within Since…, the pages blocked. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "statsSinceHidden_one": {
+    "message": "$COUNT$ hidden",
+    "description": "Within Since…, the posts and comments hidden. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "statsSinceHidden_other": {
+    "message": "$COUNT$ hidden",
+    "description": "Within Since…, the posts and comments hidden. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "45"
+      }
+    }
+  },
+  "statsDeleted": {
+    "message": "Statistics deleted"
+  },
+  "statsDeleteFailed": {
+    "message": "Could not delete statistics: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "durationUnderMinute": {
+    "message": "< 1 min",
+    "description": "Time on Reddit under a minute."
+  },
+  "durationMinutes": {
+    "message": "$MINUTES$ min",
+    "description": "Time on Reddit.",
+    "placeholders": {
+      "minutes": {
+        "content": "$1",
+        "example": "38"
+      }
+    }
+  },
+  "durationHours": {
+    "message": "$HOURS$ h",
+    "description": "Time on Reddit, in whole hours.",
+    "placeholders": {
+      "hours": {
+        "content": "$1",
+        "example": "12"
+      }
+    }
+  },
+  "durationHoursMinutes": {
+    "message": "$HOURS$ h $MINUTES$ min",
+    "description": "Time on Reddit.",
+    "placeholders": {
+      "hours": {
+        "content": "$1",
+        "example": "1"
+      },
+      "minutes": {
+        "content": "$2",
+        "example": "5"
+      }
+    }
+  },
+  "durationUnderMinuteCompact": {
+    "message": "<1m",
+    "description": "Time on Reddit under a minute, above a bar of the chart: keep it short."
+  },
+  "durationMinutesCompact": {
+    "message": "$MINUTES$m",
+    "description": "Above a bar of the chart: keep it short.",
+    "placeholders": {
+      "minutes": {
+        "content": "$1",
+        "example": "38"
+      }
+    }
+  },
+  "durationHoursCompact": {
+    "message": "$HOURS$h",
+    "description": "Above a bar of the chart: keep it short.",
+    "placeholders": {
+      "hours": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "appearanceHeading": {
+    "message": "Appearance"
+  },
+  "colorMode": {
+    "message": "Color mode"
+  },
+  "colorModeSystem": {
+    "message": "System",
+    "description": "A color mode: the system's."
+  },
+  "colorModeDark": {
+    "message": "Dark",
+    "description": "A color mode."
+  },
+  "colorModeLight": {
+    "message": "Light",
+    "description": "A color mode."
+  },
+  "languageLabel": {
+    "message": "Language",
+    "description": "The interface's language, chosen in the settings."
+  },
+  "languageSystem": {
+    "message": "System",
+    "description": "The interface speaks the system's language, as the browser has it: the default. The other choices are the languages, each in its own words."
+  },
+  "lockHeading": {
+    "message": "Settings lock"
+  },
+  "lockIntro": {
+    "message": "Keep your settings strict until a date you choose: blocking or hiding more applies at once, and loosening them waits."
+  },
+  "lockUntilLabel": {
+    "message": "Locked until",
+    "description": "Followed by a date and time field."
+  },
+  "lockDelayLabel": {
+    "message": "Loosening changes wait",
+    "description": "Followed by a choice of how long, or Until the lock ends."
+  },
+  "lockStart": {
+    "message": "Lock settings…"
+  },
+  "lockChange": {
+    "message": "Change…",
+    "description": "Changes the lock's end or delay."
+  },
+  "lockEnd": {
+    "message": "End lock"
+  },
+  "lockSave": {
+    "message": "Save",
+    "description": "Saves the lock's new end or delay."
+  },
+  "lockPendingTitle": {
+    "message": "Waiting",
+    "description": "The changes the lock makes wait."
+  },
+  "lockBannerDetails": {
+    "message": "Details",
+    "description": "Shows the settings lock, from the banner above every tab."
+  },
+  "lockDelayUntilEnd": {
+    "message": "Until the lock ends",
+    "description": "A choice of how long loosening changes wait."
+  },
+  "lockDays_one": {
+    "message": "$COUNT$ day",
+    "description": "A length of time. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "lockDays_other": {
+    "message": "$COUNT$ days",
+    "description": "A length of time. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "lockHours_one": {
+    "message": "$COUNT$ hour",
+    "description": "A length of time. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "lockHours_other": {
+    "message": "$COUNT$ hours",
+    "description": "A length of time. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "lockMinutes_one": {
+    "message": "$COUNT$ minute",
+    "description": "A length of time. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "lockMinutes_other": {
+    "message": "$COUNT$ minutes",
+    "description": "A length of time. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "15"
+      }
+    }
+  },
+  "lockChooseEnd": {
+    "message": "Choose when the lock ends"
+  },
+  "lockChooseFuture": {
+    "message": "Choose a time in the future"
+  },
+  "lockChooseDelay": {
+    "message": "Choose how long changes wait"
+  },
+  "lockAlreadyLocked": {
+    "message": "Settings are already locked"
+  },
+  "lockChangeEnd": {
+    "message": "End the lock",
+    "description": "A change the lock makes wait."
+  },
+  "lockChangeEndOn": {
+    "message": "End the lock on $TIME$",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockChangeDelayUntilEnd": {
+    "message": "Let loosening changes wait until the lock ends",
+    "description": "A change the lock makes wait."
+  },
+  "lockChangeDelay": {
+    "message": "Let loosening changes wait $DURATION$",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "1 day"
+      }
+    }
+  },
+  "lockChangeSubredditFront": {
+    "message": "Block r/$SUBREDDIT$ on its front page only",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "lockChangeSubredditRemove": {
+    "message": "Remove r/$SUBREDDIT$",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "lockChangeSubredditAllow": {
+    "message": "Allow r/$SUBREDDIT$",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "lockChangeUserRemove": {
+    "message": "Remove u/$USER$",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "user": {
+        "content": "$1",
+        "example": "spez"
+      }
+    }
+  },
+  "lockChangeKeywordRemove": {
+    "message": "Remove keyword “$KEYWORD$”",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "keyword": {
+        "content": "$1",
+        "example": "ai"
+      }
+    }
+  },
+  "lockChangeKeywordAllow": {
+    "message": "Allow keyword “$KEYWORD$”",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "keyword": {
+        "content": "$1",
+        "example": "ai art"
+      }
+    }
+  },
+  "lockChangeFlairRemove": {
+    "message": "Remove flair “$FLAIR$”",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "flair": {
+        "content": "$1",
+        "example": "Meme"
+      }
+    }
+  },
+  "lockChangeFlairAllow": {
+    "message": "Allow flair “$FLAIR$”",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "flair": {
+        "content": "$1",
+        "example": "Discussion"
+      }
+    }
+  },
+  "lockChangeScrollLimit_one": {
+    "message": "$LIMIT$: $COUNT$ post at a time",
+    "description": "A change the lock makes wait. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "limit": {
+        "content": "$2",
+        "example": "Scroll limit"
+      }
+    }
+  },
+  "lockChangeScrollLimit_other": {
+    "message": "$LIMIT$: $COUNT$ posts at a time",
+    "description": "A change the lock makes wait. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "50"
+      },
+      "limit": {
+        "content": "$2",
+        "example": "Scroll limit"
+      }
+    }
+  },
+  "lockChangeCommentLimit_one": {
+    "message": "$LIMIT$: $COUNT$ comment at a time",
+    "description": "A change the lock makes wait. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "limit": {
+        "content": "$2",
+        "example": "Comment limit"
+      }
+    }
+  },
+  "lockChangeCommentLimit_other": {
+    "message": "$LIMIT$: $COUNT$ comments at a time",
+    "description": "A change the lock makes wait. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "20"
+      },
+      "limit": {
+        "content": "$2",
+        "example": "Comment limit"
+      }
+    }
+  },
+  "lockChangeLimitMode": {
+    "message": "$LIMIT$: offer to show more",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "limit": {
+        "content": "$1",
+        "example": "Scroll limit"
+      }
+    }
+  },
+  "lockChangeTurnOff": {
+    "message": "Turn off “$SETTING$”",
+    "description": "A change the lock makes wait.",
+    "placeholders": {
+      "setting": {
+        "content": "$1",
+        "example": "Hide ads and promoted posts"
+      }
+    }
+  },
+  "lockChangesFromImport_one": {
+    "message": "$COUNT$ change from your import",
+    "description": "Changes the lock makes wait. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "lockChangesFromImport_other": {
+    "message": "$COUNT$ changes from your import",
+    "description": "Changes the lock makes wait. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "lockChangesFromRestore_one": {
+    "message": "$COUNT$ change from your restore",
+    "description": "Changes the lock makes wait. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "lockChangesFromRestore_other": {
+    "message": "$COUNT$ changes from your restore",
+    "description": "Changes the lock makes wait. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "lockChangeAndMore_one": {
+    "message": "$CHANGE$, and $COUNT$ more",
+    "description": "Changes the lock makes wait: one, and the number of others. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "change": {
+        "content": "$2",
+        "example": "Remove r/news"
+      }
+    }
+  },
+  "lockChangeAndMore_other": {
+    "message": "$CHANGE$, and $COUNT$ more",
+    "description": "Changes the lock makes wait: one, and the number of others. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "change": {
+        "content": "$2",
+        "example": "Remove r/news"
+      }
+    }
+  },
+  "lockWhenEnds": {
+    "message": "until the lock ends, $TIME$",
+    "description": "Ends a sentence: when a change applies.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockWhen": {
+    "message": "until $TIME$",
+    "description": "Ends a sentence: when a change applies.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockRefused": {
+    "message": "The lock stays until $TIME$: loosening it would wait until then",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockChangeWaits": {
+    "message": "$CHANGE$: waits $WHEN$",
+    "placeholders": {
+      "change": {
+        "content": "$1",
+        "example": "Remove r/news"
+      },
+      "when": {
+        "content": "$2",
+        "example": "until Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockChangesWait_one": {
+    "message": "$COUNT$ change waits $WHEN$",
+    "description": "Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "when": {
+        "content": "$2",
+        "example": "until Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockChangesWait_other": {
+    "message": "$COUNT$ changes wait $WHEN$",
+    "description": "Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      },
+      "when": {
+        "content": "$2",
+        "example": "until Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockAppliesNow": {
+    "message": "Applies now",
+    "description": "A waiting change whose time has come."
+  },
+  "lockWaits": {
+    "message": "Waits $WHEN$",
+    "description": "Under a waiting change.",
+    "placeholders": {
+      "when": {
+        "content": "$1",
+        "example": "until Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockCancelChange": {
+    "message": "Cancel: $CHANGE$",
+    "description": "Read by screen readers: a waiting change's Cancel button.",
+    "placeholders": {
+      "change": {
+        "content": "$1",
+        "example": "Remove r/news"
+      }
+    }
+  },
+  "lockLockedUntil": {
+    "message": "Locked until $TIME$",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockLockedTextUntilEnd": {
+    "message": "Changes that loosen your settings wait until the lock ends."
+  },
+  "lockLockedText": {
+    "message": "Changes that loosen your settings wait $DURATION$, or until the lock ends.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "1 day"
+      }
+    }
+  },
+  "lockBannerWaiting_one": {
+    "message": "Locked until $TIME$ · $COUNT$ change waiting",
+    "description": "The banner above every tab. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "time": {
+        "content": "$2",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockBannerWaiting_other": {
+    "message": "Locked until $TIME$ · $COUNT$ changes waiting",
+    "description": "The banner above every tab. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "time": {
+        "content": "$2",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockConfirmTitle": {
+    "message": "Lock your settings for $DURATION$?",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "7 days"
+      }
+    }
+  },
+  "lockConfirmUntil": {
+    "message": "Until $TIME$.",
+    "description": "What the lock will do.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockConfirmStricter": {
+    "message": "Blocking or hiding more applies at once.",
+    "description": "What the lock will do."
+  },
+  "lockConfirmLooser": {
+    "message": "Loosening your settings, as by removing a rule, allowing a subreddit or turning a filter off, waits $DURATION$.",
+    "description": "What the lock will do.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "1 day"
+      }
+    }
+  },
+  "lockConfirmLooserUntilEnd": {
+    "message": "Loosening your settings, as by removing a rule, allowing a subreddit or turning a filter off, waits until the lock ends.",
+    "description": "What the lock will do."
+  },
+  "lockConfirmNoEarlyEnd": {
+    "message": "The lock can't end early.",
+    "description": "What the lock will do."
+  },
+  "lockConfirmEarlyEnd": {
+    "message": "Ending the lock early waits $DURATION$ too.",
+    "description": "What the lock will do.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "1 day"
+      }
+    }
+  },
+  "lockConfirmGrace": {
+    "message": "You can take back a change, or the lock itself, within $DURATION$.",
+    "description": "What the lock will do.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "15 minutes"
+      }
+    }
+  },
+  "lockConfirmFree": {
+    "message": "Ads, avatars, awards, usernames, the sidebar's Resources, the Block buttons, the block page, the theme, the language and statistics stay free to change.",
+    "description": "What the lock will do: the settings it leaves free."
+  },
+  "lockAcknowledgeUntil": {
+    "message": "I understand that I can't loosen my settings until $TIME$",
+    "description": "A checkbox to check before locking.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockAcknowledgeWait": {
+    "message": "I understand that loosening my settings will take $DURATION$",
+    "description": "A checkbox to check before locking.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "1 day"
+      }
+    }
+  },
+  "lockConfirmButton": {
+    "message": "Lock for $DURATION$",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "7 days"
+      }
+    }
+  },
+  "lockStarted": {
+    "message": "Settings locked until $TIME$",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Fri, Nov 27, 3:00 PM"
+      }
+    }
+  },
+  "lockStartFailed": {
+    "message": "Could not lock settings: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Choose a time in the future"
+      }
+    }
+  },
+  "lockChangeFailed": {
+    "message": "Could not change the lock: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Choose a time in the future"
+      }
+    }
+  },
+  "lockChanged": {
+    "message": "Lock changed"
+  },
+  "lockEnded": {
+    "message": "Lock ended"
+  },
+  "lockChangeCancelled": {
+    "message": "Change cancelled",
+    "description": "A waiting change was cancelled."
+  },
+  "lockChangeAlreadyApplied": {
+    "message": "That change already applied",
+    "description": "A waiting change could not be cancelled: it applied."
+  },
+  "lockCancelFailed": {
+    "message": "Could not cancel the change: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "backupHeading": {
+    "message": "Configuration backup"
+  },
+  "exportLabel": {
+    "message": "Export configuration",
+    "description": "Read by screen readers: the Export button."
+  },
+  "exportButton": {
+    "message": "Export",
+    "description": "Saves the settings to a file."
+  },
+  "importLabel": {
+    "message": "Import configuration",
+    "description": "Read by screen readers: the Import button."
+  },
+  "importButton": {
+    "message": "Import",
+    "description": "Reads the settings from a file."
+  },
+  "restoreButton": {
+    "message": "Restore",
+    "description": "Puts back the settings an import or a restore replaced."
+  },
+  "exportDone": {
+    "message": "Configuration exported!"
+  },
+  "exportFailed": {
+    "message": "Export failed: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "importNotAnObject": {
+    "message": "Invalid config: expected a JSON object",
+    "description": "An imported file is no settings file."
+  },
+  "importNoSettings": {
+    "message": "Invalid config: no recognized keys",
+    "description": "An imported file holds no FrontFilter settings."
+  },
+  "importInvalidValues": {
+    "message": "Invalid config values: $KEYS$",
+    "description": "Settings, by their names in the file.",
+    "placeholders": {
+      "keys": {
+        "content": "$1",
+        "example": "scrollLimit, theme"
+      }
+    }
+  },
+  "importListReplaced": {
+    "message": "$LIST$: $COUNT$, replaced",
+    "description": "What an import changes: a list replaced by one as long.",
+    "placeholders": {
+      "list": {
+        "content": "$1",
+        "example": "Subreddits"
+      },
+      "count": {
+        "content": "$2",
+        "example": "3 rules"
+      }
+    }
+  },
+  "importListResized": {
+    "message": "$LIST$: $BEFORE$ → $AFTER$",
+    "description": "What an import changes: a list, from how many rules to how many.",
+    "placeholders": {
+      "list": {
+        "content": "$1",
+        "example": "Subreddits"
+      },
+      "before": {
+        "content": "$2",
+        "example": "2"
+      },
+      "after": {
+        "content": "$3",
+        "example": "3 rules"
+      }
+    }
+  },
+  "importOtherSettings_one": {
+    "message": "$COUNT$ other setting",
+    "description": "What an import changes, after the lists it changes. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "importOtherSettings_other": {
+    "message": "$COUNT$ other settings",
+    "description": "What an import changes, after the lists it changes. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "importSettings_one": {
+    "message": "$COUNT$ setting",
+    "description": "What an import changes, when it changes no list. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "importSettings_other": {
+    "message": "$COUNT$ settings",
+    "description": "What an import changes, when it changes no list. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "importQuestion": {
+    "message": "Import this file?"
+  },
+  "importSameSettings": {
+    "message": "This file matches your settings"
+  },
+  "importNote": {
+    "message": "Lists in the file replace yours. You can restore your current settings afterwards."
+  },
+  "importNoteLocked": {
+    "message": "Lists in the file replace yours, but while settings are locked, what loosens them waits. You can restore your current settings afterwards."
+  },
+  "importFailed": {
+    "message": "Import failed: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Unexpected token"
+      }
+    }
+  },
+  "importDone": {
+    "message": "Configuration imported!"
+  },
+  "importChooseFile": {
+    "message": "Click Import to choose the file",
+    "description": "Import is the button's name."
+  },
+  "restoreNothing": {
+    "message": "no saved settings to restore",
+    "description": "Follows Restore failed:"
+  },
+  "restoreDone": {
+    "message": "Settings restored"
+  },
+  "restoreFailed": {
+    "message": "Restore failed: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "no saved settings to restore"
+      }
+    }
+  },
+  "backupBeforeImport": {
+    "message": "Your settings before your import of $TIME$",
+    "description": "Beside Restore.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Nov 20, 2026, 3:00 PM"
+      }
+    }
+  },
+  "backupBeforeRestore": {
+    "message": "Your settings before your restore of $TIME$",
+    "description": "Beside Restore.",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "Nov 20, 2026, 3:00 PM"
+      }
+    }
+  },
+  "blockedPageTitle": {
+    "message": "Content blocked · FrontFilter",
+    "description": "The block page's title, in its tab."
+  },
+  "blockedContent": {
+    "message": "This content is blocked"
+  },
+  "blockedHomepage": {
+    "message": "Reddit Homepage is blocked"
+  },
+  "blockedPopular": {
+    "message": "Popular page is blocked",
+    "description": "Popular is Reddit's page, as Reddit names it."
+  },
+  "blockedExplore": {
+    "message": "Explore page is blocked",
+    "description": "Explore is Reddit's page, as Reddit names it."
+  },
+  "blockedNews": {
+    "message": "News page is blocked",
+    "description": "News is Reddit's page, as Reddit names it."
+  },
+  "blockedSubredditFronts": {
+    "message": "Subreddit front pages are blocked"
+  },
+  "blockedSubreddit": {
+    "message": "r/$SUBREDDIT$ is blocked",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "blockedUser": {
+    "message": "u/$USER$ is blocked",
+    "placeholders": {
+      "user": {
+        "content": "$1",
+        "example": "spez"
+      }
+    }
+  },
+  "blockedByRule": {
+    "message": "Blocked by the rule $RULE$",
+    "description": "The rule shows in bold.",
+    "placeholders": {
+      "rule": {
+        "content": "$1",
+        "example": "news*"
+      }
+    }
+  },
+  "blockedGoBack": {
+    "message": "Go back"
+  },
+  "blockedOpenSettings": {
+    "message": "Open settings"
+  },
+  "blockedUndo": {
+    "message": "Undo block"
+  },
+  "quickBlockButton": {
+    "message": "Block",
+    "description": "A button FrontFilter adds to Reddit's posts and subreddit pages."
+  },
+  "quickBlockTitle": {
+    "message": "Hide r/$SUBREDDIT$ everywhere with FrontFilter",
+    "description": "The Block button's tooltip.",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockLabel": {
+    "message": "Block r/$SUBREDDIT$ with FrontFilter",
+    "description": "Read by screen readers: the Block button.",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockDone": {
+    "message": "r/$SUBREDDIT$ blocked",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockAlready": {
+    "message": "r/$SUBREDDIT$ is already blocked",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockFailed": {
+    "message": "Could not block r/$SUBREDDIT$: $ERROR$",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      },
+      "error": {
+        "content": "$2",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "quickBlockUndoneToFront": {
+    "message": "r/$SUBREDDIT$ is blocked on its front page only",
+    "description": "After undoing a block, for a subreddit blocked on its front page before.",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockUndone": {
+    "message": "r/$SUBREDDIT$ unblocked",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      }
+    }
+  },
+  "quickBlockUndoFailed": {
+    "message": "Could not unblock r/$SUBREDDIT$: $ERROR$",
+    "placeholders": {
+      "subreddit": {
+        "content": "$1",
+        "example": "news"
+      },
+      "error": {
+        "content": "$2",
+        "example": "QuotaExceededError"
+      }
+    }
+  },
+  "feedLimitShowNext_one": {
+    "message": "Show next $COUNT$",
+    "description": "The scroll limit's button. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitShowNext_other": {
+    "message": "Show next $COUNT$",
+    "description": "The scroll limit's button. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "25"
+      }
+    }
+  },
+  "feedLimitShowRemaining_one": {
+    "message": "Show remaining $COUNT$",
+    "description": "The scroll limit's button, at the end of a feed. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitShowRemaining_other": {
+    "message": "Show remaining $COUNT$",
+    "description": "The scroll limit's button, at the end of a feed. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "7"
+      }
+    }
+  },
+  "feedLimitProgress_one": {
+    "message": "$SHOWN$ / $COUNT$ post",
+    "description": "The scroll limit, while it fills the next group. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "shown": {
+        "content": "$2",
+        "example": "31"
+      }
+    }
+  },
+  "feedLimitProgress_other": {
+    "message": "$SHOWN$ / $COUNT$ posts",
+    "description": "The scroll limit, while it fills the next group. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "50"
+      },
+      "shown": {
+        "content": "$2",
+        "example": "31"
+      }
+    }
+  },
+  "feedLimitLoading_one": {
+    "message": "$SHOWN$ / $COUNT$ post · Loading…",
+    "description": "The scroll limit, while Reddit loads posts. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      },
+      "shown": {
+        "content": "$2",
+        "example": "31"
+      }
+    }
+  },
+  "feedLimitLoading_other": {
+    "message": "$SHOWN$ / $COUNT$ posts · Loading…",
+    "description": "The scroll limit, while Reddit loads posts. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "50"
+      },
+      "shown": {
+        "content": "$2",
+        "example": "31"
+      }
+    }
+  },
+  "feedLimitEnd_one": {
+    "message": "End of feed · $COUNT$ post shown",
+    "description": "The scroll limit, at the end of a feed. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitEnd_other": {
+    "message": "End of feed · $COUNT$ posts shown",
+    "description": "The scroll limit, at the end of a feed. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "42"
+      }
+    }
+  },
+  "feedLimitShown_one": {
+    "message": "$COUNT$ post shown",
+    "description": "The scroll limit. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitShown_other": {
+    "message": "$COUNT$ posts shown",
+    "description": "The scroll limit. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "25"
+      }
+    }
+  },
+  "feedLimitReached_one": {
+    "message": "$COUNT$ post shown · Limit reached",
+    "description": "The scroll limit, with Stop chosen. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitReached_other": {
+    "message": "$COUNT$ posts shown · Limit reached",
+    "description": "The scroll limit, with Stop chosen. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "25"
+      }
+    }
+  },
+  "feedLimitNoResults": {
+    "message": "No feed results are available. Retry loading.",
+    "description": "Beside Retry."
+  },
+  "feedLimitCannotLoad": {
+    "message": "This feed could not load more posts. Retry loading.",
+    "description": "Beside Retry."
+  },
+  "feedLimitStuck": {
+    "message": "Reddit did not advance the feed. Retry loading.",
+    "description": "Beside Retry."
+  },
+  "feedLimitNoMatches": {
+    "message": "No matching posts found in the last pages. Retry to continue.",
+    "description": "Beside Retry."
+  },
+  "feedLimitLoadFailed": {
+    "message": "Could not load the next group. Retry loading.",
+    "description": "Beside Retry."
+  },
+  "feedLimitEmptyPages_one": {
+    "message": "The last page had no posts left after filtering.",
+    "description": "Filters hid every post Reddit loaded: beside Load more. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "feedLimitEmptyPages_other": {
+    "message": "The last $COUNT$ pages had no posts left after filtering.",
+    "description": "Filters hid every post Reddit loaded: beside Load more. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "feedLimitLoadMore": {
+    "message": "Load more"
+  },
+  "feedLimitRetry": {
+    "message": "Retry"
+  },
+  "commentLimitShown_one": {
+    "message": "$COUNT$ comment shown",
+    "description": "The comment limit. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "commentLimitShown_other": {
+    "message": "$COUNT$ comments shown",
+    "description": "The comment limit. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "10"
+      }
+    }
+  },
+  "commentLimitReached_one": {
+    "message": "$COUNT$ comment shown · Limit reached",
+    "description": "The comment limit, with Stop chosen. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "commentLimitReached_other": {
+    "message": "$COUNT$ comments shown · Limit reached",
+    "description": "The comment limit, with Stop chosen. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "10"
+      }
+    }
+  },
+  "commentLimitShowNext_one": {
+    "message": "Show next $COUNT$",
+    "description": "The comment limit's button. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "commentLimitShowNext_other": {
+    "message": "Show next $COUNT$",
+    "description": "The comment limit's button. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "10"
+      }
+    }
+  },
+  "commentLimitShowRemaining_one": {
+    "message": "Show remaining $COUNT$",
+    "description": "The comment limit's button, for the last comments. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "commentLimitShowRemaining_other": {
+    "message": "Show remaining $COUNT$",
+    "description": "The comment limit's button, for the last comments. Has a form for each plural category: add _few, _many and the like where the language needs them.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "4"
+      }
+    }
+  }
+}

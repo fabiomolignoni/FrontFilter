@@ -743,10 +743,15 @@ label.field-row:hover { background: none; }
 }
 
 /* The tabs' labels need all the room the popup has, narrower than its
-   usual width, as in Firefox for Android. */
+   usual width, as in Firefox for Android, or when their language's words
+   are too long to sit beside their icons (popup.js). */
 @media (max-width: 459px) {
   .tab .icon { display: none; }
 }
+.tab > span { white-space: nowrap; }
+.tabs[data-compact] .tab { flex: 1 1 auto; padding: 0 var(--sp-1); }
+.tabs[data-compact] .tab .icon { display: none; }
+.tabs[data-compact] .tab > span { overflow: hidden; text-overflow: ellipsis; }
 
 @media (max-width: 359px) {
   .tab { padding: 0 var(--sp-1); font-size: 12.5px; }

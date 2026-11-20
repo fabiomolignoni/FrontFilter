@@ -11,6 +11,7 @@ FrontFilter.createCurrentPageCard = function ({
   isLocked, isDisabled, showToast, flushPendingSave,
 }) {
   const { ALLOW } = FrontFilter.entryList;
+  const { t, plural } = FrontFilter.i18n;
   const byId = (id) => document.getElementById(id);
   const card = {
     element: byId("current-page"),
@@ -25,7 +26,6 @@ FrontFilter.createCurrentPageCard = function ({
   // The count keeps up with the page while the popup is open, as Reddit
   // loads posts and settings change, for as long as the page answers.
   const COUNTS_REFRESH = 1000;
-  const numberFormat = new Intl.NumberFormat();
   // The page's tab, and its subreddit, if it is one.
   let tabId = null;
   let subreddit = "";
@@ -58,9 +58,9 @@ FrontFilter.createCurrentPageCard = function ({
         if (mode !== ALLOW || !isLocked()) showToast(message(name), "success");
         return true;
       }
-      showToast("No subreddit found on current tab", "error");
+      showToast(t("currentNoSubreddit"), "error");
     } catch {
-      showToast("Could not access current tab", "error");
+      showToast(t("currentTabUnavailable"), "error");
     }
     return false;
   }
@@ -90,7 +90,7 @@ FrontFilter.createCurrentPageCard = function ({
     const blockedTab = tabId;
     const listens = blockedTab === null || await pageListens();
     const added = await addCurrentSubreddit(
-      "all", (name) => `r/${name} blocked everywhere`,
+      "all", (name) => t("currentBlocked", name),
     );
     if (!added || listens) return;
     try {
@@ -115,18 +115,26 @@ FrontFilter.createCurrentPageCard = function ({
     const { blockedSubreddits, allowedSubreddits } = subredditList.stored();
     const exceptions = allowedSubreddits
       .filter((pattern) => FrontFilter.matchesSubredditPattern(pattern, name));
+    // A pattern is worth naming, the subreddit's own name is not.
     if (exceptions.length > 0) {
-      const by = exceptions.includes(name) ? "" : ` by ${exceptions[0]}`;
-      return { text: `Allowed${by}, so it stays open`, allowed: true };
+      const text = exceptions.includes(name)
+        ? t("currentAllowed")
+        : t("currentAllowedBy", exceptions[0]);
+      return { text, allowed: true };
     }
     const rules = blockedSubreddits
       .filter((rule) => FrontFilter.matchesSubredditPattern(rule.name, name));
     const rule = rules.find((other) => other.mode === "all") || rules[0];
-    const by = rule && rule.name !== name ? ` by ${rule.name}` : "";
-    if (rule?.mode === "all") return { text: `Blocked everywhere${by}`, everywhere: true };
-    if (rule) return { text: `Front page blocked${by}` };
-    if (blocksSubredditFronts()) return { text: "Front page blocked, like every subreddit's" };
-    return { text: "Not blocked" };
+    const byPattern = rule && rule.name !== name;
+    if (rule?.mode === "all") {
+      return {
+        text: byPattern ? t("currentBlockedEverywhereBy", rule.name) : t("currentBlockedEverywhere"),
+        everywhere: true,
+      };
+    }
+    if (rule) return { text: byPattern ? t("currentFrontBlockedBy", rule.name) : t("currentFrontBlocked") };
+    if (blocksSubredditFronts()) return { text: t("currentFrontBlockedWithAll") };
+    return { text: t("currentNotBlocked") };
   }
 
   // A Reddit page other than a subreddit, by the name the settings and
@@ -140,12 +148,12 @@ FrontFilter.createCurrentPageCard = function ({
 
   // What filters hide on the page, as the card says it.
   function describeCounts({ posts, comments }) {
-    const formatNumber = (count) => numberFormat.format(count);
-    const parts = [
-      posts > 0 && `${formatNumber(posts)} ${posts === 1 ? "post" : "posts"}`,
-      comments > 0 && `${formatNumber(comments)} ${comments === 1 ? "comment" : "comments"}`,
-    ].filter(Boolean);
-    return parts.length > 0 ? `${parts.join(" and ")} hidden on this page` : "Nothing hidden on this page";
+    if (posts > 0 && comments > 0) {
+      return t("currentHiddenBoth", plural("countPosts", posts), plural("countComments", comments));
+    }
+    if (posts > 0) return plural("currentHiddenPosts", posts);
+    if (comments > 0) return plural("currentHiddenComments", comments);
+    return t("currentHiddenNothing");
   }
 
   // The card shows on a subreddit, and on any other Reddit page that says
@@ -202,15 +210,15 @@ FrontFilter.createCurrentPageCard = function ({
     card.name.textContent = name;
     // A long name is cut short on screen, and whole here.
     card.name.setAttribute("title", name);
-    card.block.setAttribute("aria-label", `Block ${name}`);
-    card.allow.setAttribute("aria-label", `Allow ${name}`);
+    card.block.setAttribute("aria-label", t("currentBlockLabel", name));
+    card.allow.setAttribute("aria-label", t("currentAllowLabel", name));
     update();
     if (tab) await refreshCounts();
   }
 
   card.block.addEventListener("click", blockCurrentSubreddit);
   card.allow.addEventListener("click", () => addCurrentSubreddit(
-    ALLOW, (name) => `r/${name} allowed`,
+    ALLOW, (name) => t("currentAllowedToast", name),
   ));
 
   return {

@@ -1,11 +1,11 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const vm = require("node:vm");
-const { runScripts } = require("./helpers");
+const { fakeI18n, runScripts } = require("./helpers");
 
 function loadStats() {
-  const context = vm.createContext({ URL, URLSearchParams });
-  runScripts(context, ["shared/core.js", "shared/stats.js"]);
+  const context = vm.createContext({ URL, URLSearchParams, chrome: { i18n: fakeI18n() } });
+  runScripts(context, ["shared/core.js", "shared/i18n.js", "shared/stats.js"]);
   return context.FrontFilter.stats;
 }
 
@@ -238,8 +238,9 @@ test("formats durations in minutes, then hours", () => {
     [65 * MINUTE, "1 h 5 min", "1h 5m"],
     [9 * 60 * MINUTE + 59 * MINUTE, "9 h 59 min", "9h 59m"],
     [10 * 60 * MINUTE + 30 * MINUTE, "10 h", "10h"],
-    // Hours are grouped as the Stats tab's counts are, in the local way.
-    [1234 * 60 * MINUTE + 5 * MINUTE, `${(1234).toLocaleString()} h`, `${(1234).toLocaleString()}h`],
+    // Hours are grouped as the Stats tab's counts are, as the interface's
+    // language groups them.
+    [1234 * 60 * MINUTE + 5 * MINUTE, "1,234 h", "1,234h"],
     [-5, "0 min", "0m"],
   ];
   for (const [ms, full, compact] of cases) {

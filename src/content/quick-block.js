@@ -6,6 +6,7 @@
  */
 FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
   const { feed: FEED } = FrontFilter.SELECTORS;
+  const { t } = FrontFilter.i18n;
   const BUTTON_CLASS = "frontfilter-block-subreddit";
   const HEADER_BUTTON_CLASS = "frontfilter-block-subreddit--header";
   const TOAST_CLASS = "frontfilter-block-toast";
@@ -30,14 +31,20 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
     return Boolean(name) && !name.startsWith("u_") && name !== pageSubreddit && !isAllowed(name);
   }
 
+  // A button's text, in the interface's language.
+  function label(button) {
+    const name = button.dataset.subreddit;
+    button.textContent = t("quickBlockButton");
+    button.title = t("quickBlockTitle", name);
+    button.setAttribute("aria-label", t("quickBlockLabel", name));
+  }
+
   function createButton(name, className = BUTTON_CLASS) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = className;
     button.dataset.subreddit = name;
-    button.textContent = "Block";
-    button.title = `Hide r/${name} everywhere with FrontFilter`;
-    button.setAttribute("aria-label", `Block r/${name} with FrontFilter`);
+    label(button);
     button.addEventListener("click", (event) => {
       // The whole card is a link to the post.
       event.preventDefault();
@@ -150,12 +157,12 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
         });
       }
       showToast(
-        added ? `r/${name} blocked` : `r/${name} is already blocked`,
+        added ? t("quickBlockDone", name) : t("quickBlockAlready", name),
         added ? () => void undo(name, previousMode) : null,
       );
     } catch (error) {
       pendingUndo = null;
-      showToast(`Could not block r/${name}: ${error.message}`);
+      showToast(t("quickBlockFailed", name, error.message));
     }
   }
 
@@ -166,10 +173,10 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
       );
       await chrome.storage.local.set({ blockedSubreddits: entries });
       showToast(previousMode === "home"
-        ? `r/${name} is blocked on its front page only`
-        : `r/${name} unblocked`);
+        ? t("quickBlockUndoneToFront", name)
+        : t("quickBlockUndone", name));
     } catch (error) {
-      showToast(`Could not unblock r/${name}: ${error.message}`);
+      showToast(t("quickBlockUndoFailed", name, error.message));
     }
   }
 
@@ -185,7 +192,7 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
     if (onUndo) {
       const undoButton = document.createElement("button");
       undoButton.type = "button";
-      undoButton.textContent = "Undo";
+      undoButton.textContent = t("commonUndo");
       undoButton.addEventListener("click", onUndo);
       toast.append(undoButton);
     }
@@ -197,5 +204,10 @@ FrontFilter.createQuickBlock = function ({ getSettings, isAllowed }) {
     }, TOAST_DURATION);
   }
 
-  return { update, takeUndo };
+  // Buttons already on the page take the language's text when it changes.
+  function relabel() {
+    for (const button of document.querySelectorAll(`.${BUTTON_CLASS}`)) label(button);
+  }
+
+  return { update, takeUndo, relabel };
 };

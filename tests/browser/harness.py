@@ -332,15 +332,19 @@ class ExtensionTestCase(unittest.TestCase):
         self.assertEqual(toggle.get_attribute("aria-expanded"), "true")
         toggle.click()
         self.wait_until(lambda: not help_text.is_displayed())
-        find("tab-filter").click()
-        switch = find("hide-suggested-posts")
-        description = find("hide-suggested-posts-desc")
-        self.assertTrue(description.is_displayed())
-        # The switch is named by its label alone, and described by the rest.
-        self.assertEqual(switch.get_attribute("aria-labelledby"), "hide-suggested-posts-label")
-        self.assertEqual(switch.get_attribute("aria-describedby"), "hide-suggested-posts-desc")
+        find("tab-simplify").click()
+        switch = find("hide-navbar-others")
+        description = find("hide-navbar-others-desc")
+        expander = find("navbar-toggle")
+        if expander.get_attribute("aria-expanded") != "true":
+            expander.click()
+        self.wait_until(description.is_displayed)
+        # The switch is named by its group's title and its label, and
+        # described by the rest.
+        self.assertEqual(switch.get_attribute("aria-labelledby"), "navbar-title hide-navbar-others-label")
+        self.assertEqual(switch.get_attribute("aria-describedby"), "hide-navbar-others-desc")
         self.assertFalse(switch.is_selected())
-        find("hide-suggested-posts-label").click()
+        find("hide-navbar-others-label").click()
         self.wait_until(switch.is_selected)
         description.click()
         self.wait_until(lambda: not switch.is_selected())

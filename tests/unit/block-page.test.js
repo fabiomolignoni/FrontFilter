@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const vm = require("node:vm");
-const { deferred, loadPage, readSource, runScripts, settle } = require("./helpers");
+const { deferred, fakeI18n, loadPage, readSource, runScripts, settle } = require("./helpers");
 
 async function loadBlockPage({
   historyLength = 1,
@@ -22,16 +22,19 @@ async function loadBlockPage({
   const removals = [];
   const replacedUrls = [];
   const redirects = [];
+  let reloads = 0;
   const location = {
     href: "moz-extension://frontfilter/blocked/index.html",
     hash,
     search,
     replace: (url) => redirects.push(url),
+    reload: () => { reloads += 1; },
   };
   let historyBackCount = 0;
   let storageListener;
   const themeCache = new Map();
   const chrome = {
+    i18n: fakeI18n(),
     runtime: {
       getURL: (path) => `moz-extension://frontfilter/${path}`,
       sendMessage,
@@ -84,6 +87,7 @@ async function loadBlockPage({
     elements: page.elements,
     errors,
     get historyBackCount() { return historyBackCount; },
+    get reloads() { return reloads; },
     location,
     redirects,
     replacedUrls,
@@ -491,4 +495,14 @@ test("keeps its buttons when messages cannot be sent at all", async () => {
   await page.elements["go-back"].click();
   assert.equal(page.historyBackCount, 1);
   assert.match(String(page.errors.at(-1)?.[0]), /Could not count the blocked visit/);
+});
+
+test("loads again in a language chosen in the settings", async () => {
+  const page = await loadBlockPage({ storedSettings: { language: "it" } });
+  // The page caches the language for its next load, which speaks it.
+  assert.equal(page.themeCache.get("frontfilter-language"), "it");
+  assert.equal(page.reloads, 1);
+  page.storageListener({ language: { oldValue: "it", newValue: "system" } }, "local");
+  assert.equal(page.themeCache.get("frontfilter-language"), "system");
+  assert.equal(page.reloads, 1);
 });

@@ -137,6 +137,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (configLoaded) {
     updateLimits();
     stats.update();
+    if (Object.hasOwn(changes, "language")) void useLanguage(config.language);
   }
 
   void checkCurrentPage({ force: true });
@@ -151,9 +152,22 @@ async function loadConfig() {
       configLoaded = true;
       updateLimits();
       stats.update();
+      void useLanguage(config.language);
     }
   }
   return config;
+}
+
+// The text FrontFilter adds to Reddit's pages speaks the language the
+// settings choose, whose messages the background gives, as content
+// scripts cannot read the extension's files. Until they come, and if they
+// cannot, it speaks the browser's.
+async function useLanguage(language) {
+  const changed = await FrontFilter.i18n.use(language, (tag) =>
+    FrontFilter.askBackground({ action: "getMessages", language: tag }));
+  if (!changed) return;
+  updateLimits();
+  quickBlock.relabel();
 }
 
 // Navigation
