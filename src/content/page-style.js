@@ -53,6 +53,20 @@ FrontFilter.pageStyle = (() => {
     ].join(", "))];
   }
 
+  // The left sidebar's dividers in front of groups whose sections all hide.
+  // A divider leads a section's group when the section follows it with no
+  // other divider between them.
+  function leftSidebarDividerRule(settings) {
+    const { divider, sectionMarkers } = SELECTORS.leftSidebar;
+    const leads = (markers) => `:has(~ :is(${markers})):not(:has(~ hr ~ :is(${markers})))`;
+    const leadsAny = (hidden) => Object.entries(sectionMarkers)
+      .filter(([setting]) => Boolean(settings[setting]) === hidden)
+      .map(([, markers]) => leads(markers));
+    const [hidden, shown] = [leadsAny(true), leadsAny(false)];
+    if (hidden.length === 0) return [];
+    return [hide(`${divider}:is(${hidden.join(", ")})${shown.length ? `:not(${shown.join(", ")})` : ""}`)];
+  }
+
   // The rules for the page itself.
   function pageRules(settings) {
     const markedPost = markers.post.selector;
@@ -70,7 +84,7 @@ FrontFilter.pageStyle = (() => {
       hide(`shreddit-feed :is(${markedPost}, ${markedArticle}) + hr`),
       ...blockedUserRules(settings.blockedUsers),
       ...(comments ? [hide(comments)] : []),
-      ...(settings.hideSuggestedCommunities ? [hide(SELECTORS.suggestedCommunities)] : []),
+      ...(settings.hideSuggestedCommunities ? SELECTORS.suggestedCommunities.map(hide) : []),
       ...(settings.hideAds ? SELECTORS.ads.map(hide) : []),
       ...(settings.hideNsfw ? taggedContentRules(SELECTORS.nsfw) : []),
       ...(settings.hideSpoilers ? taggedContentRules(SELECTORS.spoilers) : []),
@@ -80,6 +94,7 @@ FrontFilter.pageStyle = (() => {
           `html[${HOME_FEED_ATTRIBUTE}] ${selector}`),
       }),
       ...settingRules(settings, SELECTORS.socialSignals),
+      ...(settings.hideUsernames && settings.hideAvatars ? SELECTORS.hiddenAuthor.map(hide) : []),
       ...(settings.hideNavbar ? [
         hide(navbar.root),
         `${navbar.layoutRoots} { ${
@@ -92,6 +107,7 @@ FrontFilter.pageStyle = (() => {
       ...(settings.blockForYou ? SELECTORS.forYou.map(hide) : []),
       ...(settings.hideLeftSidebar ? [hide(SELECTORS.leftSidebar.root)] : []),
       ...settingRules(settings, SELECTORS.leftSidebar.sections),
+      ...leftSidebarDividerRule(settings),
       ...mainPageLinkRule(settings, SELECTORS.leftSidebar.topSectionInPage),
       ...(settings.hideRelatedPosts ? [hide(SELECTORS.rightSidebar)] : []),
     ].join("\n");

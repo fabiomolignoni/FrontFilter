@@ -61,6 +61,21 @@ Notable changes to FrontFilter, newest first.
 - With the scroll limit on, switching Home between For You and Following
   left the new feed's posts hidden: the limit still counted those of the
   feed left.
+- With **Hide usernames** and **Hide avatars** on, the line above a post's
+  title in a subreddit's feed, and the one above a comment, no longer start
+  with a lone “•” before the time.
+- The end of a feed the scroll limit holds back shows one line above the
+  limit's message, no longer two.
+- With **Hide votes** on, a post's other buttons no longer start a little
+  to the right of its text.
+- **Hide votes** and **Hide comments** reach ads too: an ad's vote buttons
+  and comments button no longer show.
+- Hiding sections of the left sidebar no longer leaves their dividers
+  behind, one under another.
+- With **Hide suggested communities** on, the posts around the place where
+  a feed suggested communities are parted by one line, no longer two.
+- In a window as narrow as a phone's, the message a **Block** button shows
+  has room for its **Undo** button, no longer cut short.
 
 ## 3.0.1 - 2026-11-12
 

@@ -267,8 +267,9 @@ FrontFilter.SELECTORS = (() => {
       // Comments that keyword filters read, and the text they read.
       filtered: "shreddit-comment, .thing.comment",
       bodies: '[slot="comment"], .comment .usertext-body',
-      // The modern feed action row lives in each post's shadow root.
-      actionShadowHost: "shreddit-post",
+      // The modern feed action row lives in each card's shadow root, an
+      // ad's too.
+      actionShadowHosts: Object.freeze(["shreddit-post", "shreddit-ad-post"]),
       // A post's comments, in a tree: its top-level comments, each holding
       // its replies, with ad slots between them. At its end, outside every
       // comment, a loader brings the next top-level comments, by itself as
@@ -303,7 +304,12 @@ FrontFilter.SELECTORS = (() => {
       SUGGESTED_ARTICLES,
       `:is(${SUGGESTED_POSTS}, ${SUGGESTED_ARTICLES}) + hr`,
     ].map((selector) => `shreddit-feed ${selector}`)),
-    suggestedCommunities: "in-feed-community-recommendations",
+    // Suggested communities, which a feed shows between dividers, as it
+    // does posts: the one after them goes with them.
+    suggestedCommunities: Object.freeze([
+      "in-feed-community-recommendations",
+      "shreddit-feed in-feed-community-recommendations + hr",
+    ]),
     byAuthors,
 
     // Posts tagged NSFW, or from communities tagged NSFW.
@@ -369,14 +375,35 @@ FrontFilter.SELECTORS = (() => {
         ".entry .tagline .author",
       ]),
     }),
+    // What hides with both the author's name and avatar: their slot, then
+    // empty, and in a subreddit's feed, whose posts' credit bar leads with
+    // it, the separator before the time, when only elements that show
+    // nothing precede it: the slot, the author's flair while hidden, and
+    // the moderator's or admin's tag of a post not distinguished. An
+    // avatar left alone keeps the separator, as the author's name would.
+    // A comment's line names the author, then may tag them, as OP, before
+    // its separator: the separator right after the name goes.
+    hiddenAuthor: Object.freeze([
+      'shreddit-post [slot="authorName"]',
+      `shreddit-post [slot="credit-bar"] [slot="authorName"] ~ .created-separator:not(:not(${join([
+        '[slot="authorName"]',
+        "author-flair-event-handler[hidden]",
+        'shreddit-async-loader[bundlename="distinguished_post_tags"]:not(:has(> [distinguished-as]:not([distinguished-as=""])))',
+      ])}) ~ *)`,
+      'shreddit-comment [slot="commentMeta"] :has([noun="comment_author"]) + [aria-hidden="true"]',
+    ]),
     // Vote buttons, scores and post awards render inside these components'
-    // shadow roots. The whole vote group goes, so no empty pill is left,
-    // unless its wrapper also holds other actions; the individual controls
-    // are then hidden on their own.
-    shadowSignalHosts: Object.freeze(["shreddit-post", "shreddit-comment-action-row"]),
+    // shadow roots, ads' included. The whole vote group goes, so no empty
+    // pill is left, unless its wrapper also holds other actions; the
+    // individual controls are then hidden on their own.
+    shadowSignalHosts: Object.freeze(["shreddit-post", "shreddit-ad-post", "shreddit-comment-action-row"]),
     shadowSignals: Object.freeze({
       hideVotes: Object.freeze([
         ':has(> button[upvote]):not(:has(slot, award-button, [data-post-click-location="comments-button"], [name="comments-action-button"]))',
+        // A post's row of actions spaces them with a gap, and holds its
+        // vote group in a wrapper of its own: left empty, the wrapper would
+        // still take a gap before the next action.
+        ":has(> shreddit-vote-animations:only-child)",
         ".rpl-vote-button-group",
         "button[upvote]",
         "button[downvote]",
@@ -433,34 +460,49 @@ FrontFilter.SELECTORS = (() => {
     // These structural identifiers are stable across Reddit locales. The
     // async placeholders are included so a hidden section cannot flash
     // while it is loading.
-    leftSidebar: Object.freeze({
-      root: join(["#left-sidebar-container", "#left-sidebar"]),
-      sections: Object.freeze({
-        hideLeftSidebarGames: join([
-          '#left-sidebar faceplate-loader[name^="LeftNavGamesSection_"]',
-          '#left-sidebar faceplate-tracker[noun="games_drawer"]',
-        ]),
-        hideLeftSidebarCustomFeeds: join([
-          '#left-sidebar faceplate-loader[name^="LeftNavMultiredditsSection_"]',
-          '#left-sidebar faceplate-expandable-section-helper:has(> details > summary[aria-controls="multireddits_section"])',
-        ]),
-        hideLeftSidebarRecent: join([
-          '#left-sidebar faceplate-loader[name^="LeftNavRecentSection_"]',
-          "#left-sidebar #recent-communities-section",
-        ]),
-        hideLeftSidebarCommunities: join([
-          '#left-sidebar faceplate-loader[name^="LeftNavCommunitiesSection_"]',
-          '#left-sidebar faceplate-expandable-section-helper:has(> details > summary[aria-controls="communities_section"])',
-        ]),
-        hideLeftSidebarResources: join([
-          '#left-sidebar faceplate-loader[name^="LeftNavResourcesSection_"]',
-          '#left-sidebar faceplate-expandable-section-helper:has(faceplate-tracker[noun="resources_menu"])',
-        ]),
-      }),
-      // Its links to the main pages render in this component's shadow root.
-      topSection: "left-nav-top-section",
-      topSectionInPage: "#left-sidebar left-nav-top-section",
-    }),
+    leftSidebar: (() => {
+      // Each section's markers: its placeholder and what it renders, beside
+      // the sidebar's dividers. Sections known only by what they hold are
+      // added below: a divider's selector cannot test what they hold.
+      const markers = {
+        hideLeftSidebarGames: [
+          'faceplate-loader[name^="LeftNavGamesSection_"]',
+          'faceplate-tracker[noun="games_drawer"]',
+        ],
+        hideLeftSidebarCustomFeeds: ['faceplate-loader[name^="LeftNavMultiredditsSection_"]'],
+        hideLeftSidebarRecent: [
+          'faceplate-loader[name^="LeftNavRecentSection_"]',
+          "#recent-communities-section",
+        ],
+        hideLeftSidebarCommunities: ['faceplate-loader[name^="LeftNavCommunitiesSection_"]'],
+        hideLeftSidebarResources: ['faceplate-loader[name^="LeftNavResourcesSection_"]'],
+      };
+      const holding = {
+        hideLeftSidebarCustomFeeds: [
+          'faceplate-expandable-section-helper:has(> details > summary[aria-controls="multireddits_section"])',
+        ],
+        hideLeftSidebarCommunities: [
+          'faceplate-expandable-section-helper:has(> details > summary[aria-controls="communities_section"])',
+        ],
+        hideLeftSidebarResources: [
+          'faceplate-expandable-section-helper:has(faceplate-tracker[noun="resources_menu"])',
+        ],
+      };
+      const inSidebar = (selectors) => join(selectors.map((selector) => `#left-sidebar ${selector}`));
+      return Object.freeze({
+        root: join(["#left-sidebar-container", "#left-sidebar"]),
+        sections: Object.freeze(Object.fromEntries(Object.entries(markers).map(([setting, own]) =>
+          [setting, inSidebar([...own, ...(holding[setting] || [])])]))),
+        // Dividers part the sections in groups, each in front of its own:
+        // one whose sections all hide goes with them.
+        divider: "#left-sidebar hr",
+        sectionMarkers: Object.freeze(Object.fromEntries(Object.entries(markers).map(([setting, own]) =>
+          [setting, join(own)]))),
+        // Its links to the main pages render in this component's shadow root.
+        topSection: "left-nav-top-section",
+        topSectionInPage: "#left-sidebar left-nav-top-section",
+      });
+    })(),
 
     mainPageLinks: Object.freeze({
       blockHomepage: Object.freeze([
