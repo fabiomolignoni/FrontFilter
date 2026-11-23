@@ -203,7 +203,13 @@ class Session:
         driver.switch_to.window(first)
         driver.set_window_size(*WINDOW_SIZE)
         self.open_settings_page()
-        result = driver.execute_async_script(RESET_SCRIPT)
+        try:
+            result = driver.execute_async_script(RESET_SCRIPT)
+        except JavascriptException:
+            # A language chosen in the test, which the reset clears, loads
+            # the page again in the system's: reset from the page reloaded.
+            self.open_settings_page()
+            result = driver.execute_async_script(RESET_SCRIPT)
         if result != {"success": True}:
             raise RuntimeError(f"Could not reset the extension: {result}")
 
