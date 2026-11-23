@@ -1530,8 +1530,8 @@ class PageTests:
         # text needs, up to the window's width less a margin on each side,
         # and shows its button whole.
         self.driver.set_window_size(360, 800)
-        self.configure(showBlockSubredditButton=True, language="de")
-        self.js("resetFeed([post('one', 'alpha', {credit: true})])")
+        self.configure(showBlockSubredditButton=True)
+        self.js("resetFeed([post('one', 'alphabetically', {credit: true})])")
         self.wait_until(lambda: self.js("return !!document.querySelector('.frontfilter-block-subreddit')"))
         self.js("document.querySelector('.frontfilter-block-subreddit').click()")
         self.wait_until(lambda: self.js("return !!document.querySelector('.frontfilter-block-toast button')"))
