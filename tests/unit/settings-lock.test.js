@@ -354,7 +354,11 @@ test("locks the settings for a time and a delay that can be used", () => {
 
 test("ends a new lock at once in its grace period, and later only after its delay", () => {
   let stored = apply({ hideNsfw: true }, LOCK.start({ hideNsfw: true }, { until: NOW + 7 * DAY, delay: DAY }, NOW));
-  assert.equal(LOCK.canEnd(LOCK.normalizeLock(stored.settingsLock), NOW + 5 * MINUTE), true);
+  const lock = LOCK.normalizeLock(stored.settingsLock);
+  assert.equal(LOCK.canEnd(lock, NOW + 5 * MINUTE), true);
+  // Until when, so the settings page can say so.
+  assert.equal(LOCK.endsAtOnceUntil(lock, NOW + 5 * MINUTE), NOW + 10 * MINUTE);
+  assert.equal(LOCK.endsAtOnceUntil(lock, NOW + 10 * MINUTE), 0);
   const ended = save(stored, { lockUntil: 0 }, NOW + 5 * MINUTE);
   assert.equal(ended.stored.settingsLock, undefined);
   assert.equal(ended.result.locked, false);
@@ -375,6 +379,8 @@ test("extends a lock at once, and shortens or softens it only after its delay", 
   assert.equal(stored.settingsLock.until, NOW + 14 * DAY);
   assert.equal(stored.settingsLock.delay, 3 * DAY);
   assert.deepEqual(result.waiting, []);
+  // Extending a lock gives no grace period to end it.
+  assert.equal(LOCK.endsAtOnceUntil(LOCK.normalizeLock(stored.settingsLock), NOW + MINUTE), 0);
 
   // A longer delay applies to changes asked for after it.
   ({ stored, result } = save(stored, { lockUntil: NOW + 10 * DAY, lockDelay: HOUR }, NOW + 20 * MINUTE));

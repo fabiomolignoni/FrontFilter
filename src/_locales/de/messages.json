@@ -1716,11 +1716,20 @@
     "message": "Änderungen, die deine Einstellungen lockern, warten bis zum Ende der Sperre."
   },
   "lockLockedText": {
-    "message": "Änderungen, die deine Einstellungen lockern, warten $DURATION$ oder bis zum Ende der Sperre.",
+    "message": "Änderungen, die deine Einstellungen lockern, warten $DURATION$, ebenso das Beenden der Sperre.",
     "placeholders": {
       "duration": {
         "content": "$1",
         "example": "1 day"
+      }
+    }
+  },
+  "lockGrace": {
+    "message": "Versehentlich gesperrt? Noch $DURATION$ lang kannst du die Sperre sofort beenden.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "8 minutes"
       }
     }
   },

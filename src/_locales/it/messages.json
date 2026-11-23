@@ -1716,11 +1716,20 @@
     "message": "Le modifiche che allentano le impostazioni attendono la fine del blocco."
   },
   "lockLockedText": {
-    "message": "Le modifiche che allentano le impostazioni attendono $DURATION$, o fino alla fine del blocco.",
+    "message": "Le modifiche che allentano le impostazioni attendono $DURATION$, e lo stesso vale per terminare il blocco.",
     "placeholders": {
       "duration": {
         "content": "$1",
         "example": "1 day"
+      }
+    }
+  },
+  "lockGrace": {
+    "message": "Blocco attivato per errore? Ancora per $DURATION$ puoi terminarlo subito.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "8 minutes"
       }
     }
   },

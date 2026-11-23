@@ -99,8 +99,16 @@ async function loadPopup({
     fetch: fakeFetch(),
     close: () => { closed = true; },
     addEventListener: (type, listener) => (windowListeners[type] ??= []).push(listener),
-    setTimeout,
+    // A timer the page leaves running, as the lock card's for the next
+    // time its text changes, must not keep the tests running.
+    setTimeout: (...args) => {
+      const timer = setTimeout(...args);
+      timer?.unref?.();
+      return timer;
+    },
     clearTimeout,
+    // This realm's, which a test's mocked timers can replace.
+    Date,
   });
 
   runScripts(context, page.scripts);
@@ -2891,7 +2899,10 @@ test("asks before locking, says what the lock does, and locks once its box is ch
   assert.match(elements["lock-banner-text"].textContent, /^Locked until [^·]+$/);
   assert.match(elements["lock-state"].textContent, /^Locked until /);
   assert.equal(elements["lock-text"].textContent,
-    "Changes that loosen your settings wait 1 hour, or until the lock ends.");
+    "Changes that loosen your settings wait 1 hour, and so does ending the lock.");
+  assert.equal(elements["lock-grace"].hidden, false);
+  assert.equal(elements["lock-grace"].textContent,
+    "Locked by mistake? For 10 minutes more, you can end the lock at once.");
   assert.equal(elements["lock-fields"].hidden, true);
   assert.equal(elements["lock-start"].hidden, true);
   assert.equal(elements["lock-change"].hidden, false);
@@ -3133,6 +3144,8 @@ test("ends the lock after its delay, or at once when it was just made", async ()
   assert.deepEqual(plain(popup.sentMessages), [{ action: "saveSettings", settings: { lockUntil: 0 } }]);
   assert.match(popup.elements.toast.textContent, /^End the lock: waits until /);
   assert.ok(popup.stored().settingsLock);
+  // Past its grace period, the card says nothing of one.
+  assert.equal(popup.elements["lock-grace"].hidden, true);
 
   // A lock that waits until it ends cannot end early.
   const strict = await loadPopup({ storedSettings: { settingsLock: storedLock({ delay: null }) } });
@@ -3155,6 +3168,48 @@ test("ends the lock after its delay, or at once when it was just made", async ()
   assert.equal(fresh.elements["lock-start"].hidden, false);
   // The fields offer a new lock.
   assert.ok(new Date(fresh.elements["lock-until"].value).getTime() > Date.now() + 7 * DAY);
+});
+
+test("counts down a new lock's grace period, after which End lock waits or goes", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.UTC(2026, 10, 23, 10) });
+  const popup = await loadPopup({ autoResolveWrites: true, sendMessage: lockBackground() });
+  const { elements } = popup;
+  // Until the lock ends: End lock is there for the grace period only.
+  elements["lock-delay"].value = "end";
+  elements["lock-start"].click();
+  elements["lock-acknowledge"].checked = true;
+  elements["lock-acknowledge"].dispatch("change");
+  await elements["lock-confirm-button"].click();
+  await settleAll();
+  assert.equal(elements["lock-text"].textContent, "Changes that loosen your settings wait until the lock ends.");
+  assert.equal(elements["lock-grace"].textContent,
+    "Locked by mistake? For 10 minutes more, you can end the lock at once.");
+  assert.equal(elements["lock-end"].hidden, false);
+
+  t.mock.timers.tick(30 * 1000);
+  assert.match(elements["lock-grace"].textContent, /For 10 minutes more/);
+  t.mock.timers.tick(30 * 1000);
+  assert.match(elements["lock-grace"].textContent, /For 9 minutes more/);
+  t.mock.timers.tick(8 * MINUTE + 30 * 1000);
+  assert.match(elements["lock-grace"].textContent, /For 1 minute more/);
+  t.mock.timers.tick(30 * 1000);
+  assert.equal(elements["lock-grace"].hidden, true);
+  assert.equal(elements["lock-end"].hidden, true);
+  assert.equal(elements["lock-banner"].hidden, false);
+});
+
+test("says a loosening change waits until the lock ends once that comes before its delay", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.UTC(2026, 10, 23, 10) });
+  const until = Date.now() + DAY + HOUR;
+  const { elements } = await loadPopup({ storedSettings: { settingsLock: storedLock({ until }) } });
+  assert.equal(elements["lock-text"].textContent,
+    "Changes that loosen your settings wait 1 day, and so does ending the lock.");
+  assert.equal(elements["lock-grace"].hidden, true);
+  assert.equal(elements["lock-end"].hidden, false);
+
+  t.mock.timers.tick(HOUR);
+  assert.equal(elements["lock-text"].textContent, "Changes that loosen your settings wait until the lock ends.");
+  assert.equal(elements["lock-end"].hidden, true);
 });
 
 test("extends the lock at once, from its fields", async () => {

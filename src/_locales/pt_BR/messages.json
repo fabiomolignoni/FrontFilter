@@ -1716,11 +1716,20 @@
     "message": "As alterações que afrouxam suas configurações esperam até o fim do bloqueio."
   },
   "lockLockedText": {
-    "message": "As alterações que afrouxam suas configurações esperam $DURATION$ ou até o fim do bloqueio.",
+    "message": "As alterações que afrouxam suas configurações esperam $DURATION$, assim como encerrar o bloqueio.",
     "placeholders": {
       "duration": {
         "content": "$1",
         "example": "1 day"
+      }
+    }
+  },
+  "lockGrace": {
+    "message": "Ativou o bloqueio por engano? Por mais $DURATION$, você pode encerrá-lo imediatamente.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "8 minutes"
       }
     }
   },
