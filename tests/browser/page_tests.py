@@ -1476,6 +1476,31 @@ class PageTests:
         self.wait_until(lambda: "1 post shown" in self.js(controls))
         self.assertIn("Retry", self.js(controls))
 
+    def test_settings_tabs_keep_their_labels_inside_in_every_language(self):
+        # Labels too long to sit beside their icons show alone (popup.js):
+        # however long a language's words, and whatever the font, no label
+        # runs past its tab's padding into the next tab.
+        fixture = self.driver.current_window_handle
+        for language in ["system", "de", "es", "fr", "it", "pt-BR", "pt-PT"]:
+            with self.subTest(language=language):
+                self.driver.switch_to.window(fixture)
+                self.configure(language=language)
+                self.driver.switch_to.new_window("tab")
+                # The page as the toolbar opens it, at the popup's width.
+                self.session.open_settings_page(query="", language=None if language == "system" else language)
+                outside = self.js("""
+                    return Array.from(document.querySelectorAll('[role="tab"]'), (tab) => {
+                      const style = getComputedStyle(tab);
+                      const box = tab.getBoundingClientRect();
+                      const label = tab.querySelector('span').getBoundingClientRect();
+                      const inside = label.left >= box.left + parseFloat(style.paddingLeft) - 0.5
+                        && label.right <= box.right - parseFloat(style.paddingRight) + 0.5;
+                      return inside ? null : tab.id;
+                    }).filter(Boolean);
+                """)
+                self.assertEqual(outside, [])
+                self.driver.close()
+
     def test_feed_block_buttons_undo_and_visibility_rules(self):
         # The buttons are off by default. The page is r/test, so its own posts
         # get none, and allowed subreddits get none either.

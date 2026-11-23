@@ -19,6 +19,7 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.firefox.service import Service as FirefoxService
+from selenium.common.exceptions import JavascriptException, StaleElementReferenceException
 from selenium.webdriver.support.ui import WebDriverWait
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -202,16 +203,30 @@ class Session:
         driver.switch_to.window(first)
         driver.set_window_size(*WINDOW_SIZE)
         self.open_settings_page()
-        result = driver.execute_async_script(RESET_SCRIPT)
+        try:
+            result = driver.execute_async_script(RESET_SCRIPT)
+        except JavascriptException:
+            # A language chosen in the test, which the reset clears, loads
+            # the page again in the system's: reset from the page reloaded.
+            self.open_settings_page()
+            result = driver.execute_async_script(RESET_SCRIPT)
         if result != {"success": True}:
             raise RuntimeError(f"Could not reset the extension: {result}")
 
-    def open_settings_page(self, query="?standalone=true"):
+    def open_settings_page(self, query="?standalone=true", language=None):
+        """Opens the settings page; with a language, waits until it speaks it."""
         self.driver.get(self.extension_url(f"popup/index.html{query}"))
-        # The page has loaded its settings once its controls are enabled.
-        WebDriverWait(self.driver, TIMEOUT).until(
-            lambda driver: driver.find_element("id", "add-subreddit").is_enabled()
-        )
+        # The page has loaded its settings once its controls are enabled. It
+        # starts in the language it last spoke, and loads again in one chosen
+        # since, which leaves what was found of it stale.
+        def ready(driver):
+            if language and driver.execute_script("return document.documentElement.lang") != language:
+                return False
+            return driver.find_element("id", "add-subreddit").is_enabled()
+
+        WebDriverWait(
+            self.driver, TIMEOUT, ignored_exceptions=(StaleElementReferenceException, JavascriptException),
+        ).until(ready)
 
     def store(self, **settings):
         """Saves settings from an extension page and waits for navigation rules."""

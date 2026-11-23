@@ -35,11 +35,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   const tabList = document.querySelector('[role="tablist"]');
   function fitTabs() {
     tabList.removeAttribute("data-compact");
+    // A tab's room for its icon and label is its width less its padding.
     const tooLong = tabs.some((tab) => {
       const label = tab.querySelector("span");
       const icon = tab.querySelector(".icon");
-      const gap = Number.parseFloat(globalThis.getComputedStyle?.(tab).columnGap) || 0;
-      return label.scrollWidth + (icon?.getBoundingClientRect?.().width ?? 0) + gap > tab.clientWidth;
+      const style = globalThis.getComputedStyle?.(tab);
+      const px = (value) => Number.parseFloat(value) || 0;
+      const room = tab.clientWidth - px(style?.paddingLeft) - px(style?.paddingRight);
+      return label.scrollWidth + (icon?.getBoundingClientRect?.().width ?? 0) + px(style?.columnGap) > room;
     });
     if (tooLong) tabList.setAttribute("data-compact", "");
   }
