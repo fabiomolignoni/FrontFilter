@@ -12,11 +12,14 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
   const MINUTE = 60 * 1000;
   const HOUR = 60 * MINUTE;
   const DAY = 24 * HOUR;
+  // The longest a timer waits: 2^31 - 1 ms, about 24 days.
+  const MAX_TIMEOUT = 2 ** 31 - 1;
   const byId = (id) => document.getElementById(id);
   const card = {
     heading: byId("lock-heading"),
     state: byId("lock-state"),
     text: byId("lock-text"),
+    grace: byId("lock-grace"),
     fields: byId("lock-fields"),
     until: byId("lock-until"),
     delay: byId("lock-delay"),
@@ -46,6 +49,8 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
   let confirming = null;
   // Asked once per lock read: the background applies what came due.
   let updateAsked = false;
+  // Shows the card again when time changes it.
+  let timer = 0;
 
   for (const delay of LOCK.DELAYS) {
     const option = document.createElement("option");
@@ -229,18 +234,11 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
     if (locked) closeConfirm({ moveFocus: false });
     const waiting = lock?.pending.length ?? 0;
     card.state.hidden = !locked;
-    if (locked) {
-      card.state.textContent = t("lockLockedUntil", formatTime(lock.until));
-      card.text.textContent = lock.delay === null
-        ? t("lockLockedTextUntilEnd")
-        : t("lockLockedText", formatDuration(lock.delay));
-    } else {
-      card.text.textContent = t("lockIntro");
-    }
+    if (locked) card.state.textContent = t("lockLockedUntil", formatTime(lock.until));
+    else card.text.textContent = t("lockIntro");
     card.fields.hidden = locked && !editing;
     card.start.hidden = locked;
     card.change.hidden = !locked || editing;
-    card.end.hidden = !locked || editing || !LOCK.canEnd(lock, now);
     card.save.hidden = !editing;
     card.editCancel.hidden = !editing;
     card.banner.hidden = !locked;
@@ -250,7 +248,35 @@ FrontFilter.createLockCard = function ({ showToast, labelOf, showLockSection }) 
         : t("lockLockedUntil", formatTime(lock.until));
     }
     renderPending(now);
+    renderTimed(now);
     updateControls();
+  }
+
+  // What time changes while the lock lasts, shown again when it next does:
+  // what a loosening change would wait, which is until the lock ends once
+  // that comes before its delay; End lock, which goes then; and, in a new
+  // lock's grace period, the minutes left to end it at once.
+  function renderTimed(now) {
+    clearTimeout(timer);
+    const locked = LOCK.isActive(lock, now);
+    card.end.hidden = !locked || editing || !LOCK.canEnd(lock, now);
+    const graceLeft = locked ? LOCK.endsAtOnceUntil(lock, now) - now : 0;
+    card.grace.hidden = graceLeft <= 0;
+    if (!locked) return;
+    const waitsToEnd = lock.delay === null || now + lock.delay >= lock.until;
+    card.text.textContent = waitsToEnd
+      ? t("lockLockedTextUntilEnd")
+      : t("lockLockedText", formatDuration(lock.delay));
+    const changes = [];
+    if (!waitsToEnd) changes.push(lock.until - lock.delay - now);
+    if (graceLeft > 0) {
+      const minutes = Math.ceil(graceLeft / MINUTE);
+      card.grace.textContent = t("lockGrace", plural("lockMinutes", minutes));
+      changes.push(graceLeft - (minutes - 1) * MINUTE);
+    }
+    if (changes.length > 0) {
+      timer = setTimeout(() => renderTimed(Date.now()), Math.min(...changes, MAX_TIMEOUT));
+    }
   }
 
   function updateControls() {

@@ -199,12 +199,19 @@ FrontFilter.settingsLock = (() => {
     }
   }
 
+  // Until when ending the lock applies at once, as it does for the grace
+  // period of a new lock; 0 when ending it waits.
+  function endsAtOnceUntil(lock, now) {
+    if (!isActive(lock, now)) return 0;
+    const recent = findRecent(lock, UNTIL, now);
+    return recent && !loosens(UNTIL, recent.before, 0) ? recent.at + GRACE_PERIOD : 0;
+  }
+
   // Whether ending the lock now would apply at once, in its grace period,
   // or could wait for its delay before the lock ends by itself.
   function canEnd(lock, now) {
     if (!isActive(lock, now)) return false;
-    const recent = findRecent(lock, UNTIL, now);
-    if (recent && !loosens(UNTIL, recent.before, 0)) return true;
+    if (endsAtOnceUntil(lock, now) > 0) return true;
     return lock.delay !== null && now + lock.delay < lock.until;
   }
 
@@ -451,6 +458,7 @@ FrontFilter.settingsLock = (() => {
     FREE_SETTINGS,
     appliesAt,
     canEnd,
+    endsAtOnceUntil,
     isActive,
     loosens,
     nextUpdate,

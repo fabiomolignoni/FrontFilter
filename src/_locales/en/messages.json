@@ -1970,11 +1970,21 @@
     "message": "Changes that loosen your settings wait until the lock ends."
   },
   "lockLockedText": {
-    "message": "Changes that loosen your settings wait $DURATION$, or until the lock ends.",
+    "message": "Changes that loosen your settings wait $DURATION$, and so does ending the lock.",
     "placeholders": {
       "duration": {
         "content": "$1",
         "example": "1 day"
+      }
+    }
+  },
+  "lockGrace": {
+    "message": "Locked by mistake? For $DURATION$ more, you can end the lock at once.",
+    "description": "On the lock's card, in the first minutes of a new lock, while ending it still applies at once.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "8 minutes"
       }
     }
   },

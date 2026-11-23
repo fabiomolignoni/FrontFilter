@@ -1716,11 +1716,20 @@
     "message": "Les modifications qui assouplissent tes paramètres attendent la fin du verrouillage."
   },
   "lockLockedText": {
-    "message": "Les modifications qui assouplissent tes paramètres attendent $DURATION$, ou jusqu’à la fin du verrouillage.",
+    "message": "Les modifications qui assouplissent tes paramètres attendent $DURATION$, tout comme la levée du verrouillage.",
     "placeholders": {
       "duration": {
         "content": "$1",
         "example": "1 day"
+      }
+    }
+  },
+  "lockGrace": {
+    "message": "Verrouillage activé par erreur\u202f? Pendant encore $DURATION$, tu peux le lever aussitôt.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "8 minutes"
       }
     }
   },

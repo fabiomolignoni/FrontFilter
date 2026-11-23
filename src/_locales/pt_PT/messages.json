@@ -1716,11 +1716,20 @@
     "message": "As alterações que afrouxam as tuas definições esperam até ao fim do bloqueio."
   },
   "lockLockedText": {
-    "message": "As alterações que afrouxam as tuas definições esperam $DURATION$ ou até ao fim do bloqueio.",
+    "message": "As alterações que afrouxam as tuas definições esperam $DURATION$, tal como terminar o bloqueio.",
     "placeholders": {
       "duration": {
         "content": "$1",
         "example": "1 day"
+      }
+    }
+  },
+  "lockGrace": {
+    "message": "Ativaste o bloqueio por engano? Durante mais $DURATION$, podes terminá-lo imediatamente.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "8 minutes"
       }
     }
   },

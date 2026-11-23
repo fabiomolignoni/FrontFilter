@@ -42,6 +42,11 @@ Notable changes to FrontFilter, newest first.
 - FrontFilter no longer converts settings saved by versions before 3.0 when
   it updates: every installation updated to 3.0 has them converted already.
   Files exported by those versions still import with their meaning.
+- While settings are locked, **Settings lock** says that ending the lock
+  waits as long as the changes that loosen them. For the 10 minutes after
+  locking, in which **End lock** still ends the lock at once, it says how
+  many are left. And once the lock ends before a change's delay would pass,
+  it says that such changes wait until the lock ends.
 
 ### Fixed
 

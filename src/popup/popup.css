@@ -526,6 +526,7 @@ label.field-row:hover { background: none; }
    warning that asks before locking, and what waits. */
 .lock-summary { padding: var(--sp-3) 14px; }
 .lock-state { margin: 0 0 2px; font-size: 14px; font-weight: 650; }
+.lock-grace { margin-top: 4px; color: var(--text-primary); }
 .lock-actions {
   display: flex; flex-wrap: wrap; gap: var(--sp-2);
   padding: var(--sp-3) 14px;

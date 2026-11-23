@@ -1716,11 +1716,20 @@
     "message": "Los cambios que relajan tus ajustes esperan hasta que termine el bloqueo."
   },
   "lockLockedText": {
-    "message": "Los cambios que relajan tus ajustes esperan $DURATION$, o hasta que termine el bloqueo.",
+    "message": "Los cambios que relajan tus ajustes esperan $DURATION$, igual que terminar el bloqueo.",
     "placeholders": {
       "duration": {
         "content": "$1",
         "example": "1 day"
+      }
+    }
+  },
+  "lockGrace": {
+    "message": "¿Bloqueo activado por error? Durante $DURATION$ más puedes terminarlo al instante.",
+    "placeholders": {
+      "duration": {
+        "content": "$1",
+        "example": "8 minutes"
       }
     }
   },
