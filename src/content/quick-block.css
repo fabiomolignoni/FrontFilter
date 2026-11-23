@@ -19,11 +19,13 @@
   height: 40px; margin: 0; margin-inline-end: 8px; padding: 0 16px;
   font-size: 14px; color: var(--color-neutral-content-strong, inherit);
 }
+/* Sized by its content, not by the half of the window right of its left
+   edge, so that a phone's narrow window leaves it room. */
 .frontfilter-block-toast {
   position: fixed; left: 50%; bottom: 24px; z-index: 2147483647;
   transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px;
-  max-width: calc(100vw - 32px); min-height: 44px; padding: 6px 8px 6px 16px; box-sizing: border-box;
+  width: max-content; max-width: calc(100vw - 32px); min-height: 44px; padding: 6px 8px 6px 16px; box-sizing: border-box;
   border-radius: 12px; background: #1c1c1f; color: #f2f4f5;
   box-shadow: 0 8px 28px rgba(0, 0, 0, .35), 0 0 0 1px rgba(255, 255, 255, .06);
   font: 500 14px/1.4 system-ui, sans-serif;
@@ -31,8 +33,10 @@
 }
 .frontfilter-block-toast > span { padding: 4px 0; }
 .frontfilter-block-toast > span:only-child { padding-right: 8px; }
+/* Reddit's own styles would cut the button's text short. */
 .frontfilter-block-toast button {
-  appearance: none; margin: 0; padding: 8px 12px; border: 0; border-radius: 8px;
+  appearance: none; flex: none; overflow: visible;
+  margin: 0; padding: 8px 12px; border: 0; border-radius: 8px;
   background: none; color: #ff8f5c; cursor: pointer;
   font: 600 14px/1 system-ui, sans-serif;
 }

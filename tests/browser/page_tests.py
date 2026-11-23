@@ -144,11 +144,18 @@ class PageTests:
         ])
 
     def test_suggested_communities(self):
+        # In a feed, the divider after them goes with them: one line parts
+        # the posts around them.
+        self.js("resetFeed([post('a'), post('b')]); addFeedCommunities()")
+        shown = ["t3_a", "hr", "in-feed-community-recommendations", "hr", "t3_b", "hr"]
         self.wait_until(lambda: self.js("return suggestedCommunitiesVisible()"))
+        self.wait_until(lambda: self.js("return feedLines()") == shown)
         self.configure(hideSuggestedCommunities=True)
         self.wait_until(lambda: not self.js("return suggestedCommunitiesVisible()"))
+        self.wait_until(lambda: self.js("return feedLines()") == ["t3_a", "hr", "t3_b", "hr"])
         self.configure(hideSuggestedCommunities=False)
         self.wait_until(lambda: self.js("return suggestedCommunitiesVisible()"))
+        self.wait_until(lambda: self.js("return feedLines()") == shown)
 
     def test_ads_and_promoted_posts(self):
         self.js(
@@ -303,6 +310,83 @@ class PageTests:
         self.configure(hideSocialSignals=False, **dict.fromkeys(SIGNAL_KEYS, False))
         self.wait_until(lambda: self.js("return socialVisibility()") == SIGNALS_SHOWN)
 
+    def test_hidden_votes_leave_no_gap_in_posts_and_ads(self):
+        # A card's actions keep starting at its row's edge, an ad's too.
+        self.js("addSocialAd()")
+        rows = lambda: self.js("return actionRows()")
+        self.wait_until(lambda: rows() == {
+            "social-post": {"indent": 0, "shown": ["votes", "award", "comments"]},
+            "social-ad": {"indent": 0, "shown": ["votes", "comments"]},
+        })
+        self.configure(hideVotes=True)
+        self.wait_until(lambda: rows() == {
+            "social-post": {"indent": 0, "shown": ["award", "comments"]},
+            "social-ad": {"indent": 0, "shown": ["comments"]},
+        })
+        self.configure(hideVotes=False, hideComments=True)
+        self.wait_until(lambda: rows() == {
+            "social-post": {"indent": 0, "shown": ["votes", "award"]},
+            "social-ad": {"indent": 0, "shown": ["votes"]},
+        })
+        self.configure(hideComments=False, hideCommentReplies=False)
+        self.wait_until(lambda: rows()["social-ad"]["shown"] == ["votes", "comments"])
+
+    def test_comment_lines_never_lead_with_their_separator(self):
+        # The separator before a comment's time stays while the author's
+        # name or avatar shows, or a tag such as OP's.
+        shown = {
+            "line-plain": ["avatar", "name", "separator", "time"],
+            "line-op": ["avatar", "name", "op", "separator", "time"],
+        }
+        without = lambda part: {line: [p for p in parts if p != part] for line, parts in shown.items()}
+        lines = lambda: self.js("return commentLines()")
+        self.wait_until(lambda: lines() == shown)
+        self.configure(hideUsernames=True)
+        self.wait_until(lambda: lines() == without("name"))
+        self.configure(hideUsernames=False, hideAvatars=True)
+        self.wait_until(lambda: lines() == without("avatar"))
+        self.configure(hideAvatars=False, hideSocialSignals=True)
+        authorless = {"line-plain": ["time"], "line-op": ["op", "separator", "time"]}
+        try:
+            self.wait_until(lambda: lines() == authorless)
+        except Exception:
+            self.fail(f"expected {authorless}, got {lines()}")
+        self.configure(hideSocialSignals=False)
+        self.wait_until(lambda: lines() == shown)
+
+    def test_credit_bars_never_lead_with_their_separator(self):
+        # The separator before a post's time stays while something shows
+        # before it: the author's name or avatar, their flair, a moderator's
+        # tag or, on Home, the subreddit.
+        shown = {
+            "credit-author": ["author", "avatar", "name", "separator", "time"],
+            "credit-flair": ["author", "avatar", "name", "flair", "separator", "time"],
+            "credit-moderator": ["author", "avatar", "name", "tag", "separator", "time"],
+            "credit-subreddit": ["subreddit", "separator", "time"],
+        }
+        without = lambda part: {post: [p for p in parts if p != part] for post, parts in shown.items()}
+        bars = lambda: self.js("return creditBars()")
+        self.wait_until(lambda: bars() == shown)
+        self.configure(hideUsernames=True)
+        self.wait_until(lambda: bars() == without("name"))
+        self.configure(hideUsernames=False, hideAvatars=True)
+        self.wait_until(lambda: bars() == without("avatar"))
+        # With neither, the author's slot shows nothing and hides, with the
+        # separator when nothing else precedes it.
+        self.configure(hideAvatars=False, hideSocialSignals=True)
+        authorless = {
+            "credit-author": ["time"],
+            "credit-flair": ["flair", "separator", "time"],
+            "credit-moderator": ["tag", "separator", "time"],
+            "credit-subreddit": ["subreddit", "separator", "time"],
+        }
+        try:
+            self.wait_until(lambda: bars() == authorless)
+        except Exception:
+            self.fail(f"expected {authorless}, got {bars()}")
+        self.configure(hideSocialSignals=False)
+        self.wait_until(lambda: bars() == shown)
+
     def test_navbar_sections_logo_exception_and_parent_control(self):
         navbar = lambda: self.js("return navbarVisibility()")
         self.configure(**ALL_NAVBAR_SECTIONS)
@@ -323,16 +407,33 @@ class PageTests:
 
     def test_left_sidebar_sections_and_parent_control(self):
         sidebar = lambda: self.js("return sidebarVisibility()")
+        dividers = lambda: self.js("return sidebarDividers()")
+        all_dividers = ["games", "custom-feeds", "communities", "resources"]
+        self.wait_until(lambda: dividers() == all_dividers)
+        # A divider goes once every section of its group has gone: Recent
+        # and Communities share one.
+        for sections, shown in [
+            (["Games"], ["custom-feeds", "communities", "resources"]),
+            (["Recent"], all_dividers),
+            (["Recent", "Communities"], ["games", "custom-feeds", "resources"]),
+            (["CustomFeeds", "Resources"], ["games", "communities"]),
+        ]:
+            with self.subTest(sections=sections):
+                hidden = {f"hideLeftSidebar{section}": True for section in sections}
+                self.configure(**{**dict.fromkeys(ALL_SIDEBAR_SECTIONS, False), **hidden})
+                self.wait_until(lambda: dividers() == shown)
         self.configure(**ALL_SIDEBAR_SECTIONS)
         self.wait_until(lambda: sidebar() == {
             **VISIBLE_SIDEBAR,
             "games": False, "customFeeds": False, "recent": False,
             "communities": False, "resources": False,
         })
+        self.assertEqual(dividers(), [])
         self.configure(hideLeftSidebar=True)
         self.wait_until(lambda: not sidebar()["sidebar"])
         self.configure(hideLeftSidebar=False, **dict.fromkeys(ALL_SIDEBAR_SECTIONS, False))
         self.wait_until(lambda: sidebar() == VISIBLE_SIDEBAR)
+        self.assertEqual(dividers(), all_dividers)
 
     def test_blocked_main_page_links_hide_from_navigation(self):
         links = lambda: self.js("return mainPageLinkVisibility()")
@@ -754,6 +855,23 @@ class PageTests:
             "return document.querySelector('.frontfilter-feed-controls').textContent.includes('End of feed')"
         ))
 
+    def test_one_line_separates_the_last_posts_shown_from_the_controls(self):
+        # Reddit's divider after the last post shown, and not the controls'
+        # own besides; the comment tree, which ends with none, gets theirs.
+        feed_end = "return endLines('main shreddit-feed')"
+        self.configure(limitInfiniteScroll=True, scrollLimit=2, scrollMode="button")
+        self.js("resetFeed([post('a'), post('b'), post('c')])")
+        self.expect("ab")
+        self.assertEqual(self.js(feed_end), ["divider"])
+        self.click_feed_button()
+        self.expect("abc")
+        self.assertEqual(self.js(feed_end), ["divider"])
+        self.open_thread()
+        self.configure(limitComments=True, commentLimit=1, commentLimitMode="fixed")
+        self.js("resetCommentTree([comment('a'), comment('b')])")
+        self.expect_comments(comments=["a"], controls=["1 comment shown · Limit reached", None])
+        self.assertEqual(self.js("return endLines('#comment-tree')"), ["border"])
+
     # Home's feeds, For You and Following
 
     def open_home_feeds(self, define=True, **settings):
@@ -1067,6 +1185,7 @@ class PageTests:
         self.pause(800)
         self.assertEqual(self.js("return loadCalls"), paused_calls)
         self.assertEqual(self.js("return shown()"), ["t3_j1"])
+        self.assertEqual(self.js("return endLines('main shreddit-feed')"), ["divider"])
         self.js(f"{pause_controls}.querySelector('button').click()")
         self.wait_until(lambda: self.js("return loadCalls") > paused_calls)
         self.wait_until(lambda: self.js(f"return !!{pause_controls}"))
@@ -1405,6 +1524,28 @@ class PageTests:
             "chrome.storage.local.get('blockedSubreddits')"
             ".then((stored) => arguments[0](stored.blockedSubreddits))"
         ), [{"name": "alpha", "mode": "home"}])
+
+    def test_block_toast_fits_a_phone(self):
+        # In a window as narrow as a phone's, the toast takes the room its
+        # text needs, up to the window's width less a margin on each side,
+        # and shows its button whole.
+        self.driver.set_window_size(360, 800)
+        self.configure(showBlockSubredditButton=True)
+        self.js("resetFeed([post('one', 'alphabetically', {credit: true})])")
+        self.wait_until(lambda: self.js("return !!document.querySelector('.frontfilter-block-subreddit')"))
+        self.js("document.querySelector('.frontfilter-block-subreddit').click()")
+        self.wait_until(lambda: self.js("return !!document.querySelector('.frontfilter-block-toast button')"))
+        toast = self.js("""
+            const toast = document.querySelector('.frontfilter-block-toast');
+            const button = toast.querySelector('button');
+            const box = toast.getBoundingClientRect();
+            return {
+              inside: box.left >= 16 && box.right <= innerWidth - 16,
+              wide: box.width > innerWidth / 2,
+              button: button.scrollWidth <= button.clientWidth,
+            };
+        """)
+        self.assertEqual(toast, {"inside": True, "wide": True, "button": True})
 
     def test_block_buttons_sit_before_join_in_every_credit_bar(self):
         # Reddit lays the credit bar out in one way for most visitors and in

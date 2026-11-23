@@ -25,6 +25,10 @@ shreddit-feed[data-frontfilter-feed-paused] > faceplate-partial[slot="load-after
   color: var(--color-neutral-content-weak, inherit); background: transparent;
   font: 13px/1.5 system-ui, sans-serif; text-align: center;
 }
+/* Reddit ends each item of a feed with a divider, as it does the bar above
+   the feed: after a feed, whose last post shown has one, the controls draw
+   no line of their own. A comment tree ends with none. */
+shreddit-feed + .frontfilter-feed-controls { border-top: 0; }
 .frontfilter-feed-controls button {
   appearance: none; box-sizing: border-box;
   display: inline-flex !important; align-items: center; justify-content: center;

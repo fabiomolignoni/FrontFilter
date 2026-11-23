@@ -639,11 +639,10 @@ function syncShadowRootStyles(hostSelector, styleId, styleText) {
 }
 
 function syncShadowCommentActions() {
-  syncShadowRootStyles(
-    SELECTORS.comment.actionShadowHost,
-    COMMENT_ACTION_STYLE_ID,
-    PAGE_STYLE.commentActionRules(config),
-  );
+  const styleText = PAGE_STYLE.commentActionRules(config);
+  for (const host of SELECTORS.comment.actionShadowHosts) {
+    syncShadowRootStyles(host, COMMENT_ACTION_STYLE_ID, styleText);
+  }
 }
 
 function syncShadowSocialSignals() {
@@ -678,11 +677,9 @@ function monitorCustomElement(elementName, shouldSync, sync) {
 }
 
 function setupCustomElementMonitors() {
-  monitorCustomElement(
-    SELECTORS.comment.actionShadowHost,
-    () => config.hideComments,
-    syncShadowCommentActions,
-  );
+  for (const host of SELECTORS.comment.actionShadowHosts) {
+    monitorCustomElement(host, () => config.hideComments, syncShadowCommentActions);
+  }
   monitorCustomElement(
     SELECTORS.autoplay.player,
     () => config.disableAutoplay,

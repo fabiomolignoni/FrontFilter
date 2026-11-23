@@ -20,6 +20,11 @@ pdp-right-rail, reddit-pdp-right-rail-post, search-telemetry-tracker { display: 
 search-dynamic-id-cache-controller, reddit-search-large, reddit-chat-header-button,
 rpl-dropdown { display: inline-block; }
 article { padding: 10px; }
+/* The sidebar's dividers take no room, so that the feed starts where the
+   tests' geometry expects it. */
+#left-sidebar hr { height: 0; margin: 0; border: 0; }
+/* Reddit's styles cut a button's text short rather than wrap it. */
+button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -67,14 +72,17 @@ article { padding: 10px; }
 <reddit-sidebar-nav id="left-sidebar">
   <nav>
     <left-nav-top-section id="sidebar-top"></left-nav-top-section>
+    <hr id="sidebar-divider-games">
     <faceplate-loader name="LeftNavGamesSection_test"></faceplate-loader>
     <faceplate-tracker id="sidebar-games" noun="games_drawer">Games</faceplate-tracker>
+    <hr id="sidebar-divider-custom-feeds">
     <faceplate-loader name="LeftNavMultiredditsSection_test"></faceplate-loader>
     <faceplate-expandable-section-helper id="sidebar-custom-feeds">
       <details open><summary aria-controls="multireddits_section">Custom feeds</summary>
         <div id="multireddits_section">Custom feed links</div>
       </details>
     </faceplate-expandable-section-helper>
+    <hr id="sidebar-divider-communities">
     <faceplate-loader name="LeftNavRecentSection_test"></faceplate-loader>
     <div id="recent-communities-section">Recent</div>
     <faceplate-loader name="LeftNavCommunitiesSection_test"></faceplate-loader>
@@ -83,12 +91,13 @@ article { padding: 10px; }
         <div id="communities_section">Community links</div>
       </details>
     </faceplate-expandable-section-helper>
+    <hr id="sidebar-divider-resources">
     <faceplate-loader name="LeftNavResourcesSection_test"></faceplate-loader>
-    <faceplate-expandable-section-helper id="sidebar-resources">
+    <nav><faceplate-expandable-section-helper id="sidebar-resources">
       <details open><summary><faceplate-tracker noun="resources_menu">Resources</faceplate-tracker></summary>
         <div>Resource links</div>
       </details>
-    </faceplate-expandable-section-helper>
+    </faceplate-expandable-section-helper></nav>
   </nav>
 </reddit-sidebar-nav>
 <main>
@@ -154,6 +163,118 @@ article { padding: 10px; }
     </div>
   </faceplate-hovercard>
   <div id="profile-karma"><p><span data-testid="karma-number">1</span></p><p>Post Karma</p></div>
+</section>
+<!-- The line above a feed post's title, as captured logged in in November
+  2026. In a subreddit's feed it leads with the author, avatar and name in
+  a slot, then holds the tag of a post a moderator or an admin
+  distinguished, which shows in the tags' shadow root, the author's flair,
+  hidden when they have none, a separator and the time. Home's leads with
+  the subreddit. data-test names the parts the tests read. -->
+<section id="credit-bars">
+  <shreddit-post id="credit-author" author="dana">
+    <span slot="credit-bar"><span id="feed-post-credit-bar-t3_c1">
+      <span slot="authorName" data-test="author"><div>
+        <faceplate-hovercard data-id="user-hover-card">
+          <faceplate-tracker noun="user_profile">
+            <a href="/user/dana/"><div><span avatar data-test="avatar">D</span><span
+              data-testid="nameplate" data-test="name"><span>u/dana</span></span></div></a>
+          </faceplate-tracker>
+        </faceplate-hovercard>
+      </div></span>
+      <shreddit-async-loader class="contents" bundlename="distinguished_post_tags"><shreddit-distinguished-post-tags
+        post-id="t3_c1"></shreddit-distinguished-post-tags></shreddit-async-loader>
+      <author-flair-event-handler hidden><span class="hidden"></span></author-flair-event-handler>
+      <span class="created-separator" aria-hidden="true" data-test="separator">•</span>
+      <faceplate-timeago data-test="time"><time>2 hr. ago</time></faceplate-timeago>
+    </span></span>
+  </shreddit-post>
+  <shreddit-post id="credit-flair" author="dana">
+    <span slot="credit-bar"><span id="feed-post-credit-bar-t3_c2">
+      <span slot="authorName" data-test="author"><div>
+        <faceplate-hovercard data-id="user-hover-card">
+          <faceplate-tracker noun="user_profile">
+            <a href="/user/dana/"><div><span avatar data-test="avatar">D</span><span
+              data-testid="nameplate" data-test="name"><span>u/dana</span></span></div></a>
+          </faceplate-tracker>
+        </faceplate-hovercard>
+      </div></span>
+      <shreddit-async-loader class="contents" bundlename="distinguished_post_tags"><shreddit-distinguished-post-tags
+        post-id="t3_c2"></shreddit-distinguished-post-tags></shreddit-async-loader>
+      <author-flair-event-handler><span data-test="flair">Flair</span></author-flair-event-handler>
+      <span class="created-separator" aria-hidden="true" data-test="separator">•</span>
+      <faceplate-timeago data-test="time"><time>2 hr. ago</time></faceplate-timeago>
+    </span></span>
+  </shreddit-post>
+  <shreddit-post id="credit-moderator" author="dana">
+    <span slot="credit-bar"><span id="feed-post-credit-bar-t3_c3">
+      <span slot="authorName" data-test="author"><div>
+        <faceplate-hovercard data-id="user-hover-card">
+          <faceplate-tracker noun="user_profile">
+            <a href="/user/dana/"><div><span avatar data-test="avatar">D</span><span
+              data-testid="nameplate" data-test="name"><span>u/dana</span></span></div></a>
+          </faceplate-tracker>
+        </faceplate-hovercard>
+      </div></span>
+      <shreddit-async-loader class="contents" bundlename="distinguished_post_tags"><shreddit-distinguished-post-tags
+        post-id="t3_c3" distinguished-as="moderator"></shreddit-distinguished-post-tags></shreddit-async-loader>
+      <author-flair-event-handler hidden><span class="hidden"></span></author-flair-event-handler>
+      <span class="created-separator" aria-hidden="true" data-test="separator">•</span>
+      <faceplate-timeago data-test="time"><time>2 hr. ago</time></faceplate-timeago>
+    </span></span>
+  </shreddit-post>
+  <shreddit-post id="credit-subreddit" author="dana">
+    <span slot="credit-bar"><span id="feed-post-credit-bar-t3_c4">
+      <span data-post-click-location="subreddit-link">
+        <faceplate-hovercard data-id="community-hover-card">
+          <a data-testid="subreddit-name" href="/r/test/" data-test="subreddit">r/test</a>
+        </faceplate-hovercard>
+      </span>
+      <shreddit-async-loader class="contents" bundlename="distinguished_post_tags"><shreddit-distinguished-post-tags
+        post-id="t3_c4"></shreddit-distinguished-post-tags></shreddit-async-loader>
+      <span class="created-separator" aria-hidden="true" data-test="separator">•</span>
+      <faceplate-timeago data-test="time"><time>2 hr. ago</time></faceplate-timeago>
+    </span></span>
+  </shreddit-post>
+</section>
+<!-- The line above a comment, as captured logged in in November 2026:
+  the author's avatar in a slot of its own, beside the line, then the name,
+  a tag such as OP's, a separator and the time. data-test names the parts
+  the tests read. -->
+<section id="comment-lines">
+  <shreddit-comment id="line-plain" author="erin" depth="0">
+    <div slot="commentAvatar"><span class="author-hovercard-trigger"><div>
+      <faceplate-tracker noun="comment_author_avatar"><a href="/user/erin/"><span avatar
+        data-test="avatar">E</span></a></faceplate-tracker>
+    </div></span></div>
+    <div slot="commentMeta"><div><div><div>
+      <span class="author-hovercard-trigger"><div>
+        <faceplate-tracker noun="comment_author" class="contents"><a href="/user/erin/"><span
+          data-testid="nameplate" data-test="name">erin</span></a></faceplate-tracker>
+      </div></span>
+      <span aria-hidden="true" data-test="separator">•</span>
+      <faceplate-tracker noun="comment_time" class="contents"><a href="#line-plain"><faceplate-timeago
+        data-test="time"><time>2 hr. ago</time></faceplate-timeago></a></faceplate-tracker>
+    </div></div></div></div>
+    <div slot="comment">Comment body</div>
+  </shreddit-comment>
+  <shreddit-comment id="line-op" author="erin" depth="0">
+    <div slot="commentAvatar"><span class="author-hovercard-trigger"><div>
+      <faceplate-tracker noun="comment_author_avatar"><a href="/user/erin/"><span avatar
+        data-test="avatar">E</span></a></faceplate-tracker>
+    </div></span></div>
+    <div slot="commentMeta"><div><div><div>
+      <span class="author-hovercard-trigger"><div>
+        <faceplate-tracker noun="comment_author" class="contents"><a href="/user/erin/"><span
+          data-testid="nameplate" data-test="name">erin</span></a></faceplate-tracker>
+      </div></span>
+      <span><span><shreddit-comment-author-modifier-icon op
+        data-test="op">OP</shreddit-comment-author-modifier-icon></span></span>
+      <span aria-hidden="true" data-test="separator">•</span>
+      <faceplate-tracker noun="comment_time" class="contents"><a href="#line-op"><faceplate-timeago
+        data-test="time"><time>2 hr. ago</time></faceplate-timeago></a></faceplate-tracker>
+    </div></div></div></div>
+    <div slot="comment">Comment body</div>
+  </shreddit-comment>
 </section>
 <!-- Old Reddit names each post's and comment's author on its .thing. -->
 <section id="old-reddit">
@@ -328,22 +449,61 @@ article { padding: 10px; }
       shadow.append(createVoteGroup(this), createSlot("comment-award"));
     }
   });
+  // A card's row of actions, spaced with a gap, holds its vote group in a
+  // wrapper of its own; ads have no awards.
+  const createActionRow = (host, { award = true } = {}) => {
+    const row = document.createElement("div");
+    row.className = "shreddit-post-container";
+    row.style.cssText = "display: flex; gap: 12px;";
+    const votes = document.createElement("span");
+    votes.append(createVoteGroup(host));
+    row.append(votes);
+    if (award) {
+      const button = document.createElement("award-button");
+      button.id = "award";
+      button.textContent = "Award";
+      row.append(button);
+    }
+    const comments = document.createElement("a");
+    comments.href = "#comments";
+    comments.textContent = "Comments";
+    comments.setAttribute("data-action-bar-action", "comments");
+    comments.setAttribute("data-post-click-location", "comments-button");
+    comments.setAttribute("name", "comments-action-button");
+    row.append(comments);
+    return row;
+  };
   customElements.define("shreddit-post", class extends HTMLElement {
     constructor() {
       super();
       const shadow = this.attachShadow({ mode: "open" });
-      shadow.append(createSlot("credit-bar"), document.createElement("slot"));
-      const award = document.createElement("award-button");
-      award.id = "award";
-      award.textContent = "Award";
-      shadow.append(createVoteGroup(this), award);
-      const comments = document.createElement("a");
-      comments.href = "#comments";
-      comments.textContent = "Comments";
-      comments.setAttribute("data-action-bar-action", "comments");
-      comments.setAttribute("data-post-click-location", "comments-button");
-      comments.setAttribute("name", "comments-action-button");
-      shadow.append(comments);
+      shadow.append(createSlot("credit-bar"), document.createElement("slot"), createActionRow(this));
+    }
+  });
+  customElements.define("shreddit-ad-post", class extends HTMLElement {
+    constructor() {
+      super();
+      const shadow = this.attachShadow({ mode: "open" });
+      shadow.append(
+        createSlot("credit-bar"), document.createElement("slot"), createActionRow(this, { award: false }),
+      );
+    }
+  });
+  // Reddit's tag of a post a moderator or an admin distinguished, which it
+  // names in an attribute; posts not distinguished get none.
+  customElements.define("shreddit-distinguished-post-tags", class extends HTMLElement {
+    connectedCallback() {
+      if (this.shadowRoot) return;
+      const shadow = this.attachShadow({ mode: "open" });
+      const style = document.createElement("style");
+      style.textContent = ":host { display: contents; }";
+      shadow.append(style);
+      const role = this.getAttribute("distinguished-as");
+      if (!role) return;
+      const tag = document.createElement("span");
+      tag.dataset.test = "tag";
+      tag.textContent = role === "admin" ? "Admin" : "Mod";
+      shadow.append(tag);
     }
   });
   customElements.define("shreddit-player", class extends HTMLElement {
@@ -990,6 +1150,66 @@ article { padding: 10px; }
       "comment-upvote": visible(actions.querySelector("button[upvote]")),
     };
   };
+  // The parts each credit bar shows, in order, a distinguished post's tag
+  // included.
+  // The parts each comment's line shows, in order, its avatar first.
+  window.commentLines = () => {
+    const visible = (element) => Boolean(element?.getClientRects().length)
+      && getComputedStyle(element).display !== "none";
+    return Object.fromEntries(Array.from(document.querySelectorAll("#comment-lines shreddit-comment"), (comment) => [
+      comment.id,
+      Array.from(comment.querySelectorAll("[data-test]")).filter(visible).map((part) => part.dataset.test),
+    ]));
+  };
+  // Where the first action each card shows starts in its row, in pixels,
+  // and which actions show.
+  window.actionRows = () => Object.fromEntries(Array.from(
+    document.querySelectorAll("#social-post, #social-ad"),
+    (card) => {
+      const row = card.shadowRoot.querySelector(".shreddit-post-container");
+      const shown = Array.from(row.querySelectorAll("button[upvote], award-button, a"))
+        .filter((action) => action.getClientRects().length);
+      const first = Array.from(row.children).find((item) => item.getBoundingClientRect().width > 0);
+      return [card.id, {
+        indent: Math.round(first.getBoundingClientRect().left - row.getBoundingClientRect().left),
+        shown: shown.map((action) => action.localName === "a" ? "comments" : action.localName === "button" ? "votes" : "award"),
+      }];
+    },
+  ));
+  window.addSocialAd = () => {
+    const ad = document.createElement("shreddit-ad-post");
+    ad.id = "social-ad";
+    ad.setAttribute("score", "0");
+    document.querySelector("#social-signals").append(ad);
+  };
+  window.sidebarDividers = () => Array.from(document.querySelectorAll("#left-sidebar hr"))
+    .filter((divider) => divider.getClientRects().length)
+    .map((divider) => divider.id.replace("sidebar-divider-", ""));
+  window.creditBars = () => {
+    const visible = (element) => Boolean(element?.getClientRects().length)
+      && getComputedStyle(element).display !== "none";
+    return Object.fromEntries(Array.from(document.querySelectorAll("#credit-bars shreddit-post"), (post) => [
+      post.id,
+      Array.from(post.querySelectorAll("[data-test], shreddit-distinguished-post-tags"))
+        .flatMap((part) => (part.shadowRoot ? Array.from(part.shadowRoot.querySelectorAll("[data-test]")) : [part]))
+        .filter(visible)
+        .map((part) => part.dataset.test),
+    ]));
+  };
+  // The lines between the last element a feed or a comment tree shows and
+  // what follows it: a divider it ends with, and the top border of the next
+  // element, such as a limit's controls.
+  window.endLines = (selector) => {
+    const visible = (element) => Boolean(element?.getClientRects().length)
+      && getComputedStyle(element).display !== "none";
+    const container = document.querySelector(selector);
+    const last = Array.from(container.children).filter(visible).at(-1);
+    const next = container.nextElementSibling;
+    return [
+      ...(last?.localName === "hr" ? ["divider"] : []),
+      ...(visible(next) && parseFloat(getComputedStyle(next).borderTopWidth) > 0 ? ["border"] : []),
+    ];
+  };
   // Feed cards report their own visibility and that of the divider after them.
   window.adVisibility = () => {
     const visible = (element) => Boolean(element?.getClientRects().length)
@@ -1013,6 +1233,20 @@ article { padding: 10px; }
     (element) => [element.id, Boolean(element.getClientRects().length)
       && getComputedStyle(element).display !== "none"],
   ));
+  // A feed shows suggested communities after a post's divider, as it shows
+  // a post: they end with a divider of their own.
+  window.addFeedCommunities = () => {
+    const divider = document.querySelector("main shreddit-feed > article + hr");
+    const communities = document.createElement("in-feed-community-recommendations");
+    communities.textContent = "Suggested communities";
+    divider.after(document.createElement("faceplate-loader"), communities, document.createElement("hr"));
+  };
+  // What a feed shows, in order: posts by ID, suggested communities and
+  // dividers.
+  window.feedLines = () => Array.from(document.querySelectorAll("main shreddit-feed > *"))
+    .filter((element) => element.getBoundingClientRect().height > 0)
+    .map((element) => element.localName === "article" ? element.firstElementChild.id
+      : element.localName === "hr" ? "hr" : element.localName);
   window.suggestedCommunitiesVisible = () => {
     const element = document.querySelector("#suggested-communities");
     return Boolean(element?.getClientRects().length)

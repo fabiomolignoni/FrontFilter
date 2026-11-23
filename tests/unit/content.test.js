@@ -488,9 +488,9 @@ const PAGE_RULE_SETTINGS = {
   hideAvatars: [],
   hideUsernames: [],
   hideCommentReplies: [],
-  hideComments: ["shreddit-post"],
-  hideVotes: ["shreddit-post", "shreddit-comment-action-row"],
-  hideAwards: ["shreddit-post", "shreddit-comment-action-row"],
+  hideComments: ["shreddit-post", "shreddit-ad-post"],
+  hideVotes: ["shreddit-post", "shreddit-ad-post", "shreddit-comment-action-row"],
+  hideAwards: ["shreddit-post", "shreddit-ad-post", "shreddit-comment-action-row"],
   blockHomepage: ["left-nav-top-section"],
   blockPopular: ["left-nav-top-section"],
   blockExplore: ["left-nav-top-section"],
@@ -581,6 +581,21 @@ test("page rules match structure, never translated text", async () => {
       /^(display: none !important;|--shreddit-header-height: 0px !important; --header-height: 0px !important;)$/,
       selector,
     );
+  }
+});
+
+test("hides a post's author slot and the separator after it once both name and avatar hide", async () => {
+  const slot = 'shreddit-post [slot="authorName"] { display: none !important; }';
+  for (const [settings, hidden] of [
+    [{ hideUsernames: true }, false],
+    [{ hideAvatars: true }, false],
+    [{ hideUsernames: true, hideAvatars: true }, true],
+    [{ hideSocialSignals: true }, true],
+  ]) {
+    const content = await loadContent({ settings, startUrl: POST_PAGE });
+    const rules = content.injectedStyles[0].textContent;
+    assert.equal(rules.includes(slot), hidden, JSON.stringify(settings));
+    assert.equal(rules.includes(".created-separator"), hidden, JSON.stringify(settings));
   }
 });
 
@@ -799,29 +814,32 @@ function createShadowHost() {
 
 test("writes shadow-root rules once and empties them when signals show again", async () => {
   const post = createShadowHost();
+  const ad = createShadowHost();
   const actionRow = createShadowHost();
   const content = await loadContent({
     querySelectorAll: (selector) => ({
       "shreddit-post": [post],
+      "shreddit-ad-post": [ad],
       "shreddit-comment-action-row": [actionRow],
     })[selector] || [],
     settings: { hideVotes: true, hideAwards: true },
     startUrl: "https://www.reddit.com/r/test/comments/abc/title/",
   });
 
-  for (const host of [post, actionRow]) {
+  // Ads have votes of their own.
+  for (const host of [post, ad, actionRow]) {
     assert.equal(host.styles.length, 1);
     assert.equal(host.styles[0].id, "frontfilter-social-signals-style");
   }
   // Unchanged shadow stylesheets are not rewritten on later mutations.
   content.processFilteredContent();
-  assert.deepEqual([post.writes, actionRow.writes], [1, 1]);
+  assert.deepEqual([post.writes, ad.writes, actionRow.writes], [1, 1, 1]);
 
   for (const setting of ["hideAwards", "hideVotes"]) {
     content.storageListeners[0]({ [setting]: { newValue: false } }, "local");
     await settle();
   }
-  for (const host of [post, actionRow]) {
+  for (const host of [post, ad, actionRow]) {
     assert.equal(host.styles.length, 1);
     assert.equal(host.styles[0].textContent, "");
   }
